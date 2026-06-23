@@ -1,7 +1,7 @@
 extends Node2D
 
-const CELL_SIZE := 48
-const CELL_GAP := 4
+const CELL_SIZE := 96
+const CELL_GAP := 8
 const BOARD_OFFSET := Vector2(96, 96)
 
 const FLOOR_COLOR := Color(0.16, 0.18, 0.22)
