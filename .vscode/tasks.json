@@ -1,0 +1,50 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Godot: Run Project",
+            "type": "shell",
+            "command": "D:\\Godot_v4.6.1-stable_win64.exe\\Godot_v4.6.1-stable_win64.exe",
+            "args": [
+                "--path",
+                "${workspaceFolder}"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Godot: Run Project with Remote Debug",
+            "type": "shell",
+            "command": "D:\\Godot_v4.6.1-stable_win64.exe\\Godot_v4.6.1-stable_win64.exe",
+            "args": [
+                "--path",
+                "${workspaceFolder}",
+                "--remote-debug",
+                "tcp://127.0.0.1:6007"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Godot: Check GDScript",
+            "type": "shell",
+            "command": "D:\\Godot_v4.6.1-stable_win64.exe\\Godot_v4.6.1-stable_win64_console.exe",
+            "args": [
+                "--headless",
+                "--path",
+                "${workspaceFolder}",
+                "--check-only",
+                "--script",
+                "res://scripts/main.gd"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        }
+    ]
+}

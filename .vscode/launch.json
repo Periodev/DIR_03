@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "GDScript: Launch DIR3",
+            "type": "godot",
+            "request": "launch",
+            "project": "${workspaceFolder}",
+            "scene": "main",
+            "address": "127.0.0.1",
+            "port": 6007,
+            "editor_path": "D:\\Godot_v4.6.1-stable_win64.exe\\Godot_v4.6.1-stable_win64.exe",
+            "debug_collisions": false,
+            "debug_paths": false,
+            "debug_navigation": false,
+            "single_threaded_scene": true,
+            "additional_options": ""
+        },
+        {
+            "name": "GDScript: Attach to Godot",
+            "type": "godot",
+            "request": "attach",
+            "address": "127.0.0.1",
+            "port": 6007
+        }
+    ]
+}
