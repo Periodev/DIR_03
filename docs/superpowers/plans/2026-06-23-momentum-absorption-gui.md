@@ -54,7 +54,7 @@ If the target cell is empty, move the player without changing momentum.
 
 - [ ] **Step 3: Add block push resolution**
 
-If the target cell contains a block and the next cell is empty, move the block, move the player, and set `momentum_slot` to the push direction.
+If the target cell contains a block and the next cell is empty, move the block, keep the player in place, and set `momentum_slot` to the push direction.
 
 - [ ] **Step 4: Preserve momentum on failed moves**
 

@@ -97,9 +97,8 @@ func try_move(direction: Vector2i, direction_name: String) -> void:
 		return
 
 	block_cells[block_index] = block_target
-	player_cell = target
 	momentum_slot = direction_name
-	message_label.text = "Successful push. Absorbed momentum: %s." % direction_name
+	message_label.text = "Successful push. Player stayed in place. Absorbed momentum: %s." % direction_name
 	render_all()
 
 
