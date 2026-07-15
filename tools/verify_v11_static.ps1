@@ -71,6 +71,14 @@ $checks = @(
 	@{
 		Name = "main.gd uses large installed vector arrow font"
 		Pass = $main -match "const\s+INSTALLED_VECTOR_FONT_SIZE\s*:=\s*(4[4-9]|[5-9][0-9])"
+	},
+	@{
+		Name = "main.gd overwrites player queue on successful push"
+		Pass = $main -match "player_queue\s*=\s*direction_name"
+	},
+	@{
+		Name = "main.gd has no queue rejection feedback"
+		Pass = $main -notmatch "Queue full|rejected|reject"
 	}
 )
 

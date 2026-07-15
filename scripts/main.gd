@@ -136,13 +136,13 @@ func try_move(direction: Vector2i, direction_name: String) -> void:
 	pushed_block["cell"] = block_target
 	blocks[block_index] = pushed_block
 
-	var queue_result := enqueue_player_queue(direction_name)
-	set_message("Push succeeded. Player stayed in place. %s" % queue_result)
+	enqueue_player_queue(direction_name)
+	set_message("Push succeeded. Player stayed in place. Queue is now %s." % direction_name)
 	append_debug_log("Push %s: block %s -> %s; %s" % [
 		direction_name,
 		block_label(pushed_block["id"]),
 		cell_text(block_target),
-		queue_result,
+		"queue overwritten",
 	])
 	render_all()
 	end_atomic_input()
@@ -304,11 +304,8 @@ func duplicate_initial_blocks() -> Array[Dictionary]:
 
 
 func enqueue_player_queue(direction_name: String) -> String:
-	if player_queue == "":
-		player_queue = direction_name
-		return "Queue accepted %s." % direction_name
-
-	return "Queue full; rejected %s." % direction_name
+	player_queue = direction_name
+	return "Queue set to %s." % direction_name
 
 
 func consume_carrier_vector(carrier_index: int, carrier: Dictionary) -> void:
