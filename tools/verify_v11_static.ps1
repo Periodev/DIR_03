@@ -2,9 +2,11 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 $mainPath = Join-Path $root "scripts/main.gd"
+$asciiMapPath = Join-Path $root "scripts/ascii_map.gd"
 $projectPath = Join-Path $root "project.godot"
 
 $main = Get-Content -LiteralPath $mainPath -Raw
+$asciiMap = Get-Content -LiteralPath $asciiMapPath -Raw
 $project = Get-Content -LiteralPath $projectPath -Raw
 
 $checks = @(
@@ -79,6 +81,18 @@ $checks = @(
 	@{
 		Name = "main.gd has no queue rejection feedback"
 		Pass = $main -notmatch "Queue full|rejected|reject"
+	},
+	@{
+		Name = "ASCII map parser supports block target markers"
+		Pass = $asciiMap -match '"\*"' -and $asciiMap -match '"goal_cells"'
+	},
+	@{
+		Name = "main.gd draws block target markers"
+		Pass = $main -match "goal_cells\.has\(cell\)" -and $main -match "GOAL_MARKER_COLOR"
+	},
+	@{
+		Name = "main.gd highlights blocks on target markers"
+		Pass = $main -match "GOAL_BLOCK_BORDER_COLOR" -and $main -match "if goal_cells\.has\(cell\):\s*add_rect\(object_layer"
 	}
 )
 

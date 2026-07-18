@@ -1,5 +1,7 @@
 extends Node2D
 
+const AsciiMapParser = preload("res://scripts/ascii_map.gd")
+
 const CELL_SIZE := 96
 const CELL_GAP := 8
 const BOARD_OFFSET := Vector2(96, 96)
@@ -12,36 +14,35 @@ const WALL_COLOR := Color(0.06, 0.07, 0.09)
 const BLOCK_COLOR := Color(0.86, 0.56, 0.22)
 const INSTALLED_BLOCK_COLOR := Color(0.95, 0.68, 0.28)
 const PLAYER_COLOR := Color(0.25, 0.62, 1.0)
+const GOAL_MARKER_COLOR := Color(0.35, 0.95, 0.62)
+const GOAL_BLOCK_BORDER_COLOR := Color(0.35, 0.95, 0.62)
 const GRID_LINE_COLOR := Color(0.32, 0.35, 0.40)
 const DEBUG_PANEL_COLOR := Color(0.08, 0.09, 0.11, 0.92)
 
 const EMPTY := 0
 const WALL := 1
-const INITIAL_PLAYER_CELL := Vector2i(2, 3)
-const INITIAL_BLOCKS: Array[Dictionary] = [
-	{"id": 1, "cell": Vector2i(4, 4), "vector": ""},
-	{"id": 2, "cell": Vector2i(6, 2), "vector": ""},
-	{"id": 3, "cell": Vector2i(3, 5), "vector": ""},
-]
+const INITIAL_ASCII_MAP := """
+#########
+#.......#
+#.....B.#
+#@.#....#
+#..A..*.#
+#.C..#..#
+#.......#
+#########
+"""
 
-var terrain: Array[Array] = [
-	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-	[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-	[1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-	[1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-	[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-	[1, 0, 0, 0, 0, 0, 1, 0, 0, 1],
-	[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-]
-
-var player_cell := INITIAL_PLAYER_CELL
+var terrain: Array[Array] = []
+var initial_player_cell := Vector2i.ZERO
+var initial_blocks: Array[Dictionary] = []
+var goal_cells: Array[Vector2i] = []
+var player_cell := Vector2i.ZERO
 var player_queue := ""
 var facing_direction := Vector2i.RIGHT
 var facing_name := "Right"
 var input_locked := false
 
-var blocks: Array[Dictionary] = duplicate_initial_blocks()
+var blocks: Array[Dictionary] = []
 var install_order: Array[int] = []
 var debug_lines: Array[String] = []
 
@@ -54,6 +55,9 @@ var debug_log_label: Label
 
 
 func _ready() -> void:
+	if not load_initial_level():
+		return
+
 	board_layer = Node2D.new()
 	board_layer.name = "BoardLayer"
 	add_child(board_layer)
@@ -276,7 +280,7 @@ func trigger_vector() -> void:
 
 func reset_level() -> void:
 	begin_atomic_input()
-	player_cell = INITIAL_PLAYER_CELL
+	player_cell = initial_player_cell
 	player_queue = ""
 	facing_direction = Vector2i.RIGHT
 	facing_name = "Right"
@@ -291,10 +295,25 @@ func reset_level() -> void:
 
 func duplicate_initial_blocks() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	for block in INITIAL_BLOCKS:
+	for block in initial_blocks:
 		result.append(block.duplicate(true))
 
 	return result
+
+
+func load_initial_level() -> bool:
+	var level_data := AsciiMapParser.parse(INITIAL_ASCII_MAP)
+	if level_data.has("error"):
+		push_error("Invalid INITIAL_ASCII_MAP: %s" % level_data["error"])
+		return false
+
+	terrain = level_data["terrain"]
+	initial_player_cell = level_data["player_cell"]
+	initial_blocks = level_data["blocks"]
+	goal_cells = level_data["goal_cells"]
+	player_cell = initial_player_cell
+	blocks = duplicate_initial_blocks()
+	return true
 
 
 func enqueue_player_queue(direction_name: String) -> String:
@@ -356,6 +375,8 @@ func draw_board() -> void:
 			var color := WALL_COLOR if terrain[y][x] == WALL else FLOOR_COLOR
 			add_rect(board_layer, cell_to_position(cell), Vector2(CELL_SIZE, CELL_SIZE), color)
 			add_rect_outline(board_layer, cell_to_position(cell), Vector2(CELL_SIZE, CELL_SIZE), GRID_LINE_COLOR)
+			if goal_cells.has(cell):
+				add_centered_label(board_layer, cell, "*", GOAL_MARKER_COLOR, 36)
 
 
 func draw_blocks() -> void:
@@ -363,6 +384,8 @@ func draw_blocks() -> void:
 		var cell: Vector2i = block["cell"]
 		var vector_name: String = block["vector"]
 		var color := INSTALLED_BLOCK_COLOR if vector_name != "" else BLOCK_COLOR
+		if goal_cells.has(cell):
+			add_rect(object_layer, cell_to_position(cell) + Vector2(4, 4), Vector2(CELL_SIZE - 8, CELL_SIZE - 8), GOAL_BLOCK_BORDER_COLOR)
 		add_rect(object_layer, cell_to_position(cell) + Vector2(CELL_GAP, CELL_GAP), Vector2(CELL_SIZE - CELL_GAP * 2, CELL_SIZE - CELL_GAP * 2), color)
 
 		if vector_name != "":
@@ -371,7 +394,7 @@ func draw_blocks() -> void:
 
 func draw_player() -> void:
 	add_rect(object_layer, cell_to_position(player_cell) + Vector2(CELL_GAP, CELL_GAP), Vector2(CELL_SIZE - CELL_GAP * 2, CELL_SIZE - CELL_GAP * 2), PLAYER_COLOR)
-	var player_text := "P" if player_queue == "" else "P%s" % momentum_arrow(player_queue)
+	var player_text := "@" if player_queue == "" else "@%s" % momentum_arrow(player_queue)
 	add_centered_label(object_layer, player_cell, player_text, Color.WHITE, 22)
 
 	var facing_label := Label.new()
