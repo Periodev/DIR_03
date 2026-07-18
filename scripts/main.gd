@@ -21,16 +21,7 @@ const DEBUG_PANEL_COLOR := Color(0.08, 0.09, 0.11, 0.92)
 
 const EMPTY := 0
 const WALL := 1
-const INITIAL_ASCII_MAP := """
-#########
-#.......#
-#.....B.#
-#@.#....#
-#..A..*.#
-#.C..#..#
-#.......#
-#########
-"""
+const INITIAL_LEVEL_PATH := "res://levels/level_01.txt"
 
 var terrain: Array[Array] = []
 var initial_player_cell := Vector2i.ZERO
@@ -302,9 +293,14 @@ func duplicate_initial_blocks() -> Array[Dictionary]:
 
 
 func load_initial_level() -> bool:
-	var level_data := AsciiMapParser.parse(INITIAL_ASCII_MAP)
+	var level_file := FileAccess.open(INITIAL_LEVEL_PATH, FileAccess.READ)
+	if level_file == null:
+		push_error("Unable to open level file: %s" % INITIAL_LEVEL_PATH)
+		return false
+
+	var level_data := AsciiMapParser.parse(level_file.get_as_text())
 	if level_data.has("error"):
-		push_error("Invalid INITIAL_ASCII_MAP: %s" % level_data["error"])
+		push_error("Invalid level file %s: %s" % [INITIAL_LEVEL_PATH, level_data["error"]])
 		return false
 
 	terrain = level_data["terrain"]

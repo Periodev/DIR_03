@@ -3,10 +3,12 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $mainPath = Join-Path $root "scripts/main.gd"
 $asciiMapPath = Join-Path $root "scripts/ascii_map.gd"
+$levelPath = Join-Path $root "levels/level_01.txt"
 $projectPath = Join-Path $root "project.godot"
 
 $main = Get-Content -LiteralPath $mainPath -Raw
 $asciiMap = Get-Content -LiteralPath $asciiMapPath -Raw
+$level = Get-Content -LiteralPath $levelPath -Raw
 $project = Get-Content -LiteralPath $projectPath -Raw
 
 $checks = @(
@@ -87,12 +89,28 @@ $checks = @(
 		Pass = $asciiMap -match '"\*"' -and $asciiMap -match '"goal_cells"'
 	},
 	@{
+		Name = "ASCII map parser supports lowercase blocks on targets"
+		Pass = $asciiMap -match "is_lowercase_block" -and $asciiMap -match "symbol\.to_upper\(\)"
+	},
+	@{
+		Name = "ASCII map parser supports players on targets"
+		Pass = $asciiMap -match '"\+"' -and $asciiMap -match 'player on target'
+	},
+	@{
 		Name = "main.gd draws block target markers"
 		Pass = $main -match "goal_cells\.has\(cell\)" -and $main -match "GOAL_MARKER_COLOR"
 	},
 	@{
 		Name = "main.gd highlights blocks on target markers"
 		Pass = $main -match "GOAL_BLOCK_BORDER_COLOR" -and $main -match "if goal_cells\.has\(cell\):\s*add_rect\(object_layer"
+	},
+	@{
+		Name = "main.gd loads the independent level file"
+		Pass = $main -match 'INITIAL_LEVEL_PATH\s*:=\s*"res://levels/level_01\.txt"' -and $main -match "FileAccess\.open\(INITIAL_LEVEL_PATH"
+	},
+	@{
+		Name = "level file contains a player start"
+		Pass = $level -match "@"
 	}
 )
 
