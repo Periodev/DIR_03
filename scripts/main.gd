@@ -48,7 +48,6 @@ var debug_lines: Array[String] = []
 var board_layer: Node2D
 var object_layer: Node2D
 var hud_layer: CanvasLayer
-var queue_label: Label
 var message_label: Label
 var debug_state_label: Label
 var debug_log_label: Label
@@ -67,13 +66,8 @@ func _ready() -> void:
 	hud_layer.name = "HudLayer"
 	add_child(hud_layer)
 
-	queue_label = Label.new()
-	queue_label.position = Vector2(96, 24)
-	queue_label.add_theme_font_size_override("font_size", 24)
-	hud_layer.add_child(queue_label)
-
 	message_label = Label.new()
-	message_label.position = Vector2(96, 54)
+	message_label.position = Vector2(96, 24)
 	message_label.add_theme_font_size_override("font_size", 16)
 	hud_layer.add_child(message_label)
 
@@ -377,7 +371,8 @@ func draw_blocks() -> void:
 
 func draw_player() -> void:
 	add_rect(object_layer, cell_to_position(player_cell) + Vector2(CELL_GAP, CELL_GAP), Vector2(CELL_SIZE - CELL_GAP * 2, CELL_SIZE - CELL_GAP * 2), PLAYER_COLOR)
-	add_centered_label(object_layer, player_cell, "P", Color.WHITE, 22)
+	var player_text := "P" if player_queue == "" else "P%s" % momentum_arrow(player_queue)
+	add_centered_label(object_layer, player_cell, player_text, Color.WHITE, 22)
 
 	var facing_label := Label.new()
 	facing_label.text = momentum_arrow(facing_name)
@@ -388,8 +383,6 @@ func draw_player() -> void:
 
 
 func update_hud() -> void:
-	var queue_text := "None" if player_queue == "" else player_queue
-	queue_label.text = "Queue: %s" % queue_text
 	debug_state_label.text = debug_state_text()
 	debug_log_label.text = join_strings(debug_lines, "\n")
 
@@ -490,23 +483,23 @@ func end_atomic_input() -> void:
 	update_hud()
 
 
-func add_rect(parent: Node, position: Vector2, size: Vector2, color: Color) -> void:
+func add_rect(parent: Node, rect_position: Vector2, size: Vector2, color: Color) -> void:
 	var rect := ColorRect.new()
-	rect.position = position
+	rect.position = rect_position
 	rect.size = size
 	rect.color = color
 	parent.add_child(rect)
 
 
-func add_rect_outline(parent: Node, position: Vector2, size: Vector2, color: Color) -> void:
+func add_rect_outline(parent: Node, rect_position: Vector2, size: Vector2, color: Color) -> void:
 	var top := ColorRect.new()
-	top.position = position
+	top.position = rect_position
 	top.size = Vector2(size.x, 1)
 	top.color = color
 	parent.add_child(top)
 
 	var left := ColorRect.new()
-	left.position = position
+	left.position = rect_position
 	left.size = Vector2(1, size.y)
 	left.color = color
 	parent.add_child(left)
