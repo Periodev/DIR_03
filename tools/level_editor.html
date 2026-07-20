@@ -103,6 +103,7 @@
           <label>寬<input id="width" type="number" min="3" max="40" value="9"></label>
           <label>高<input id="height" type="number" min="3" max="30" value="8"></label>
           <button id="resize" class="command" type="button">調整網格</button>
+          <button id="clear-all" class="command" type="button" title="清空整張地圖">全清空</button>
           <label>方塊代號<input id="block-label" type="text" maxlength="1" value="A" aria-label="方塊代號"></label>
           <div class="tools" role="toolbar" aria-label="繪製工具">
             <button class="tool" type="button" data-tool="wall" title="牆"><span class="swatch wall"></span>牆</button>
@@ -241,6 +242,11 @@
       heightInput.value = height;
       renderGrid();
     }
+    function clearAll() {
+      const { width, height } = dimensions();
+      cells = Array.from({ length: height }, () => Array.from({ length: width }, createCell));
+      renderGrid();
+    }
     function applyAscii() {
       const lines = outputElement.value.trim().split(/\r?\n/);
       if (!lines.length || !lines[0]) return setStatus("ASCII MAP 不可為空", true);
@@ -272,6 +278,7 @@
     }
     document.querySelectorAll("[data-tool]").forEach(button => button.addEventListener("click", () => setTool(button.dataset.tool)));
     document.querySelector("#resize").addEventListener("click", resizeGrid);
+    document.querySelector("#clear-all").addEventListener("click", clearAll);
     document.querySelector("#apply-ascii").addEventListener("click", applyAscii);
     document.querySelector("#copy-ascii").addEventListener("click", copyAscii);
     blockLabelInput.addEventListener("input", normalizeBlockLabel);
