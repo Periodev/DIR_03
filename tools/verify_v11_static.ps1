@@ -45,6 +45,10 @@ $checks = @(
 		Pass = $main -match "debug_log_label" -and $main -match "append_debug_log"
 	},
 	@{
+		Name = "main.gd writes debug logs to the IDE console"
+		Pass = $main -match 'print\("\[DIR3\] %s" % line\)'
+	},
+	@{
 		Name = "project.godot defines install_vector input"
 		Pass = $project -match "install_vector="
 	},

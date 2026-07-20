@@ -435,6 +435,7 @@ func add_debug_panel() -> void:
 
 func append_debug_log(line: String) -> void:
 	debug_lines.append(line)
+	print("[DIR3] %s" % line)
 	while debug_lines.size() > MAX_DEBUG_LINES:
 		debug_lines.remove_at(0)
 

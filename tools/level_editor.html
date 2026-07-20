@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DIR3 Level Editor</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --canvas: #171b22;
+      --panel: #202631;
+      --line: #3c4656;
+      --text: #eef2f7;
+      --muted: #aab5c5;
+      --floor: #2c3440;
+      --wall: #090b0f;
+      --player: #3e9eff;
+      --block: #dc8e38;
+      --target: #59f2a2;
+      --focus: #f1cd55;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      background: var(--canvas);
+      color: var(--text);
+      font-family: Inter, "Segoe UI", sans-serif;
+    }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .app { max-width: 1520px; margin: 0 auto; padding: 24px; }
+    .topbar { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 20px; }
+    h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0; }
+    .status { color: var(--muted); font-size: 14px; text-align: right; }
+    .status.error { color: #ff9e9e; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; }
+    .workspace, .sidebar { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+    .workspace { min-width: 0; }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; padding: 16px; border-bottom: 1px solid var(--line); }
+    .toolbar label, .field { display: grid; gap: 5px; color: var(--muted); font-size: 12px; }
+    input[type="number"], input[type="text"] {
+      width: 70px; height: 34px; border: 1px solid var(--line); border-radius: 4px;
+      background: #151a22; color: var(--text); padding: 5px 8px;
+    }
+    #block-label { width: 50px; text-align: center; text-transform: uppercase; }
+    .command, .tool {
+      min-height: 34px; border: 1px solid var(--line); border-radius: 4px;
+      background: #1a202a; color: var(--text); padding: 6px 10px;
+    }
+    .command:hover, .tool:hover { border-color: #6a7789; background: #27303d; }
+    .command:focus-visible, .tool:focus-visible, .cell:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .tools { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+    .tool { display: inline-flex; align-items: center; gap: 6px; padding-inline: 9px; }
+    .tool[aria-pressed="true"] { border-color: var(--focus); color: var(--focus); background: #2e2a1c; }
+    .swatch { width: 13px; height: 13px; display: inline-block; border-radius: 2px; border: 1px solid rgba(255,255,255,.22); }
+    .swatch.wall { background: var(--wall); } .swatch.floor { background: var(--floor); }
+    .swatch.target { background: var(--target); } .swatch.player { background: var(--player); }
+    .swatch.block { background: var(--block); } .swatch.clear { background: transparent; border-style: dashed; }
+    .grid-scroller { overflow: auto; padding: 20px; min-height: 530px; }
+    #grid { display: grid; width: max-content; border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+    .cell {
+      position: relative; width: 42px; height: 42px; border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+      background: var(--floor); color: transparent; padding: 0;
+    }
+    .cell.wall { background: var(--wall); }
+    .cell.target::before { content: "*"; color: var(--target); position: absolute; inset: 0; display: grid; place-items: center; font: 700 26px/1 ui-monospace, monospace; }
+    .cell.block::after { content: attr(data-label); position: absolute; inset: 5px; display: grid; place-items: center; background: var(--block); color: #1e160d; font: 700 17px/1 ui-monospace, monospace; }
+    .cell.block.target::after { box-shadow: 0 0 0 3px var(--target); }
+    .cell.player::after { content: "@"; position: absolute; inset: 8px; display: grid; place-items: center; border-radius: 50%; background: var(--player); color: #081321; font: 700 18px/1 ui-monospace, monospace; }
+    .cell.player.target::after { box-shadow: 0 0 0 3px var(--target); }
+    .sidebar { overflow: hidden; }
+    .section { padding: 16px; }
+    .section + .section { border-top: 1px solid var(--line); }
+    h2 { margin: 0 0 10px; font-size: 14px; font-weight: 700; letter-spacing: 0; }
+    textarea { width: 100%; min-height: 260px; resize: vertical; border: 1px solid var(--line); border-radius: 4px; background: #11161d; color: #e5edf8; padding: 12px; font: 15px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .output-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .output-actions .command { flex: 1; }
+    .legend { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; margin: 0; color: var(--muted); font-size: 13px; }
+    .legend dt { margin: 0; color: var(--text); font-family: ui-monospace, monospace; }
+    .legend dd { margin: 0; }
+    @media (max-width: 900px) {
+      .app { padding: 14px; }
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { order: -1; }
+      .toolbar { align-items: start; }
+      .tools { width: 100%; margin-left: 0; }
+      .grid-scroller { min-height: 380px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <h1>DIR3 Level Editor</h1>
+      <div id="status" class="status" aria-live="polite"></div>
+    </header>
+    <div class="layout">
+      <section class="workspace" aria-label="關卡網格">
+        <div class="toolbar">
+          <label>寬<input id="width" type="number" min="3" max="40" value="9"></label>
+          <label>高<input id="height" type="number" min="3" max="30" value="8"></label>
+          <button id="resize" class="command" type="button">調整網格</button>
+          <label>方塊代號<input id="block-label" type="text" maxlength="1" value="A" aria-label="方塊代號"></label>
+          <div class="tools" role="toolbar" aria-label="繪製工具">
+            <button class="tool" type="button" data-tool="wall" title="牆"><span class="swatch wall"></span>牆</button>
+            <button class="tool" type="button" data-tool="floor" title="地板"><span class="swatch floor"></span>地板</button>
+            <button class="tool" type="button" data-tool="target" title="目標"><span class="swatch target"></span>目標</button>
+            <button class="tool" type="button" data-tool="player" title="玩家"><span class="swatch player"></span>玩家</button>
+            <button class="tool" type="button" data-tool="block" title="方塊"><span class="swatch block"></span>方塊</button>
+            <button class="tool" type="button" data-tool="clear" title="清空此格"><span class="swatch clear"></span>清空</button>
+          </div>
+        </div>
+        <div class="grid-scroller"><div id="grid" role="grid" aria-label="關卡編輯網格"></div></div>
+      </section>
+      <aside class="sidebar">
+        <section class="section">
+          <h2>ASCII MAP</h2>
+          <textarea id="ascii-output" spellcheck="false" aria-label="ASCII MAP"></textarea>
+          <div class="output-actions">
+            <button id="apply-ascii" class="command" type="button">套用文字</button>
+            <button id="copy-ascii" class="command" type="button">複製</button>
+          </div>
+        </section>
+        <section class="section">
+          <dl class="legend">
+            <dt>#</dt><dd>牆</dd><dt>.</dt><dd>地板</dd><dt>*</dt><dd>空目標</dd>
+            <dt>@</dt><dd>玩家</dd><dt>+</dt><dd>玩家在目標</dd><dt>A-Z</dt><dd>方塊</dd><dt>a-z</dt><dd>方塊在目標</dd>
+          </dl>
+        </section>
+      </aside>
+    </div>
+  </main>
+  <script>
+    "use strict";
+
+    const initialMap = `#########
+#.......#
+#.....B.#
+#@.#....#
+#..A..*.#
+#.C..#..#
+#.......#
+#########`;
+    const gridElement = document.querySelector("#grid");
+    const outputElement = document.querySelector("#ascii-output");
+    const statusElement = document.querySelector("#status");
+    const widthInput = document.querySelector("#width");
+    const heightInput = document.querySelector("#height");
+    const blockLabelInput = document.querySelector("#block-label");
+    let selectedTool = "wall";
+    let cells = [];
+
+    function createCell() { return { wall: false, target: false, player: false, block: "" }; }
+    function setStatus(message, isError = false) {
+      statusElement.textContent = message;
+      statusElement.classList.toggle("error", isError);
+    }
+    function dimensions() { return { width: cells[0]?.length || 0, height: cells.length }; }
+    function normalizeBlockLabel() {
+      const label = blockLabelInput.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1);
+      blockLabelInput.value = label || "A";
+      return blockLabelInput.value;
+    }
+    function clearPlayer() {
+      cells.flat().forEach(cell => { cell.player = false; });
+    }
+    function removeBlockLabel(label) {
+      cells.flat().forEach(cell => { if (cell.block === label) cell.block = ""; });
+    }
+    function encodeCell(cell) {
+      if (cell.wall) return "#";
+      if (cell.player) return cell.target ? "+" : "@";
+      if (cell.block) return cell.target ? cell.block.toLowerCase() : cell.block;
+      return cell.target ? "*" : ".";
+    }
+    function generateAscii() {
+      return cells.map(row => row.map(encodeCell).join("")).join("\n");
+    }
+    function syncOutput() {
+      outputElement.value = generateAscii();
+      const playerCount = cells.flat().filter(cell => cell.player).length;
+      const { width, height } = dimensions();
+      setStatus(playerCount === 1 ? `${width} × ${height}，可用關卡` : `${width} × ${height}，需放置一名玩家`, playerCount !== 1);
+    }
+    function renderGrid() {
+      const { width } = dimensions();
+      gridElement.innerHTML = "";
+      gridElement.style.gridTemplateColumns = `repeat(${width}, 42px)`;
+      cells.forEach((row, y) => row.forEach((cell, x) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `cell${cell.wall ? " wall" : ""}${cell.target ? " target" : ""}${cell.player ? " player" : ""}${cell.block ? " block" : ""}`;
+        button.dataset.x = x;
+        button.dataset.y = y;
+        button.dataset.label = cell.block;
+        button.setAttribute("role", "gridcell");
+        button.setAttribute("aria-label", `(${x}, ${y}) ${encodeCell(cell)}`);
+        button.addEventListener("click", () => editCell(x, y));
+        gridElement.append(button);
+      }));
+      syncOutput();
+    }
+    function editCell(x, y) {
+      const cell = cells[y][x];
+      const label = normalizeBlockLabel();
+      if (selectedTool === "wall") {
+        Object.assign(cell, { wall: true, target: false, player: false, block: "" });
+      } else if (selectedTool === "floor") {
+        cell.wall = false;
+      } else if (selectedTool === "target") {
+        cell.wall = false;
+        cell.target = !cell.target;
+      } else if (selectedTool === "player") {
+        clearPlayer();
+        cell.wall = false;
+        cell.block = "";
+        cell.player = true;
+      } else if (selectedTool === "block") {
+        removeBlockLabel(label);
+        cell.wall = false;
+        cell.player = false;
+        cell.block = label;
+      } else if (selectedTool === "clear") {
+        Object.assign(cell, createCell());
+      }
+      renderGrid();
+    }
+    function setTool(tool) {
+      selectedTool = tool;
+      document.querySelectorAll("[data-tool]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.tool === tool)));
+    }
+    function resizeGrid() {
+      const width = Math.max(3, Math.min(40, Number(widthInput.value) || 9));
+      const height = Math.max(3, Math.min(30, Number(heightInput.value) || 8));
+      const next = Array.from({ length: height }, (_, y) => Array.from({ length: width }, (_, x) => cells[y]?.[x] || createCell()));
+      cells = next;
+      widthInput.value = width;
+      heightInput.value = height;
+      renderGrid();
+    }
+    function applyAscii() {
+      const lines = outputElement.value.trim().split(/\r?\n/);
+      if (!lines.length || !lines[0]) return setStatus("ASCII MAP 不可為空", true);
+      const width = lines[0].length;
+      if (!lines.every(line => line.length === width)) return setStatus("每列寬度必須相同", true);
+      if (width < 3 || width > 40 || lines.length < 3 || lines.length > 30) return setStatus("尺寸需介於 3×3 與 40×30", true);
+      const next = Array.from({ length: lines.length }, () => Array.from({ length: width }, createCell));
+      const labels = new Set();
+      let playerCount = 0;
+      for (let y = 0; y < lines.length; y += 1) for (let x = 0; x < width; x += 1) {
+        const symbol = lines[y][x];
+        const cell = next[y][x];
+        if (symbol === "#") cell.wall = true;
+        else if (symbol === "*") cell.target = true;
+        else if (symbol === "@" || symbol === "+") { cell.player = true; cell.target = symbol === "+"; playerCount += 1; }
+        else if (/^[A-Z]$/.test(symbol) || /^[a-z]$/.test(symbol)) {
+          const label = symbol.toUpperCase();
+          if (labels.has(label)) return setStatus(`方塊代號 ${label} 重複`, true);
+          labels.add(label); cell.block = label; cell.target = symbol === symbol.toLowerCase();
+        } else if (symbol !== ".") return setStatus(`不支援符號：${symbol}`, true);
+      }
+      if (playerCount !== 1) return setStatus("ASCII MAP 需剛好一名玩家", true);
+      cells = next; widthInput.value = width; heightInput.value = lines.length; renderGrid();
+    }
+    async function copyAscii() {
+      outputElement.select();
+      try { await navigator.clipboard.writeText(outputElement.value); setStatus("ASCII MAP 已複製"); }
+      catch (_) { document.execCommand("copy"); setStatus("ASCII MAP 已選取，可直接複製"); }
+    }
+    document.querySelectorAll("[data-tool]").forEach(button => button.addEventListener("click", () => setTool(button.dataset.tool)));
+    document.querySelector("#resize").addEventListener("click", resizeGrid);
+    document.querySelector("#apply-ascii").addEventListener("click", applyAscii);
+    document.querySelector("#copy-ascii").addEventListener("click", copyAscii);
+    blockLabelInput.addEventListener("input", normalizeBlockLabel);
+    outputElement.value = initialMap;
+    applyAscii();
+    setTool("wall");
+  </script>
+</body>
+</html>
