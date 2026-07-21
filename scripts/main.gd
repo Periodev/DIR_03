@@ -98,9 +98,21 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func try_move(direction: Vector2i, direction_name: String) -> void:
 	begin_atomic_input()
+	var target := player_cell + direction
+	var block_index := find_block_index_at(target)
+
+	if block_index != -1 and facing_direction != direction:
+		facing_direction = direction
+		facing_name = direction_name
+		var block_id := int(blocks[block_index]["id"])
+		set_message("Turned %s to face block. Press again to push." % direction_name)
+		append_debug_log("Turn %s: faced block %s without pushing." % [direction_name, block_label(block_id)])
+		render_all()
+		end_atomic_input()
+		return
+
 	facing_direction = direction
 	facing_name = direction_name
-	var target := player_cell + direction
 
 	if not is_cell_walkable_for_player(player_cell, target):
 		set_message("Blocked by wall, fence or board edge. Queue unchanged.")
@@ -108,7 +120,6 @@ func try_move(direction: Vector2i, direction_name: String) -> void:
 		end_atomic_input()
 		return
 
-	var block_index := find_block_index_at(target)
 	if block_index == -1:
 		player_cell = target
 		set_message("Moved through empty space. Queue unchanged.")

@@ -1,0 +1,59 @@
+# DIR3 Fence Map Format Comparison
+#
+# Same logical map in two authoring formats.
+# Cells:
+#   AB.C*
+#   @D..#
+#
+# Horizontal fences separate the two cell rows below columns 0, 1, and 2.
+# No vertical fences are present.
+#
+# This is an authoring comparison. The runtime parser loads Format A;
+# Format B remains a possible future authoring format.
+
+============================================================
+FORMAT A: SECTIONED CELL + EDGE MATRICES
+============================================================
+
+!cell-edge-v1
+
+[cells]
+AB.C*
+@D..#
+
+# horizontal_edges[y][x] separates (x, y) from (x, y + 1).
+# There is one row because the cell map is 5 x 2.
+[horizontal_edges]
+---..
+
+# vertical_edges[y][x] separates (x, y) from (x + 1, y).
+# Each row has width - 1 entries.
+[vertical_edges]
+....
+....
+
+============================================================
+FORMAT B: EXPANDED EDGE GRID
+============================================================
+
+!edge-grid-v1
+
+# even/even: cell
+# even/odd:  vertical edge (| = fence, . = open)
+# odd/even:  horizontal edge (- = fence, . = open)
+# odd/odd:   corner (+)
+A.B...C.*
+-+-+-+.+.
+@.D.....#
+
+============================================================
+EXPECTED NORMALIZED DATA
+============================================================
+
+terrain:          5 x 2 cells
+horizontal_edges: [---..]
+vertical_edges:   [...., ....]
+
+# Fence behavior:
+# - Physical movement, pushes, triggers, and collisions cannot cross '-'.
+# - Install can cross '-'.

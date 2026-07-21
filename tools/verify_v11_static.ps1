@@ -85,6 +85,10 @@ $checks = @(
 		Pass = $main -match "player_queue\s*=\s*direction_name"
 	},
 	@{
+		Name = "main.gd turns toward blocks before attempting a push"
+		Pass = $main -match "block_index\s*!=\s*-1\s+and\s+facing_direction\s*!=\s*direction" -and $main -match "faced block.*without pushing"
+	},
+	@{
 		Name = "main.gd has no queue rejection feedback"
 		Pass = $main -notmatch "Queue full|rejected|reject"
 	},
