@@ -3,11 +3,79 @@ extends RefCounted
 
 const EMPTY := 0
 const WALL := 1
+const EDGE_FORMAT_HEADER := "!cell-edge-v1"
 
 
-# Map symbols: # wall, . floor, * block target, @ player, + player on target, A-Z blocks, a-z blocks on targets.
+# Legacy symbols: # wall, . floor, * target, @ player, + player on target, A-Z blocks, a-z blocks on targets.
 static func parse(map_text: String) -> Dictionary:
-	var lines: PackedStringArray = map_text.strip_edges().split("\n", false)
+	var normalized_text := map_text.replace("\r\n", "\n").replace("\r", "\n").strip_edges()
+	if normalized_text.is_empty():
+		return {"error": "Map is empty."}
+
+	var lines: PackedStringArray = normalized_text.split("\n", false)
+	if lines[0].strip_edges() == EDGE_FORMAT_HEADER:
+		return parse_cell_edge_map(lines)
+
+	var legacy_data := parse_cells(lines)
+	if legacy_data.has("error"):
+		return legacy_data
+	legacy_data["horizontal_edges"] = make_open_edges(legacy_data["terrain"].size() - 1, legacy_data["terrain"][0].size())
+	legacy_data["vertical_edges"] = make_open_edges(legacy_data["terrain"].size(), legacy_data["terrain"][0].size() - 1)
+	return legacy_data
+
+
+static func parse_cell_edge_map(lines: PackedStringArray) -> Dictionary:
+	var sections := {
+		"cells": PackedStringArray(),
+		"horizontal_edges": PackedStringArray(),
+		"vertical_edges": PackedStringArray(),
+	}
+	var current_section := ""
+
+	for index in range(1, lines.size()):
+		var line := lines[index].strip_edges()
+		if line.is_empty():
+			continue
+		if line.begins_with("[") and line.ends_with("]"):
+			var section_name := line.substr(1, line.length() - 2)
+			if not sections.has(section_name):
+				return {"error": "Unknown section '%s'." % line}
+			if not sections[section_name].is_empty():
+				return {"error": "Section '%s' appears more than once." % section_name}
+			current_section = section_name
+			continue
+		if current_section.is_empty():
+			return {"error": "Map data appears before a section header."}
+		var section_lines: PackedStringArray = sections[current_section]
+		section_lines.append(line)
+		sections[current_section] = section_lines
+
+	for section_name in sections:
+		if sections[section_name].is_empty():
+			return {"error": "Missing or empty section '[%s]'." % section_name}
+
+	var cell_data := parse_cells(sections["cells"])
+	if cell_data.has("error"):
+		return cell_data
+
+	var height: int = cell_data["terrain"].size()
+	var width: int = cell_data["terrain"][0].size()
+	if width < 2 or height < 2:
+		return {"error": "!cell-edge-v1 maps must be at least 2 by 2 cells."}
+
+	var horizontal_data := parse_edge_rows(sections["horizontal_edges"], height - 1, width, "-", "horizontal_edges")
+	if horizontal_data.has("error"):
+		return horizontal_data
+	var vertical_data := parse_edge_rows(sections["vertical_edges"], height, width - 1, "|", "vertical_edges")
+	if vertical_data.has("error"):
+		return vertical_data
+
+	cell_data["horizontal_edges"] = horizontal_data["edges"]
+	cell_data["vertical_edges"] = vertical_data["edges"]
+	return cell_data
+
+
+static func parse_cells(lines: PackedStringArray) -> Dictionary:
 	if lines.is_empty():
 		return {"error": "Map is empty."}
 
@@ -79,3 +147,36 @@ static func parse(map_text: String) -> Dictionary:
 		"blocks": blocks,
 		"goal_cells": goal_cells,
 	}
+
+
+static func parse_edge_rows(lines: PackedStringArray, expected_rows: int, expected_width: int, fence_symbol: String, section_name: String) -> Dictionary:
+	if lines.size() != expected_rows:
+		return {"error": "[%s] has %d rows; expected %d." % [section_name, lines.size(), expected_rows]}
+
+	var edges: Array[Array] = []
+	for y in range(lines.size()):
+		var line := lines[y]
+		if line.length() != expected_width:
+			return {"error": "[%s] row %d has width %d; expected %d." % [section_name, y, line.length(), expected_width]}
+		var edge_row: Array = []
+		for x in range(line.length()):
+			var symbol := line.substr(x, 1)
+			if symbol == ".":
+				edge_row.append(false)
+			elif symbol == fence_symbol:
+				edge_row.append(true)
+			else:
+				return {"error": "Unsupported [%s] symbol '%s' at (%d, %d)." % [section_name, symbol, x, y]}
+		edges.append(edge_row)
+
+	return {"edges": edges}
+
+
+static func make_open_edges(row_count: int, column_count: int) -> Array[Array]:
+	var edges: Array[Array] = []
+	for _row_index in range(row_count):
+		var row: Array = []
+		for _column_index in range(column_count):
+			row.append(false)
+		edges.append(row)
+	return edges

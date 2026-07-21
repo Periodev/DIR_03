@@ -17,6 +17,8 @@ const PLAYER_COLOR := Color(0.25, 0.62, 1.0)
 const GOAL_MARKER_COLOR := Color(0.35, 0.95, 0.62)
 const GOAL_BLOCK_BORDER_COLOR := Color(0.35, 0.95, 0.62)
 const GRID_LINE_COLOR := Color(0.32, 0.35, 0.40)
+const FENCE_COLOR := Color(0.96, 0.76, 0.24)
+const FENCE_THICKNESS := 6.0
 const DEBUG_PANEL_COLOR := Color(0.08, 0.09, 0.11, 0.92)
 
 const EMPTY := 0
@@ -27,6 +29,8 @@ var terrain: Array[Array] = []
 var initial_player_cell := Vector2i.ZERO
 var initial_blocks: Array[Dictionary] = []
 var goal_cells: Array[Vector2i] = []
+var horizontal_edges: Array[Array] = []
+var vertical_edges: Array[Array] = []
 var player_cell := Vector2i.ZERO
 var player_queue := ""
 var facing_direction := Vector2i.RIGHT
@@ -98,9 +102,9 @@ func try_move(direction: Vector2i, direction_name: String) -> void:
 	facing_name = direction_name
 	var target := player_cell + direction
 
-	if not is_cell_walkable_for_player(target):
-		set_message("Blocked by wall or board edge. Queue unchanged.")
-		append_debug_log("Move %s failed: wall or edge." % direction_name)
+	if not is_cell_walkable_for_player(player_cell, target):
+		set_message("Blocked by wall, fence or board edge. Queue unchanged.")
+		append_debug_log("Move %s failed: wall, fence or edge." % direction_name)
 		end_atomic_input()
 		return
 
@@ -114,7 +118,7 @@ func try_move(direction: Vector2i, direction_name: String) -> void:
 		return
 
 	var block_target := target + direction
-	if not can_block_move_to(block_target):
+	if not can_block_move_to(target, block_target):
 		var block_id := int(blocks[block_index]["id"])
 		set_message("Push failed. Queue unchanged.")
 		append_debug_log("Push %s failed: block %s is blocked." % [direction_name, block_label(block_id)])
@@ -218,6 +222,11 @@ func trigger_vector() -> void:
 		append_debug_log("Trigger %s failed: block %s faces wall/edge." % [vector_name, block_label(carrier_id)])
 		end_atomic_input()
 		return
+	if is_fence_between(carrier["cell"], target):
+		set_message("Trigger failed. Fence blocks the vector.")
+		append_debug_log("Trigger %s failed: fence blocks block %s." % [vector_name, block_label(carrier_id)])
+		end_atomic_input()
+		return
 
 	if target == player_cell:
 		set_message("Trigger failed. Player blocks the path.")
@@ -240,7 +249,7 @@ func trigger_vector() -> void:
 		return
 
 	var pushed_target := target + direction
-	if not can_block_move_to(pushed_target):
+	if not can_block_move_to(target, pushed_target):
 		set_message("Trigger failed. Anchor-push target is blocked.")
 		append_debug_log("Trigger %s failed: block %s cannot push block %s." % [
 			vector_name,
@@ -307,6 +316,8 @@ func load_initial_level() -> bool:
 	initial_player_cell = level_data["player_cell"]
 	initial_blocks = level_data["blocks"]
 	goal_cells = level_data["goal_cells"]
+	horizontal_edges = level_data["horizontal_edges"]
+	vertical_edges = level_data["vertical_edges"]
 	player_cell = initial_player_cell
 	blocks = duplicate_initial_blocks()
 	return true
@@ -323,12 +334,28 @@ func consume_carrier_vector(carrier_index: int, carrier: Dictionary) -> void:
 	install_order.remove_at(0)
 
 
-func can_block_move_to(cell: Vector2i) -> bool:
-	return is_inside_board(cell) and not is_wall(cell) and find_block_index_at(cell) == -1 and cell != player_cell
+func can_block_move_to(from: Vector2i, cell: Vector2i) -> bool:
+	return not is_fence_between(from, cell) and is_inside_board(cell) and not is_wall(cell) and find_block_index_at(cell) == -1 and cell != player_cell
 
 
-func is_cell_walkable_for_player(cell: Vector2i) -> bool:
-	return is_inside_board(cell) and not is_wall(cell)
+func is_cell_walkable_for_player(from: Vector2i, cell: Vector2i) -> bool:
+	return not is_fence_between(from, cell) and is_inside_board(cell) and not is_wall(cell)
+
+
+func is_fence_between(from: Vector2i, to: Vector2i) -> bool:
+	if not is_inside_board(from) or not is_inside_board(to):
+		return true
+
+	var delta := to - from
+	if delta == Vector2i.RIGHT:
+		return vertical_edges[from.y][from.x]
+	if delta == Vector2i.LEFT:
+		return vertical_edges[from.y][to.x]
+	if delta == Vector2i.DOWN:
+		return horizontal_edges[from.y][from.x]
+	if delta == Vector2i.UP:
+		return horizontal_edges[to.y][from.x]
+	return true
 
 
 func is_inside_board(cell: Vector2i) -> bool:
@@ -373,6 +400,21 @@ func draw_board() -> void:
 			add_rect_outline(board_layer, cell_to_position(cell), Vector2(CELL_SIZE, CELL_SIZE), GRID_LINE_COLOR)
 			if goal_cells.has(cell):
 				add_centered_label(board_layer, cell, "*", GOAL_MARKER_COLOR, 36)
+	draw_fences()
+
+
+func draw_fences() -> void:
+	for y in range(horizontal_edges.size()):
+		for x in range(horizontal_edges[y].size()):
+			if horizontal_edges[y][x]:
+				var horizontal_position := cell_to_position(Vector2i(x, y)) + Vector2(0, CELL_SIZE - FENCE_THICKNESS / 2.0)
+				add_rect(board_layer, horizontal_position, Vector2(CELL_SIZE, FENCE_THICKNESS), FENCE_COLOR)
+
+	for y in range(vertical_edges.size()):
+		for x in range(vertical_edges[y].size()):
+			if vertical_edges[y][x]:
+				var vertical_position := cell_to_position(Vector2i(x, y)) + Vector2(CELL_SIZE - FENCE_THICKNESS / 2.0, 0)
+				add_rect(board_layer, vertical_position, Vector2(FENCE_THICKNESS, CELL_SIZE), FENCE_COLOR)
 
 
 func draw_blocks() -> void:
