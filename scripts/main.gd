@@ -13,6 +13,8 @@ const FLOOR_COLOR := Color(0.16, 0.18, 0.22)
 const WALL_COLOR := Color(0.06, 0.07, 0.09)
 const BLOCK_COLOR := Color(0.86, 0.56, 0.22)
 const INSTALLED_BLOCK_COLOR := Color(0.95, 0.68, 0.28)
+const RECOVERY_BLOCK_COLOR := Color(0.67, 0.34, 0.76)
+const INSTALLED_RECOVERY_BLOCK_COLOR := Color(0.86, 0.48, 0.91)
 const PLAYER_COLOR := Color(0.25, 0.62, 1.0)
 const GOAL_MARKER_COLOR := Color(0.35, 0.95, 0.62)
 const GOAL_BLOCK_BORDER_COLOR := Color(0.35, 0.95, 0.62)
@@ -240,8 +242,15 @@ func trigger_vector() -> void:
 		return
 
 	if target == player_cell:
-		set_message("Trigger failed. Player blocks the path.")
-		append_debug_log("Trigger %s failed: player blocks block %s." % [vector_name, block_label(carrier_id)])
+		if is_recovery_block(carrier):
+			player_queue = vector_name
+			consume_carrier_vector(carrier_index, carrier)
+			set_message("Recovered %s from block %s. Player queue overwritten." % [vector_name, block_label(carrier_id)])
+			append_debug_log("Recover: block %s hit player; queue overwritten with %s." % [block_label(carrier_id), vector_name])
+			render_all()
+		else:
+			set_message("Trigger failed. Player blocks the path.")
+			append_debug_log("Trigger %s failed: player blocks block %s." % [vector_name, block_label(carrier_id)])
 		end_atomic_input()
 		return
 
@@ -345,6 +354,10 @@ func consume_carrier_vector(carrier_index: int, carrier: Dictionary) -> void:
 	install_order.remove_at(0)
 
 
+func is_recovery_block(block: Dictionary) -> bool:
+	return block.get("kind", AsciiMapParser.BLOCK_KIND_NORMAL) == AsciiMapParser.BLOCK_KIND_RECOVERY
+
+
 func can_block_move_to(from: Vector2i, cell: Vector2i) -> bool:
 	return not is_fence_between(from, cell) and is_inside_board(cell) and not is_wall(cell) and find_block_index_at(cell) == -1 and cell != player_cell
 
@@ -432,13 +445,29 @@ func draw_blocks() -> void:
 	for block in blocks:
 		var cell: Vector2i = block["cell"]
 		var vector_name: String = block["vector"]
-		var color := INSTALLED_BLOCK_COLOR if vector_name != "" else BLOCK_COLOR
+		var recovery_block := is_recovery_block(block)
+		var color := BLOCK_COLOR
+		if recovery_block:
+			color = INSTALLED_RECOVERY_BLOCK_COLOR if vector_name != "" else RECOVERY_BLOCK_COLOR
+		elif vector_name != "":
+			color = INSTALLED_BLOCK_COLOR
 		if goal_cells.has(cell):
 			add_rect(object_layer, cell_to_position(cell) + Vector2(4, 4), Vector2(CELL_SIZE - 8, CELL_SIZE - 8), GOAL_BLOCK_BORDER_COLOR)
 		add_rect(object_layer, cell_to_position(cell) + Vector2(CELL_GAP, CELL_GAP), Vector2(CELL_SIZE - CELL_GAP * 2, CELL_SIZE - CELL_GAP * 2), color)
+		if recovery_block:
+			add_recovery_marker(cell)
 
 		if vector_name != "":
 			add_centered_label(object_layer, cell, momentum_arrow(vector_name), Color(1.0, 0.94, 0.35), INSTALLED_VECTOR_FONT_SIZE)
+
+
+func add_recovery_marker(cell: Vector2i) -> void:
+	var marker := Label.new()
+	marker.text = "↺"
+	marker.add_theme_font_size_override("font_size", 20)
+	marker.add_theme_color_override("font_color", Color.WHITE)
+	marker.position = cell_to_position(cell) + Vector2(CELL_SIZE - 34, 8)
+	object_layer.add_child(marker)
 
 
 func draw_player() -> void:
@@ -501,8 +530,9 @@ func debug_state_text() -> String:
 	lines.append("Install order: %s" % install_order_text())
 	lines.append("")
 	for block in blocks:
-		lines.append("%s: cell=%s vector=%s" % [
+		lines.append("%s: kind=%s cell=%s vector=%s" % [
 			block_label(block["id"]),
+			block.get("kind", AsciiMapParser.BLOCK_KIND_NORMAL),
 			cell_text(block["cell"]),
 			"None" if block["vector"] == "" else block["vector"],
 		])

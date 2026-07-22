@@ -101,6 +101,18 @@ $checks = @(
 		Pass = $asciiMap -match "is_lowercase_block" -and $asciiMap -match "symbol\.to_upper\(\)"
 	},
 	@{
+		Name = "ASCII map parser classifies R-Z as recovery blocks"
+		Pass = $asciiMap -match "RECOVERY_BLOCK_START_CODE\s*:=\s*82" -and $asciiMap -match '"kind":\s*block_kind'
+	},
+	@{
+		Name = "main.gd recovers vectors by overwriting the player queue"
+		Pass = $main -match "is_recovery_block\(carrier\)" -and $main -match "player_queue\s*=\s*vector_name" -and $main -match "queue overwritten"
+	},
+	@{
+		Name = "main.gd visually distinguishes recovery blocks"
+		Pass = $main -match "RECOVERY_BLOCK_COLOR" -and $main -match "add_recovery_marker"
+	},
+	@{
 		Name = "ASCII map parser supports players on targets"
 		Pass = $asciiMap -match '"\+"' -and $asciiMap -match 'player on target'
 	},

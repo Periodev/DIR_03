@@ -16,6 +16,7 @@
       --wall: #090b0f;
       --player: #3e9eff;
       --block: #dc8e38;
+      --recovery: #ad57c2;
       --target: #59f2a2;
       --fence: #f1cd55;
       --focus: #f1cd55;
@@ -71,6 +72,7 @@
     .cell.wall { background: var(--wall); }
     .cell.target::before { content: "*"; color: var(--target); position: absolute; inset: 0; display: grid; place-items: center; font: 700 26px/1 ui-monospace, monospace; }
     .cell.block::after { content: attr(data-label); position: absolute; inset: 5px; display: grid; place-items: center; background: var(--block); color: #1e160d; font: 700 17px/1 ui-monospace, monospace; }
+    .cell.block.recovery::after { background: var(--recovery); color: #fff; }
     .cell.block.target::after { box-shadow: 0 0 0 3px var(--target); }
     .cell.player::after { content: "@"; position: absolute; inset: 8px; display: grid; place-items: center; border-radius: 50%; background: var(--player); color: #081321; font: 700 18px/1 ui-monospace, monospace; }
     .cell.player.target::after { box-shadow: 0 0 0 3px var(--target); }
@@ -147,7 +149,8 @@
         <section class="section">
           <dl class="legend">
             <dt>#</dt><dd>牆</dd><dt>.</dt><dd>地板與開放邊</dd><dt>*</dt><dd>空目標</dd>
-            <dt>@</dt><dd>玩家</dd><dt>+</dt><dd>玩家在目標</dd><dt>A-Z</dt><dd>方塊</dd><dt>a-z</dt><dd>方塊在目標</dd>
+            <dt>@</dt><dd>玩家</dd><dt>+</dt><dd>玩家在目標</dd><dt>A-Q</dt><dd>普通塊</dd><dt>R-Z</dt><dd>回收塊</dd>
+            <dt>a-q</dt><dd>普通塊在目標</dd><dt>r-z</dt><dd>回收塊在目標</dd>
             <dt>-</dt><dd>水平柵欄</dd><dt>|</dt><dd>垂直柵欄</dd>
           </dl>
         </section>
@@ -206,6 +209,7 @@ AB.C*
       blockLabelInput.value = label || "A";
       return blockLabelInput.value;
     }
+    function isRecoveryLabel(label) { return label >= "R" && label <= "Z"; }
     function clearPlayer() { cells.flat().forEach(cell => { cell.player = false; }); }
     function removeBlockLabel(label) { cells.flat().forEach(cell => { if (cell.block === label) cell.block = ""; }); }
     function encodeCell(cell) {
@@ -248,9 +252,11 @@ AB.C*
       outputElement.value = generateLevelData();
       const playerCount = cells.flat().filter(cell => cell.player).length;
       const blockCount = cells.flat().filter(cell => cell.block).length;
+      const recoveryCount = cells.flat().filter(cell => isRecoveryLabel(cell.block)).length;
       const targetCount = cells.flat().filter(cell => cell.target).length;
       const { width, height } = dimensions();
-      const summary = `${width} × ${height}，${blockCount} 塊，${targetCount} 目標，${fenceCount()} 柵欄`;
+      const recoverySummary = recoveryCount ? `（${recoveryCount} 回收）` : "";
+      const summary = `${width} × ${height}，${blockCount} 塊${recoverySummary}，${targetCount} 目標，${fenceCount()} 柵欄`;
       setStatus(playerCount === 1 ? `${summary}，可用關卡` : `${summary}，需放置一名玩家`, playerCount !== 1);
     }
     function edgeLabel(orientation, x, y) {
@@ -276,7 +282,7 @@ AB.C*
         wrapper.className = "cell-wrap";
         const button = document.createElement("button");
         button.type = "button";
-        button.className = `cell${cell.wall ? " wall" : ""}${cell.target ? " target" : ""}${cell.player ? " player" : ""}${cell.block ? " block" : ""}`;
+        button.className = `cell${cell.wall ? " wall" : ""}${cell.target ? " target" : ""}${cell.player ? " player" : ""}${cell.block ? " block" : ""}${isRecoveryLabel(cell.block) ? " recovery" : ""}`;
         button.dataset.label = cell.block;
         button.setAttribute("role", "gridcell");
         button.setAttribute("aria-label", `(${x}, ${y}) ${encodeCell(cell)}`);

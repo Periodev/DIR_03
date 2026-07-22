@@ -4,9 +4,13 @@ extends RefCounted
 const EMPTY := 0
 const WALL := 1
 const EDGE_FORMAT_HEADER := "!cell-edge-v1"
+const BLOCK_KIND_NORMAL := "normal"
+const BLOCK_KIND_RECOVERY := "recovery"
+const RECOVERY_BLOCK_START_CODE := 82 # R
 
 
-# Legacy symbols: # wall, . floor, * target, @ player, + player on target, A-Z blocks, a-z blocks on targets.
+# Symbols: # wall, . floor, * target, @ player, + player on target.
+# A-Q are normal blocks and R-Z are recovery blocks; lowercase variants start on targets.
 static func parse(map_text: String) -> Dictionary:
 	var normalized_text := map_text.replace("\r\n", "\n").replace("\r", "\n").strip_edges()
 	if normalized_text.is_empty():
@@ -125,9 +129,11 @@ static func parse_cells(lines: PackedStringArray) -> Dictionary:
 					if block_labels.has(block_label):
 						return {"error": "Block label '%s' is duplicated." % block_label}
 					block_labels[block_label] = true
+					var block_kind := BLOCK_KIND_RECOVERY if block_label.unicode_at(0) >= RECOVERY_BLOCK_START_CODE else BLOCK_KIND_NORMAL
 					blocks.append({
 						"id": blocks.size() + 1,
 						"label": block_label,
+						"kind": block_kind,
 						"cell": Vector2i(x, y),
 						"vector": "",
 					})
