@@ -5,11 +5,13 @@ $mainPath = Join-Path $root "scripts/main.gd"
 $asciiMapPath = Join-Path $root "scripts/ascii_map.gd"
 $levelPath = Join-Path $root "levels/level_01.txt"
 $projectPath = Join-Path $root "project.godot"
+$editorPath = Join-Path $root "tools/level_editor.html"
 
 $main = Get-Content -LiteralPath $mainPath -Raw
 $asciiMap = Get-Content -LiteralPath $asciiMapPath -Raw
 $level = Get-Content -LiteralPath $levelPath -Raw
 $project = Get-Content -LiteralPath $projectPath -Raw
+$editor = Get-Content -LiteralPath $editorPath -Raw
 
 $checks = @(
 	@{
@@ -105,12 +107,28 @@ $checks = @(
 		Pass = $asciiMap -match "RECOVERY_BLOCK_START_CODE\s*:=\s*82" -and $asciiMap -match '"kind":\s*block_kind'
 	},
 	@{
-		Name = "main.gd recovers vectors by overwriting the player queue"
-		Pass = $main -match "is_recovery_block\(carrier\)" -and $main -match "player_queue\s*=\s*vector_name" -and $main -match "queue overwritten"
+		Name = "main.gd retrieves vectors from recovery blocks only while empty-handed"
+		Pass = $main -match 'player_queue\s*==\s*""' -and $main -match 'is_recovery_block\(block\)' -and $main -match 'retrieve_recovery_vector\(block_index, block\)'
+	},
+	@{
+		Name = "main.gd removes retrieved recovery blocks from install order by id"
+		Pass = $main -match 'install_order\.erase\(block\["id"\]\)'
+	},
+	@{
+		Name = "main.gd no longer recovers vectors when blocks hit the player"
+		Pass = $main -notmatch 'is_recovery_block\(carrier\)'
 	},
 	@{
 		Name = "main.gd visually distinguishes recovery blocks"
 		Pass = $main -match "RECOVERY_BLOCK_COLOR" -and $main -match "add_recovery_marker"
+	},
+	@{
+		Name = "level editor has a dedicated recovery block tool"
+		Pass = $editor -match 'data-tool="recovery-block"' -and $editor -match 'swatch recovery'
+	},
+	@{
+		Name = "level editor constrains block labels by block kind"
+		Pass = $editor -match 'blockToolRanges' -and $editor -match '"recovery-block":\s*\{\s*first:\s*"R",\s*last:\s*"Z"'
 	},
 	@{
 		Name = "ASCII map parser supports players on targets"

@@ -73,7 +73,7 @@ func _ready() -> void:
 	hud_layer.add_child(message_label)
 
 	add_debug_panel()
-	message_label.text = "Arrow keys: move/push. X: install queue to faced block. Space: trigger oldest installed vector."
+	message_label.text = "Arrow keys: move/push. X: install; when empty-handed, retrieve from a recovery block. Space: trigger oldest installed vector."
 	append_debug_log("Ready: v1.1 vector queue prototype.")
 	render_all()
 
@@ -157,21 +157,29 @@ func try_move(direction: Vector2i, direction_name: String) -> void:
 func install_vector() -> void:
 	begin_atomic_input()
 	var target := player_cell + facing_direction
-
-	if player_queue == "":
-		set_message("Install failed. Player queue is empty.")
-		append_debug_log("Install failed: queue empty.")
-		end_atomic_input()
-		return
-
 	var block_index := find_block_index_at(target)
 	if block_index == -1:
-		set_message("Install failed. Face an empty-vector block.")
-		append_debug_log("Install %s failed: no block at %s." % [player_queue, cell_text(target)])
+		set_message("Interact failed. Face a block.")
+		append_debug_log("Interact failed: no block at %s." % cell_text(target))
 		end_atomic_input()
 		return
 
 	var block: Dictionary = blocks[block_index]
+	if player_queue == "":
+		if is_recovery_block(block) and block["vector"] != "":
+			retrieve_recovery_vector(block_index, block)
+			end_atomic_input()
+			return
+
+		if block["vector"] == "":
+			set_message("Install failed. Player queue is empty.")
+			append_debug_log("Install failed: queue empty.")
+		else:
+			set_message("Retrieve failed. Only recovery blocks return installed vectors.")
+			append_debug_log("Retrieve failed: block %s is not a recovery block." % block_label(block["id"]))
+		end_atomic_input()
+		return
+
 	if block["vector"] != "":
 		set_message("Install failed. Block already has a vector.")
 		append_debug_log("Install %s failed: block %s already has %s." % [
@@ -242,15 +250,8 @@ func trigger_vector() -> void:
 		return
 
 	if target == player_cell:
-		if is_recovery_block(carrier):
-			player_queue = vector_name
-			consume_carrier_vector(carrier_index, carrier)
-			set_message("Recovered %s from block %s. Player queue overwritten." % [vector_name, block_label(carrier_id)])
-			append_debug_log("Recover: block %s hit player; queue overwritten with %s." % [block_label(carrier_id), vector_name])
-			render_all()
-		else:
-			set_message("Trigger failed. Player blocks the path.")
-			append_debug_log("Trigger %s failed: player blocks block %s." % [vector_name, block_label(carrier_id)])
+		set_message("Trigger failed. Player blocks the path.")
+		append_debug_log("Trigger %s failed: player blocks block %s." % [vector_name, block_label(carrier_id)])
 		end_atomic_input()
 		return
 
@@ -352,6 +353,22 @@ func consume_carrier_vector(carrier_index: int, carrier: Dictionary) -> void:
 	carrier["vector"] = ""
 	blocks[carrier_index] = carrier
 	install_order.remove_at(0)
+
+
+func retrieve_recovery_vector(block_index: int, block: Dictionary) -> void:
+	var vector_name: String = block["vector"]
+	block["vector"] = ""
+	blocks[block_index] = block
+	install_order.erase(block["id"])
+	player_queue = vector_name
+
+	set_message("Retrieved %s from recovery block %s." % [vector_name, block_label(block["id"])])
+	append_debug_log("Retrieve: %s <- block %s; order %s." % [
+		vector_name,
+		block_label(block["id"]),
+		install_order_text(),
+	])
+	render_all()
 
 
 func is_recovery_block(block: Dictionary) -> bool:
