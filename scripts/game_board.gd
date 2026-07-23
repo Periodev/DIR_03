@@ -43,6 +43,7 @@ var level_completed := false
 
 var blocks: Array[Dictionary] = []
 var install_order: Array[int] = []
+var command_history: Array[String] = []
 var debug_lines: Array[String] = []
 var level_source_text := ""
 
@@ -51,6 +52,7 @@ var object_layer: Node2D
 var hud_layer: CanvasLayer
 var debug_panel: Control
 var message_label: Label
+var result_label: Label
 var debug_state_label: Label
 var debug_log_label: Label
 
@@ -76,6 +78,14 @@ func _ready() -> void:
 	message_label.add_theme_font_size_override("font_size", 16)
 	hud_layer.add_child(message_label)
 
+	result_label = Label.new()
+	result_label.position = Vector2(96, 52)
+	result_label.size = Vector2(950, 32)
+	result_label.add_theme_font_size_override("font_size", 16)
+	result_label.add_theme_color_override("font_color", GOAL_MARKER_COLOR)
+	result_label.visible = false
+	hud_layer.add_child(result_label)
+
 	add_debug_panel()
 	message_label.text = "Arrow keys: move/push. X: install; when empty-handed, retrieve from a recovery block. Space: trigger oldest installed vector."
 	append_debug_log("Ready: v1.1 vector queue prototype.")
@@ -87,7 +97,12 @@ func execute_command(command: String) -> bool:
 	if input_locked or level_completed:
 		return false
 
-	match command.to_upper():
+	var normalized_command := command.to_upper()
+	if normalized_command.length() != 1 or not VALID_COMMANDS.contains(normalized_command):
+		return false
+
+	command_history.append(normalized_command)
+	match normalized_command:
 		"U":
 			try_move(Vector2i.UP, "Up")
 		"D":
@@ -100,9 +115,6 @@ func execute_command(command: String) -> bool:
 			install_vector()
 		"T":
 			trigger_vector()
-		_:
-			return false
-
 	return true
 
 
@@ -321,7 +333,10 @@ func reset_level() -> void:
 	level_completed = false
 	blocks = duplicate_initial_blocks()
 	install_order.clear()
+	command_history.clear()
 	debug_lines.clear()
+	result_label.text = ""
+	result_label.visible = false
 	set_message("Level reset.")
 	append_debug_log("Reset: restored initial board, queue, and install order.")
 	check_level_completion()
@@ -424,8 +439,18 @@ func check_level_completion() -> bool:
 		return false
 
 	level_completed = true
+	var input_result := command_history_text()
 	set_message("Level complete. Press F5 to reset.")
 	append_debug_log("Complete: all %s goals contain blocks." % goal_cells.size())
+	append_debug_log("Input result (%s): %s" % [
+		command_history.size(),
+		"(empty)" if input_result == "" else input_result,
+	])
+	result_label.text = "Input result (%s): %s" % [
+		command_history.size(),
+		"(empty)" if input_result == "" else input_result,
+	]
+	result_label.visible = true
 	return true
 
 
@@ -609,6 +634,7 @@ func debug_state_text() -> String:
 	lines.append("Facing: %s" % facing_name)
 	lines.append("Queue: %s" % ("None" if player_queue == "" else player_queue))
 	lines.append("Install order: %s" % install_order_text())
+	lines.append("Inputs: %s" % command_history.size())
 	lines.append("Completed: %s" % ("Yes" if level_completed else "No"))
 	lines.append("")
 	for block in blocks:
@@ -653,6 +679,10 @@ func join_strings(lines: Array[String], separator: String) -> String:
 		result += lines[index]
 
 	return result
+
+
+func command_history_text() -> String:
+	return join_strings(command_history, "")
 
 
 func set_message(text: String) -> void:

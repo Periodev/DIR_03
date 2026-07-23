@@ -174,6 +174,14 @@ $checks = @(
 		Pass = $main -match "var\s+level_completed\s*:=\s*false" -and $main -match 'is_action_pressed\("reset_level"\)[\s\S]*if level_completed:'
 	},
 	@{
+		Name = "main.gd records accepted compact commands"
+		Pass = $main -match "var\s+command_history:\s*Array\[String\]" -and $main -match "command_history\.append\(normalized_command\)"
+	},
+	@{
+		Name = "main.gd reports and clears completed command history"
+		Pass = $main -match 'Input result \(%s\)' -and $main -match "command_history\.clear\(\)"
+	},
+	@{
 		Name = "main.gd loads the independent level file"
 		Pass = $main -match 'INITIAL_LEVEL_PATH\s*:=\s*"res://levels/level_test\.txt"' -and $main -match "FileAccess\.open\(INITIAL_LEVEL_PATH"
 	},
