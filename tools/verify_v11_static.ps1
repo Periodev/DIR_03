@@ -2,12 +2,19 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 $mainPath = Join-Path $root "scripts/main.gd"
+$gameBoardPath = Join-Path $root "scripts/game_board.gd"
+$commandPlayerPath = Join-Path $root "scripts/command_player.gd"
+$commandPlayerScenePath = Join-Path $root "scenes/command_player.tscn"
 $asciiMapPath = Join-Path $root "scripts/ascii_map.gd"
-$levelPath = Join-Path $root "levels/level_01.txt"
+$levelPath = Join-Path $root "levels/level_test.txt"
 $projectPath = Join-Path $root "project.godot"
 $editorPath = Join-Path $root "tools/level_editor.html"
 
-$main = Get-Content -LiteralPath $mainPath -Raw
+$mainEntry = Get-Content -LiteralPath $mainPath -Raw
+$gameBoard = Get-Content -LiteralPath $gameBoardPath -Raw
+$main = "$mainEntry`n$gameBoard"
+$commandPlayer = Get-Content -LiteralPath $commandPlayerPath -Raw
+$commandPlayerScene = Get-Content -LiteralPath $commandPlayerScenePath -Raw
 $asciiMap = Get-Content -LiteralPath $asciiMapPath -Raw
 $level = Get-Content -LiteralPath $levelPath -Raw
 $project = Get-Content -LiteralPath $projectPath -Raw
@@ -143,8 +150,32 @@ $checks = @(
 		Pass = $main -match "GOAL_BLOCK_BORDER_COLOR" -and $main -match "if goal_cells\.has\(cell\):\s*add_rect\(object_layer"
 	},
 	@{
+		Name = "main scene and command player share game_board.gd"
+		Pass = $mainEntry -match 'extends\s+"res://scripts/game_board\.gd"' -and $commandPlayer -match 'extends\s+"res://scripts/game_board\.gd"'
+	},
+	@{
+		Name = "game board dispatches compact UDLRXT commands"
+		Pass = $gameBoard -match 'VALID_COMMANDS\s*:=\s*"UDLRXT"' -and $gameBoard -match 'func\s+execute_command\(command:\s*String\)'
+	},
+	@{
+		Name = "normal input routes through execute_command"
+		Pass = $mainEntry -match 'execute_command\("U"\)' -and $mainEntry -match 'execute_command\("X"\)' -and $mainEntry -match 'execute_command\("T"\)'
+	},
+	@{
+		Name = "standalone command player scene is wired"
+		Pass = $commandPlayerScene -match 'res://scripts/command_player\.gd' -and $commandPlayer -match 'func\s+parse_commands\(source:\s*String\)' -and $commandPlayer -match 'execute_command\(command\)'
+	},
+	@{
+		Name = "main.gd completes levels when every goal contains a block"
+		Pass = $main -match "func\s+is_level_solved\(\)" -and $main -match "goal_cells\.is_empty\(\)" -and $main -match "find_block_index_at\(goal_cell\)"
+	},
+	@{
+		Name = "main.gd locks completed levels while keeping reset available"
+		Pass = $main -match "var\s+level_completed\s*:=\s*false" -and $main -match 'is_action_pressed\("reset_level"\)[\s\S]*if level_completed:'
+	},
+	@{
 		Name = "main.gd loads the independent level file"
-		Pass = $main -match 'INITIAL_LEVEL_PATH\s*:=\s*"res://levels/level_01\.txt"' -and $main -match "FileAccess\.open\(INITIAL_LEVEL_PATH"
+		Pass = $main -match 'INITIAL_LEVEL_PATH\s*:=\s*"res://levels/level_test\.txt"' -and $main -match "FileAccess\.open\(INITIAL_LEVEL_PATH"
 	},
 	@{
 		Name = "level file contains a player start"

@@ -1,0 +1,6 @@
+[project]
+name = "dir3-solver"
+version = "0.1.0"
+description = "Offline shortest-solution and difficulty analysis tools for DIR3 levels."
+requires-python = ">=3.12,<3.13"
+dependencies = []

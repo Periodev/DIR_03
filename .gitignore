@@ -19,3 +19,8 @@ mono_crash.*.json
 # Local Codex/agent workspace data
 .agents/
 .codex/
+
+# Python solver environment and caches
+.venv/
+__pycache__/
+*.py[cod]
