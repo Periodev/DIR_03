@@ -7,12 +7,12 @@
 | 1 | 直接碰撞 | 4 | 16 | 12 | 4 | `RRXT` |
 | 2 | 對位碰撞 | 9 | 41 | 31 | 10 | `UUURULXLT` |
 | 3 | 封口對位碰撞 | 17 | 2,250 | 1,841 | 428 | `RDRRUXUUURRUUUTDD` |
-| 4 | 轉移碰撞 | 5 | 57 | 30 | 27 | `RDXDT` |
+| 4 | 轉移碰撞 | 10 | 223 | 175 | 49 | `RRDXDDRXTT` |
 | 5 | 碰撞 + 折返 | 24 | 2,281 | 1,867 | 416 | `DDDXTDDRXRRDDRTUUULXUTLL` |
 | 6 | 無向塊連續碰撞 | 12 | 792 | 527 | 265 | `UUDRXRRUXUTT` |
 | 7 | 隔欄轉移 | 10 | 211 | 179 | 54 | `RRUXRRDXTT` |
 | 8 | 連續碰撞 + 拉回 | 20 | 1,122 | 1,057 | 163 | `DDDLDRXRRDXDRTXTTRDD` |
-| 9 | 彈射 | 11 | 176 | 151 | 34 | `RRUXRRRUXTT` |
+| 9 | 接力碰撞 | 22 | 1,224 | 1,180 | 118 | `DRRRUXDRRLUXDRRRLUTXTT` |
 | 10 | 碰撞L轉 | 14 | 734 | 593 | 143 | `DDDXLDLDRRRXTT` |
 | 11 | 方向分散 + 折返 + 碰撞L轉 | 25 | 11,146 | 10,771 | 947 | `DDUXUDRXRURXLTUUDRTXTTRUU` |
 
