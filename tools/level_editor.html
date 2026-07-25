@@ -50,12 +50,19 @@
     #block-label { width: 50px; text-align: center; text-transform: uppercase; }
     #block-label[data-kind="normal"] { border-color: var(--block); }
     #block-label[data-kind="recovery"] { border-color: var(--recovery); }
-    .command, .tool {
+    .command, .tool, .block-choice {
       min-height: 34px; border: 1px solid var(--line); border-radius: 4px;
       background: #1a202a; color: var(--text); padding: 6px 10px;
     }
-    .command:hover, .tool:hover { border-color: #6a7789; background: #27303d; }
-    .command:focus-visible, .tool:focus-visible, .cell:focus-visible, .edge:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .command:hover, .tool:hover, .block-choice:hover { border-color: #6a7789; background: #27303d; }
+    .command:focus-visible, .tool:focus-visible, .block-choice:focus-visible, .cell:focus-visible, .edge:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .block-palette { display: grid; gap: 5px; }
+    .block-palette-label { color: var(--muted); font-size: 12px; }
+    .block-choices { display: flex; gap: 4px; }
+    .block-choice {
+      width: 34px; padding: 0; color: var(--block); font: 700 15px/1 ui-monospace, monospace;
+    }
+    .block-choice[aria-pressed="true"] { border-color: var(--block); background: var(--block); color: #1e160d; }
     .tools { display: flex; flex: 1 1 420px; flex-wrap: wrap; min-width: 0; gap: 6px; margin-left: auto; justify-content: flex-end; }
     .tool { display: inline-flex; align-items: center; gap: 6px; padding-inline: 9px; }
     .tool[aria-pressed="true"] { border-color: var(--focus); color: var(--focus); background: #2e2a1c; }
@@ -126,6 +133,15 @@
           <button id="load-fence-demo" class="command" type="button">柵欄範例</button>
           <button id="clear-all" class="command" type="button" title="清空格子與柵欄">全清空</button>
           <button id="clear-fences" class="command" type="button" title="移除所有柵欄">清空柵欄</button>
+          <div class="block-palette">
+            <span class="block-palette-label">常用方塊</span>
+            <div class="block-choices" role="group" aria-label="選擇常用方塊代號">
+              <button class="block-choice" type="button" data-block-label="A" aria-pressed="false" title="選擇普通塊 A">A</button>
+              <button class="block-choice" type="button" data-block-label="B" aria-pressed="false" title="選擇普通塊 B">B</button>
+              <button class="block-choice" type="button" data-block-label="C" aria-pressed="false" title="選擇普通塊 C">C</button>
+              <button class="block-choice" type="button" data-block-label="D" aria-pressed="false" title="選擇普通塊 D">D</button>
+            </div>
+          </div>
           <label>方塊代號<input id="block-label" type="text" maxlength="1" value="A" data-kind="normal" aria-label="方塊代號" title="普通塊代號 A-Q"></label>
           <div class="tools" role="toolbar" aria-label="繪製工具">
             <button class="tool" type="button" data-tool="wall" title="牆"><span class="swatch wall"></span>牆</button>
@@ -193,6 +209,7 @@ AB.C*
     const widthInput = document.querySelector("#width");
     const heightInput = document.querySelector("#height");
     const blockLabelInput = document.querySelector("#block-label");
+    const blockLabelChoices = document.querySelectorAll("[data-block-label]");
     const blockToolRanges = {
       block: { first: "A", last: "Q" },
       "recovery-block": { first: "R", last: "Z" },
@@ -213,6 +230,12 @@ AB.C*
       statusElement.classList.toggle("error", isError);
     }
     function dimensions() { return { width: cells[0]?.length || 0, height: cells.length }; }
+    function updateBlockLabelChoices() {
+      const activeLabel = selectedTool === "block" ? blockLabelInput.value : "";
+      blockLabelChoices.forEach(button => {
+        button.setAttribute("aria-pressed", String(button.dataset.blockLabel === activeLabel));
+      });
+    }
     function normalizeBlockLabel() {
       const range = blockToolRanges[selectedTool];
       let label = blockLabelInput.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1);
@@ -221,6 +244,7 @@ AB.C*
       blockLabelInput.dataset.kind = isRecoveryLabel(label) ? "recovery" : "normal";
       blockLabelInput.title = isRecoveryLabel(label) ? "回收塊代號 R-Z" : "普通塊代號 A-Q";
       if (range) lastBlockLabels[selectedTool] = label;
+      updateBlockLabelChoices();
       return blockLabelInput.value;
     }
     function isRecoveryLabel(label) { return label >= "R" && label <= "Z"; }
@@ -332,15 +356,17 @@ AB.C*
       else verticalEdges[y][x] = !verticalEdges[y][x];
       renderGrid();
     }
-    function setTool(tool) {
+    function setTool(tool, blockLabel = null) {
       if (blockToolRanges[selectedTool]) normalizeBlockLabel();
       selectedTool = tool;
+      if (blockLabel && tool === "block") lastBlockLabels.block = blockLabel;
       document.querySelectorAll("[data-tool]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.tool === tool)));
       gridElement.dataset.tool = tool;
       if (blockToolRanges[tool]) {
         blockLabelInput.value = lastBlockLabels[tool];
         normalizeBlockLabel();
       }
+      updateBlockLabelChoices();
     }
     function resizeGrid() {
       const width = Math.max(3, Math.min(40, Number(widthInput.value) || 9));
@@ -451,6 +477,7 @@ AB.C*
       catch (_) { document.execCommand("copy"); setStatus("關卡資料已選取，可直接複製"); }
     }
     document.querySelectorAll("[data-tool]").forEach(button => button.addEventListener("click", () => setTool(button.dataset.tool)));
+    blockLabelChoices.forEach(button => button.addEventListener("click", () => setTool("block", button.dataset.blockLabel)));
     document.querySelector("#resize").addEventListener("click", resizeGrid);
     document.querySelector("#load-fence-demo").addEventListener("click", () => { outputElement.value = fenceDemo; applyLevelData(); });
     document.querySelector("#clear-all").addEventListener("click", clearAll);
