@@ -8,7 +8,7 @@ from pathlib import Path
 from .collection import load_level_collection
 from .engine import parse_commands, run_commands
 from .parser import LevelParseError, load_level
-from .search import SearchLimitReached, SolveResult, solve_bfs
+from .search import SearchLimitReached, SolveResult, solve_astar, solve_bfs
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -34,6 +34,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Do not search beyond this command count.",
     )
     parser.add_argument(
+        "--algorithm",
+        choices=("bfs", "astar"),
+        default="bfs",
+        help="Shortest-path algorithm to use; defaults to bfs.",
+    )
+    parser.add_argument(
+        "--upper-bound",
+        type=int,
+        help="With astar, only search solutions up to this command count.",
+    )
+    parser.add_argument(
         "--collection",
         action="store_true",
         help="Treat the input as a named level collection.",
@@ -53,6 +64,7 @@ def main(argv: list[str] | None = None) -> int:
             return _solve_collection(args)
         if args.limit is not None:
             raise ValueError("--limit requires --collection.")
+        _validate_search_arguments(args)
 
         level = load_level(args.level)
         if args.verify is not None:
@@ -65,19 +77,14 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if solved else 1
 
         max_states = None if args.max_states == 0 else args.max_states
-        result = solve_bfs(
-            level,
-            max_states=max_states,
-            max_depth=args.max_depth,
-        )
+        result = _solve_level(level, args, max_states)
     except (OSError, LevelParseError, ValueError, SearchLimitReached) as error:
         print(f"Error: {error}")
         return 2
 
     if not result.solved:
-        depth_note = (
-            f" within depth {args.max_depth}" if args.max_depth is not None else ""
-        )
+        depth_limit = args.upper_bound if args.algorithm == "astar" else args.max_depth
+        depth_note = f" within depth {depth_limit}" if depth_limit is not None else ""
         print(f"No solution found{depth_note}.")
         _print_statistics(result)
         return 1
@@ -93,6 +100,7 @@ def _solve_collection(args: argparse.Namespace) -> int:
         raise ValueError("--verify cannot be combined with --collection.")
     if args.limit is not None and args.limit <= 0:
         raise ValueError("--limit must be positive.")
+    _validate_search_arguments(args)
 
     entries = load_level_collection(args.level)
     if args.limit is not None:
@@ -101,11 +109,7 @@ def _solve_collection(args: argparse.Namespace) -> int:
     max_states = None if args.max_states == 0 else args.max_states
     all_solved = True
     for index, entry in enumerate(entries, start=1):
-        result = solve_bfs(
-            entry.level,
-            max_states=max_states,
-            max_depth=args.max_depth,
-        )
+        result = _solve_level(entry.level, args, max_states)
         print(f"[{index}] {entry.name}")
         if result.solved:
             print(f"Commands: {result.command_text}")
@@ -118,6 +122,31 @@ def _solve_collection(args: argparse.Namespace) -> int:
             print()
 
     return 0 if all_solved else 1
+
+
+def _validate_search_arguments(args: argparse.Namespace) -> None:
+    if args.max_depth is not None and args.max_depth < 0:
+        raise ValueError("--max-depth cannot be negative.")
+    if args.upper_bound is not None and args.upper_bound < 0:
+        raise ValueError("--upper-bound cannot be negative.")
+    if args.algorithm == "astar" and args.max_depth is not None:
+        raise ValueError("--max-depth is only supported with --algorithm bfs.")
+    if args.algorithm == "bfs" and args.upper_bound is not None:
+        raise ValueError("--upper-bound requires --algorithm astar.")
+
+
+def _solve_level(level, args: argparse.Namespace, max_states: int | None) -> SolveResult:
+    if args.algorithm == "astar":
+        return solve_astar(
+            level,
+            max_states=max_states,
+            upper_bound=args.upper_bound,
+        )
+    return solve_bfs(
+        level,
+        max_states=max_states,
+        max_depth=args.max_depth,
+    )
 
 
 def _print_statistics(result: SolveResult) -> None:

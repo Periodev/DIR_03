@@ -5,7 +5,7 @@ from pathlib import Path
 
 from solver.engine import run_commands
 from solver.parser import load_level, parse_level
-from solver.search import solve_bfs
+from solver.search import solve_astar, solve_bfs
 
 ROOT = Path(__file__).resolve().parents[1]
 KNOWN_LEVEL_PATH = ROOT / "tests" / "fixtures" / "known_31_step_level.txt"
@@ -35,6 +35,31 @@ class SearchTests(unittest.TestCase):
 
         self.assertTrue(result.solved)
         self.assertLessEqual(result.depth, 31)
+        self.assertTrue(level.is_solved(run_commands(level, result.commands or ())))
+
+    def test_astar_finds_same_shortest_turning_solution(self) -> None:
+        level = parse_level("*A@")
+
+        result = solve_astar(level)
+
+        self.assertEqual(result.command_text, "LL")
+        self.assertEqual(result.depth, 2)
+
+    def test_astar_respects_inclusive_upper_bound(self) -> None:
+        level = parse_level("*A@")
+
+        too_short = solve_astar(level, upper_bound=1)
+        exact = solve_astar(level, upper_bound=2)
+
+        self.assertFalse(too_short.solved)
+        self.assertEqual(exact.command_text, "LL")
+
+    def test_astar_solution_replays_after_normal_block_canonicalization(self) -> None:
+        level = parse_level("@A.B**")
+
+        result = solve_astar(level)
+
+        self.assertTrue(result.solved)
         self.assertTrue(level.is_solved(run_commands(level, result.commands or ())))
 
 

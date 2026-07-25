@@ -1,0 +1,14 @@
+# 第三區 BFS 紀錄
+
+來源：`levels/area_03.txt`
+
+| # | 關卡 | 最短指令數 | Discovered | Expanded | Peak frontier | 最短解 |
+|---:|---|---:|---:|---:|---:|---|
+| 1 | 解鎖 | 10 | 46 | 45 | 10 | `RRUXTULURR` |
+| 2 | 鑰匙回收 | 29 | 754 | 703 | 58 | `LLUXDLLLUXTTURRDLDXTDRRUXDRRT` |
+| 3 | 點火 | 29 | 1,091 | 1,021 | 84 | `ULURRDDXTDRRURRXLLDRRLUURRXTT` |
+| 4 | 終點鎖 | 20 | 1,864 | 1,619 | 256 | `RDDLXRDDLLXRTLTLRDXT` |
+| 5 | 雙重鎖 | 39 | 3,923 | 3,599 | 344 | `UURDDDLDDRUUULULXURDDDLTLXRRDDLLUXTLTRR` |
+| 6 | 船閘 | 62 | 4,607,844 | 4,255,156 | 352,702 | `RRXURRRDDTUUULXLRUXTTULLDRXUTDDDRRUXRTLLLLLLLLDXLLLLUXLTTURRRR` |
+
+船閘以深度上限 62 執行 BFS；另以深度上限 60 確認無解。

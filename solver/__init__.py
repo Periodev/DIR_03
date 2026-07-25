@@ -12,7 +12,7 @@ from .model import (
     State,
 )
 from .parser import LevelParseError, load_level, parse_level
-from .search import SearchLimitReached, SolveResult, solve_bfs
+from .search import SearchLimitReached, SolveResult, solve_astar, solve_bfs
 
 __all__ = [
     "BlockKind",
@@ -33,6 +33,7 @@ __all__ = [
     "parse_level",
     "parse_level_collection",
     "run_commands",
+    "solve_astar",
     "solve_bfs",
     "step",
 ]
