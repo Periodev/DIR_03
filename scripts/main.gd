@@ -1,12 +1,20 @@
 extends "res://scripts/game_board.gd"
 
 
+func _ready() -> void:
+	undo_enabled = true
+	super()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if input_locked:
 		return
 
 	if event.is_action_pressed("reset_level"):
 		reset_level()
+		return
+	if event.is_action_pressed("undo_command"):
+		undo_last_command()
 		return
 	if level_completed:
 		return

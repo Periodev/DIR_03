@@ -11,6 +11,20 @@ const WALL := 1
 const INITIAL_LEVEL_PATH := "res://levels/level_test.txt"
 const VALID_COMMANDS := "UDLRXT"
 
+
+class BoardSnapshot:
+	extends RefCounted
+
+	var player_cell := Vector2i.ZERO
+	var player_queue := ""
+	var facing_direction := Vector2i.RIGHT
+	var facing_name := "Right"
+	var blocks: Array[Dictionary] = []
+	var install_order: Array[int] = []
+	var command_history: Array[String] = []
+	var level_completed := false
+
+
 var terrain: Array[Array] = []
 var initial_player_cell := Vector2i.ZERO
 var initial_blocks: Array[Dictionary] = []
@@ -29,6 +43,8 @@ var install_order: Array[int] = []
 var command_history: Array[String] = []
 var debug_lines: Array[String] = []
 var level_source_text := ""
+var undo_enabled := false
+var undo_stack: Array[BoardSnapshot] = []
 
 var board_view
 var game_hud
@@ -62,6 +78,8 @@ func execute_command(command: String) -> bool:
 	if normalized_command.length() != 1 or not VALID_COMMANDS.contains(normalized_command):
 		return false
 
+	if undo_enabled:
+		undo_stack.append(capture_board_snapshot())
 	command_history.append(normalized_command)
 	match normalized_command:
 		"U":
@@ -285,6 +303,35 @@ func trigger_vector() -> void:
 	end_atomic_input()
 
 
+func undo_last_command() -> bool:
+	if not undo_enabled or input_locked:
+		return false
+
+	if undo_stack.is_empty():
+		set_message("Nothing to undo.")
+		append_debug_log("Undo failed: history empty.")
+		update_hud()
+		return false
+
+	begin_atomic_input()
+	var undone_command := "?"
+	if not command_history.is_empty():
+		undone_command = command_history.back()
+
+	var snapshot: BoardSnapshot = undo_stack.pop_back()
+	restore_board_snapshot(snapshot)
+	if game_hud != null:
+		game_hud.clear_result()
+	set_message("Undid %s." % undone_command)
+	append_debug_log("Undo %s: restored previous board; %s step(s) remain." % [
+		undone_command,
+		undo_stack.size(),
+	])
+	render_all()
+	end_atomic_input()
+	return true
+
+
 func reset_level() -> void:
 	begin_atomic_input()
 	player_cell = initial_player_cell
@@ -295,6 +342,7 @@ func reset_level() -> void:
 	blocks = duplicate_initial_blocks()
 	install_order.clear()
 	command_history.clear()
+	undo_stack.clear()
 	debug_lines.clear()
 	game_hud.clear_result()
 	set_message("Level reset.")
@@ -302,6 +350,46 @@ func reset_level() -> void:
 	check_level_completion()
 	render_all()
 	end_atomic_input()
+
+
+func capture_board_snapshot() -> BoardSnapshot:
+	var snapshot := BoardSnapshot.new()
+	snapshot.player_cell = player_cell
+	snapshot.player_queue = player_queue
+	snapshot.facing_direction = facing_direction
+	snapshot.facing_name = facing_name
+	snapshot.level_completed = level_completed
+
+	for block in blocks:
+		var block_copy: Dictionary = block.duplicate(true)
+		snapshot.blocks.append(block_copy)
+	for block_id in install_order:
+		snapshot.install_order.append(block_id)
+	for command in command_history:
+		snapshot.command_history.append(command)
+
+	return snapshot
+
+
+func restore_board_snapshot(snapshot: BoardSnapshot) -> void:
+	player_cell = snapshot.player_cell
+	player_queue = snapshot.player_queue
+	facing_direction = snapshot.facing_direction
+	facing_name = snapshot.facing_name
+	level_completed = snapshot.level_completed
+
+	blocks.clear()
+	for block in snapshot.blocks:
+		var block_copy: Dictionary = block.duplicate(true)
+		blocks.append(block_copy)
+
+	install_order.clear()
+	for block_id in snapshot.install_order:
+		install_order.append(block_id)
+
+	command_history.clear()
+	for command in snapshot.command_history:
+		command_history.append(command)
 
 
 func duplicate_initial_blocks() -> Array[Dictionary]:

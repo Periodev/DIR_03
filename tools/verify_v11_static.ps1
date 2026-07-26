@@ -76,12 +76,36 @@ $checks = @(
 		Pass = $project -match "reset_level="
 	},
 	@{
+		Name = "project.godot defines Z undo input"
+		Pass = $project -match "undo_command=" -and $project -match 'keycode":90'
+	},
+	@{
 		Name = "main.gd has reset_level operation"
 		Pass = $main -match "func\s+reset_level\(\)"
 	},
 	@{
 		Name = "main.gd handles reset_level input"
 		Pass = $main -match "is_action_pressed\(\""reset_level\""\)"
+	},
+	@{
+		Name = "main game handles undo before completion lock"
+		Pass = $mainEntry -match 'is_action_pressed\("undo_command"\)[\s\S]*if level_completed:'
+	},
+	@{
+		Name = "game board snapshots complete dynamic state"
+		Pass = $gameBoard -match "class\s+BoardSnapshot" -and $gameBoard -match "blocks:\s*Array\[Dictionary\]" -and $gameBoard -match "command_history:\s*Array\[String\]"
+	},
+	@{
+		Name = "undo pops without adding another snapshot"
+		Pass = $gameBoard -match "undo_stack\.pop_back\(\)" -and $gameBoard -notmatch 'func\s+undo_last_command\(\)[\s\S]*?undo_stack\.append\('
+	},
+	@{
+		Name = "reset clears undo history"
+		Pass = $gameBoard -match "func\s+reset_level\(\)[\s\S]*?undo_stack\.clear\(\)"
+	},
+	@{
+		Name = "command player has no undo controls"
+		Pass = $commandPlayer -notmatch "undo_command|undo_last_command"
 	},
 	@{
 		Name = "main.gd does not draw block labels in board cells"
