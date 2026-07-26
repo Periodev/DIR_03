@@ -3,6 +3,9 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $mainPath = Join-Path $root "scripts/main.gd"
 $gameBoardPath = Join-Path $root "scripts/game_board.gd"
+$boardViewPath = Join-Path $root "scripts/board_view.gd"
+$gameHudPath = Join-Path $root "scripts/game_hud.gd"
+$visualStylePath = Join-Path $root "scripts/visual_style.gd"
 $commandPlayerPath = Join-Path $root "scripts/command_player.gd"
 $commandPlayerScenePath = Join-Path $root "scenes/command_player.tscn"
 $asciiMapPath = Join-Path $root "scripts/ascii_map.gd"
@@ -12,7 +15,10 @@ $editorPath = Join-Path $root "tools/level_editor.html"
 
 $mainEntry = Get-Content -LiteralPath $mainPath -Raw
 $gameBoard = Get-Content -LiteralPath $gameBoardPath -Raw
-$main = "$mainEntry`n$gameBoard"
+$boardView = Get-Content -LiteralPath $boardViewPath -Raw
+$gameHud = Get-Content -LiteralPath $gameHudPath -Raw
+$visualStyle = Get-Content -LiteralPath $visualStylePath -Raw
+$main = "$mainEntry`n$gameBoard`n$boardView`n$gameHud`n$visualStyle"
 $commandPlayer = Get-Content -LiteralPath $commandPlayerPath -Raw
 $commandPlayerScene = Get-Content -LiteralPath $commandPlayerScenePath -Raw
 $asciiMap = Get-Content -LiteralPath $asciiMapPath -Raw
@@ -83,7 +89,7 @@ $checks = @(
 	},
 	@{
 		Name = "main.gd draws installed vector arrows in board cells"
-		Pass = $main -match "add_centered_label\(object_layer,\s*cell,\s*momentum_arrow\(vector_name\)"
+		Pass = $main -match "add_centered_label\([\s\S]*?object_layer,[\s\S]*?cell,[\s\S]*?momentum_arrow\(vector_name\)"
 	},
 	@{
 		Name = "main.gd uses large installed vector arrow font"
@@ -147,7 +153,7 @@ $checks = @(
 	},
 	@{
 		Name = "main.gd highlights blocks on target markers"
-		Pass = $main -match "GOAL_BLOCK_BORDER_COLOR" -and $main -match "if goal_cells\.has\(cell\):\s*add_rect\(object_layer"
+		Pass = $main -match "GOAL_BLOCK_BORDER_COLOR" -and $main -match "if game_board\.goal_cells\.has\(cell\):[\s\S]*?add_rect\("
 	},
 	@{
 		Name = "main scene and command player share game_board.gd"
@@ -187,7 +193,7 @@ $checks = @(
 	},
 	@{
 		Name = "level file contains a player start"
-		Pass = $level -match "@"
+		Pass = $level -match "[@+]"
 	}
 )
 

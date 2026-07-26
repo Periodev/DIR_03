@@ -1,5 +1,7 @@
 extends "res://scripts/game_board.gd"
 
+const VisualStyle = preload("res://scripts/visual_style.gd")
+
 const PANEL_SIZE := Vector2(390, 700)
 const PANEL_TOP := 96.0
 const PANEL_MARGIN := 16.0
@@ -50,7 +52,7 @@ func add_command_player_panel() -> void:
 
 	var panel := ColorRect.new()
 	panel.size = PANEL_SIZE
-	panel.color = DEBUG_PANEL_COLOR
+	panel.color = VisualStyle.PANEL_COLOR
 	command_panel.add_child(panel)
 
 	add_panel_label("Command Player", Vector2(16, 14), Vector2(358, 28), 20)

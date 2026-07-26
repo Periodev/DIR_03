@@ -1,27 +1,10 @@
 extends Node2D
 
 const AsciiMapParser = preload("res://scripts/ascii_map.gd")
+const BoardView = preload("res://scripts/board_view.gd")
+const GameHud = preload("res://scripts/game_hud.gd")
 
-const CELL_SIZE := 96
-const CELL_GAP := 8
-const BOARD_OFFSET := Vector2(96, 96)
-const DEBUG_PANEL_POSITION := Vector2(1090, 96)
 const MAX_DEBUG_LINES := 10
-const INSTALLED_VECTOR_FONT_SIZE := 48
-
-const FLOOR_COLOR := Color(0.16, 0.18, 0.22)
-const WALL_COLOR := Color(0.06, 0.07, 0.09)
-const BLOCK_COLOR := Color(0.86, 0.56, 0.22)
-const INSTALLED_BLOCK_COLOR := Color(0.95, 0.68, 0.28)
-const RECOVERY_BLOCK_COLOR := Color(0.67, 0.34, 0.76)
-const INSTALLED_RECOVERY_BLOCK_COLOR := Color(0.86, 0.48, 0.91)
-const PLAYER_COLOR := Color(0.25, 0.62, 1.0)
-const GOAL_MARKER_COLOR := Color(0.35, 0.95, 0.62)
-const GOAL_BLOCK_BORDER_COLOR := Color(0.35, 0.95, 0.62)
-const GRID_LINE_COLOR := Color(0.32, 0.35, 0.40)
-const FENCE_COLOR := Color(0.96, 0.76, 0.24)
-const FENCE_THICKNESS := 6.0
-const DEBUG_PANEL_COLOR := Color(0.08, 0.09, 0.11, 0.92)
 
 const EMPTY := 0
 const WALL := 1
@@ -47,47 +30,25 @@ var command_history: Array[String] = []
 var debug_lines: Array[String] = []
 var level_source_text := ""
 
-var board_layer: Node2D
-var object_layer: Node2D
+var board_view
+var game_hud
 var hud_layer: CanvasLayer
-var debug_panel: Control
-var message_label: Label
-var result_label: Label
-var debug_state_label: Label
-var debug_log_label: Label
 
 
 func _ready() -> void:
 	if not load_initial_level():
 		return
 
-	board_layer = Node2D.new()
-	board_layer.name = "BoardLayer"
-	add_child(board_layer)
+	board_view = BoardView.new()
+	board_view.initialize(self)
+	add_child(board_view)
 
-	object_layer = Node2D.new()
-	object_layer.name = "ObjectLayer"
-	add_child(object_layer)
+	game_hud = GameHud.new()
+	game_hud.initialize(self)
+	add_child(game_hud)
+	hud_layer = game_hud
 
-	hud_layer = CanvasLayer.new()
-	hud_layer.name = "HudLayer"
-	add_child(hud_layer)
-
-	message_label = Label.new()
-	message_label.position = Vector2(96, 24)
-	message_label.add_theme_font_size_override("font_size", 16)
-	hud_layer.add_child(message_label)
-
-	result_label = Label.new()
-	result_label.position = Vector2(96, 52)
-	result_label.size = Vector2(950, 32)
-	result_label.add_theme_font_size_override("font_size", 16)
-	result_label.add_theme_color_override("font_color", GOAL_MARKER_COLOR)
-	result_label.visible = false
-	hud_layer.add_child(result_label)
-
-	add_debug_panel()
-	message_label.text = "Arrow keys: move/push. X: install; when empty-handed, retrieve from a recovery block. Space: trigger oldest installed vector."
+	set_message("Arrow keys: move/push. X: install; when empty-handed, retrieve from a recovery block. Space: trigger oldest installed vector.")
 	append_debug_log("Ready: v1.1 vector queue prototype.")
 	check_level_completion()
 	render_all()
@@ -335,8 +296,7 @@ func reset_level() -> void:
 	install_order.clear()
 	command_history.clear()
 	debug_lines.clear()
-	result_label.text = ""
-	result_label.visible = false
+	game_hud.clear_result()
 	set_message("Level reset.")
 	append_debug_log("Reset: restored initial board, queue, and install order.")
 	check_level_completion()
@@ -446,11 +406,10 @@ func check_level_completion() -> bool:
 		command_history.size(),
 		"(empty)" if input_result == "" else input_result,
 	])
-	result_label.text = "Input result (%s): %s" % [
+	game_hud.show_result("Input result (%s): %s" % [
 		command_history.size(),
 		"(empty)" if input_result == "" else input_result,
-	]
-	result_label.visible = true
+	])
 	return true
 
 
@@ -503,122 +462,19 @@ func find_block_index_by_id(block_id: int) -> int:
 
 
 func render_all() -> void:
-	clear_children(board_layer)
-	clear_children(object_layer)
-	draw_board()
-	draw_blocks()
-	draw_player()
+	if board_view != null:
+		board_view.render()
 	update_hud()
 
 
-func draw_board() -> void:
-	for y in range(terrain.size()):
-		for x in range(terrain[y].size()):
-			var cell := Vector2i(x, y)
-			var color := WALL_COLOR if terrain[y][x] == WALL else FLOOR_COLOR
-			add_rect(board_layer, cell_to_position(cell), Vector2(CELL_SIZE, CELL_SIZE), color)
-			add_rect_outline(board_layer, cell_to_position(cell), Vector2(CELL_SIZE, CELL_SIZE), GRID_LINE_COLOR)
-			if goal_cells.has(cell):
-				add_centered_label(board_layer, cell, "*", GOAL_MARKER_COLOR, 36)
-	draw_fences()
-
-
-func draw_fences() -> void:
-	for y in range(horizontal_edges.size()):
-		for x in range(horizontal_edges[y].size()):
-			if horizontal_edges[y][x]:
-				var horizontal_position := cell_to_position(Vector2i(x, y)) + Vector2(0, CELL_SIZE - FENCE_THICKNESS / 2.0)
-				add_rect(board_layer, horizontal_position, Vector2(CELL_SIZE, FENCE_THICKNESS), FENCE_COLOR)
-
-	for y in range(vertical_edges.size()):
-		for x in range(vertical_edges[y].size()):
-			if vertical_edges[y][x]:
-				var vertical_position := cell_to_position(Vector2i(x, y)) + Vector2(CELL_SIZE - FENCE_THICKNESS / 2.0, 0)
-				add_rect(board_layer, vertical_position, Vector2(FENCE_THICKNESS, CELL_SIZE), FENCE_COLOR)
-
-
-func draw_blocks() -> void:
-	for block in blocks:
-		var cell: Vector2i = block["cell"]
-		var vector_name: String = block["vector"]
-		var recovery_block := is_recovery_block(block)
-		var color := BLOCK_COLOR
-		if recovery_block:
-			color = INSTALLED_RECOVERY_BLOCK_COLOR if vector_name != "" else RECOVERY_BLOCK_COLOR
-		elif vector_name != "":
-			color = INSTALLED_BLOCK_COLOR
-		if goal_cells.has(cell):
-			add_rect(object_layer, cell_to_position(cell) + Vector2(4, 4), Vector2(CELL_SIZE - 8, CELL_SIZE - 8), GOAL_BLOCK_BORDER_COLOR)
-		add_rect(object_layer, cell_to_position(cell) + Vector2(CELL_GAP, CELL_GAP), Vector2(CELL_SIZE - CELL_GAP * 2, CELL_SIZE - CELL_GAP * 2), color)
-		if recovery_block:
-			add_recovery_marker(cell)
-
-		if vector_name != "":
-			add_centered_label(object_layer, cell, momentum_arrow(vector_name), Color(1.0, 0.94, 0.35), INSTALLED_VECTOR_FONT_SIZE)
-
-
-func add_recovery_marker(cell: Vector2i) -> void:
-	var marker := Label.new()
-	marker.text = "↺"
-	marker.add_theme_font_size_override("font_size", 20)
-	marker.add_theme_color_override("font_color", Color.WHITE)
-	marker.position = cell_to_position(cell) + Vector2(CELL_SIZE - 34, 8)
-	object_layer.add_child(marker)
-
-
-func draw_player() -> void:
-	add_rect(object_layer, cell_to_position(player_cell) + Vector2(CELL_GAP, CELL_GAP), Vector2(CELL_SIZE - CELL_GAP * 2, CELL_SIZE - CELL_GAP * 2), PLAYER_COLOR)
-	var player_text := "@" if player_queue == "" else "@%s" % momentum_arrow(player_queue)
-	add_centered_label(object_layer, player_cell, player_text, Color.WHITE, 22)
-
-	var facing_label := Label.new()
-	facing_label.text = momentum_arrow(facing_name)
-	facing_label.add_theme_font_size_override("font_size", 20)
-	facing_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
-	facing_label.position = cell_to_position(player_cell) + Vector2(16, -24)
-	object_layer.add_child(facing_label)
-
-
 func update_hud() -> void:
-	debug_state_label.text = debug_state_text()
-	debug_log_label.text = join_strings(debug_lines, "\n")
-
-
-func add_debug_panel() -> void:
-	debug_panel = Control.new()
-	debug_panel.name = "DebugPanel"
-	debug_panel.position = DEBUG_PANEL_POSITION
-	debug_panel.size = Vector2(300, 700)
-	hud_layer.add_child(debug_panel)
-
-	var panel := ColorRect.new()
-	panel.size = Vector2(300, 700)
-	panel.color = DEBUG_PANEL_COLOR
-	debug_panel.add_child(panel)
-
-	var title_label := Label.new()
-	title_label.text = "Debug"
-	title_label.position = Vector2(16, 14)
-	title_label.add_theme_font_size_override("font_size", 20)
-	debug_panel.add_child(title_label)
-
-	debug_state_label = Label.new()
-	debug_state_label.position = Vector2(16, 48)
-	debug_state_label.size = Vector2(270, 260)
-	debug_state_label.add_theme_font_size_override("font_size", 14)
-	debug_panel.add_child(debug_state_label)
-
-	debug_log_label = Label.new()
-	debug_log_label.position = Vector2(16, 320)
-	debug_log_label.size = Vector2(270, 360)
-	debug_log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	debug_log_label.add_theme_font_size_override("font_size", 13)
-	debug_panel.add_child(debug_log_label)
+	if game_hud != null:
+		game_hud.refresh()
 
 
 func set_debug_panel_position(panel_position: Vector2) -> void:
-	if debug_panel != null:
-		debug_panel.position = panel_position
+	if game_hud != null:
+		game_hud.set_debug_panel_position(panel_position)
 
 
 func append_debug_log(line: String) -> void:
@@ -686,7 +542,8 @@ func command_history_text() -> String:
 
 
 func set_message(text: String) -> void:
-	message_label.text = text
+	if game_hud != null:
+		game_hud.set_message(text)
 
 
 func begin_atomic_input() -> void:
@@ -696,44 +553,6 @@ func begin_atomic_input() -> void:
 func end_atomic_input() -> void:
 	input_locked = false
 	update_hud()
-
-
-func add_rect(parent: Node, rect_position: Vector2, size: Vector2, color: Color) -> void:
-	var rect := ColorRect.new()
-	rect.position = rect_position
-	rect.size = size
-	rect.color = color
-	parent.add_child(rect)
-
-
-func add_rect_outline(parent: Node, rect_position: Vector2, size: Vector2, color: Color) -> void:
-	var top := ColorRect.new()
-	top.position = rect_position
-	top.size = Vector2(size.x, 1)
-	top.color = color
-	parent.add_child(top)
-
-	var left := ColorRect.new()
-	left.position = rect_position
-	left.size = Vector2(1, size.y)
-	left.color = color
-	parent.add_child(left)
-
-
-func add_centered_label(parent: Node, cell: Vector2i, text: String, color: Color, font_size: int) -> void:
-	var label := Label.new()
-	label.text = text
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", color)
-	label.position = cell_to_position(cell)
-	label.size = Vector2(CELL_SIZE, CELL_SIZE)
-	parent.add_child(label)
-
-
-func cell_to_position(cell: Vector2i) -> Vector2:
-	return BOARD_OFFSET + Vector2(cell.x * CELL_SIZE, cell.y * CELL_SIZE)
 
 
 func cell_text(cell) -> String:
@@ -752,22 +571,3 @@ func direction_from_name(direction_name: String) -> Vector2i:
 			return Vector2i.RIGHT
 		_:
 			return Vector2i.ZERO
-
-
-func momentum_arrow(direction_name: String) -> String:
-	match direction_name:
-		"Up":
-			return "^"
-		"Down":
-			return "v"
-		"Left":
-			return "<"
-		"Right":
-			return ">"
-		_:
-			return ""
-
-
-func clear_children(node: Node) -> void:
-	for child in node.get_children():
-		child.queue_free()
