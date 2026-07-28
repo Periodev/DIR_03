@@ -1,4 +1,4 @@
-# DIR3 Fence Map Format Comparison
+# DIR Fence Map Format Comparison
 #
 # Same logical map in two authoring formats.
 # Cells:

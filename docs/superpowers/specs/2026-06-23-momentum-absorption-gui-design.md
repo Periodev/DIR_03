@@ -1,12 +1,12 @@
 # Momentum Absorption GUI Prototype Design
 
 Date: 2026-06-23
-Project: DIR3
+Project: DIR
 Engine: Godot 4.6.1
 
 ## Goal
 
-Build a minimal Sokoban-style GUI prototype for testing the first DIR3 rule: successful pushing generates a direction momentum that the player absorbs.
+Build a minimal Sokoban-style GUI prototype for testing the first DIR rule: successful pushing generates a direction momentum that the player absorbs.
 
 ## Confirmed Rules
 

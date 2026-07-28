@@ -1,4 +1,4 @@
-class_name Dir3PlayerBoardView
+class_name DirPlayerBoardView
 extends Control
 
 const VisualStyle = preload("res://scripts/visual_style.gd")
@@ -10,6 +10,11 @@ var palette: Dictionary = {}
 var fallback_font: Font
 var facing_pulse_strength := 0.0
 var facing_pulse_tween: Tween
+var trigger_flash_block_id := -1
+var trigger_flash_direction := ""
+var trigger_flash_mix := 0.0
+var trigger_flash_alpha := 0.0
+var trigger_flash_tween: Tween
 
 
 func initialize(board) -> void:
@@ -63,6 +68,56 @@ func set_facing_pulse_strength(value: float) -> void:
 	queue_redraw()
 
 
+func play_trigger_flash(block_id: int, direction_name: String) -> void:
+	cancel_trigger_flash()
+	trigger_flash_block_id = block_id
+	trigger_flash_direction = direction_name
+	trigger_flash_mix = 0.0
+	trigger_flash_alpha = 1.0
+	queue_redraw()
+
+	trigger_flash_tween = create_tween()
+	trigger_flash_tween.tween_method(
+		set_trigger_flash_mix,
+		0.0,
+		1.0,
+		VisualStyle.TRIGGER_FLASH_IN_SECONDS
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	trigger_flash_tween.tween_interval(VisualStyle.TRIGGER_FLASH_HOLD_SECONDS)
+	trigger_flash_tween.tween_method(
+		set_trigger_flash_alpha,
+		1.0,
+		0.0,
+		VisualStyle.TRIGGER_FLASH_OUT_SECONDS
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	trigger_flash_tween.tween_callback(finish_trigger_flash)
+
+
+func cancel_trigger_flash() -> void:
+	if trigger_flash_tween != null and trigger_flash_tween.is_valid():
+		trigger_flash_tween.kill()
+	finish_trigger_flash()
+
+
+func finish_trigger_flash() -> void:
+	trigger_flash_tween = null
+	trigger_flash_block_id = -1
+	trigger_flash_direction = ""
+	trigger_flash_mix = 0.0
+	trigger_flash_alpha = 0.0
+	queue_redraw()
+
+
+func set_trigger_flash_mix(value: float) -> void:
+	trigger_flash_mix = clampf(value, 0.0, 1.0)
+	queue_redraw()
+
+
+func set_trigger_flash_alpha(value: float) -> void:
+	trigger_flash_alpha = clampf(value, 0.0, 1.0)
+	queue_redraw()
+
+
 func _draw() -> void:
 	if game_board == null or game_board.terrain.is_empty():
 		return
@@ -73,6 +128,7 @@ func _draw() -> void:
 
 	draw_goals()
 	draw_blocks()
+	draw_trigger_flash()
 	draw_fences()
 	draw_player_body()
 	draw_player_stored_vector()
@@ -349,6 +405,30 @@ func draw_blocks() -> void:
 				vector_name,
 				palette["block_glyph"]
 			)
+
+
+func draw_trigger_flash() -> void:
+	if trigger_flash_block_id == -1 or trigger_flash_direction == "":
+		return
+
+	var block_index: int = int(
+		game_board.find_block_index_by_id(trigger_flash_block_id)
+	)
+	if block_index == -1:
+		return
+
+	var block: Dictionary = game_board.blocks[block_index]
+	var block_cell: Vector2i = block["cell"]
+	var color: Color = palette["block_glyph"].lerp(
+		palette["trigger_flash"],
+		trigger_flash_mix
+	)
+	color.a *= trigger_flash_alpha
+	draw_direction_triangle(
+		cell_center(block_cell),
+		trigger_flash_direction,
+		color
+	)
 
 
 func draw_player_body() -> void:

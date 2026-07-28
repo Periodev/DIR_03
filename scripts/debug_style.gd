@@ -1,4 +1,4 @@
-class_name Dir3DebugStyle
+class_name DirDebugStyle
 extends RefCounted
 
 const CELL_SIZE := 96

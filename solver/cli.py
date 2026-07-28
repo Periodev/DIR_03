@@ -13,8 +13,8 @@ from .search import SearchLimitReached, SolveResult, solve_astar, solve_bfs
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="dir3-solve",
-        description="Find a shortest UDLRXT solution for a DIR3 level.",
+        prog="dir-solve",
+        description="Find a shortest UDLRXT solution for a DIR level.",
     )
     parser.add_argument("level", type=Path, help="ASCII level file to load.")
     parser.add_argument(

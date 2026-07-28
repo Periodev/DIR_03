@@ -1,4 +1,4 @@
-"""Headless DIR3 command transition engine."""
+"""Headless DIR command transition engine."""
 
 from __future__ import annotations
 

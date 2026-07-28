@@ -1,4 +1,4 @@
-class_name Dir3VisualStyle
+class_name DirVisualStyle
 extends RefCounted
 
 const CELL_SIZE := 96
@@ -30,6 +30,9 @@ const FACING_CHV_GAP_RATIO := 0.026
 const FACING_CHV_CLEARANCE_RATIO := 0.02
 const FACING_PULSE_IN_SECONDS := 0.05
 const FACING_PULSE_OUT_SECONDS := 0.10
+const TRIGGER_FLASH_IN_SECONDS := 0.06
+const TRIGGER_FLASH_HOLD_SECONDS := 0.03
+const TRIGGER_FLASH_OUT_SECONDS := 0.10
 
 const FENCE_POST_W_RATIO := 0.145
 const FENCE_POST_GAP_RATIO := 0.105
@@ -65,6 +68,7 @@ const MONO_DARK := {
 	"player": Color("#f2f2f2"),
 	"player_glyph": Color("#141414"),
 	"action_pulse": Color("#55d6e0"),
+	"trigger_flash": Color("#ffffff"),
 	"hair": Color("#282828"),
 	"stroke": Color("#3a3a3a"),
 	"label": Color("#6e6e6e"),
@@ -99,6 +103,7 @@ const MONO_LIGHT := {
 	"player": Color("#1e1d1c"),
 	"player_glyph": Color("#f4f3f1"),
 	"action_pulse": Color("#147d88"),
+	"trigger_flash": Color("#141414"),
 	"hair": Color("#cbc9c4"),
 	"stroke": Color("#b9b7b2"),
 	"label": Color("#8b8a86"),

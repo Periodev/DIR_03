@@ -281,6 +281,7 @@ func trigger_vector() -> void:
 		])
 		check_level_completion()
 		render_all()
+		play_block_trigger_flash(carrier_id, vector_name)
 		end_atomic_input()
 		return
 
@@ -312,6 +313,7 @@ func trigger_vector() -> void:
 	])
 	check_level_completion()
 	render_all()
+	play_block_trigger_flash(carrier_id, vector_name)
 	end_atomic_input()
 
 
@@ -572,6 +574,16 @@ func play_facing_action_pulse() -> void:
 		board_view.play_facing_pulse()
 
 
+func play_block_trigger_flash(block_id: int, direction_name: String) -> void:
+	if board_view != null and board_view.has_method("play_trigger_flash"):
+		board_view.play_trigger_flash(block_id, direction_name)
+
+
+func cancel_block_trigger_flash() -> void:
+	if board_view != null and board_view.has_method("cancel_trigger_flash"):
+		board_view.cancel_trigger_flash()
+
+
 func update_hud() -> void:
 	if game_hud != null:
 		game_hud.refresh()
@@ -586,7 +598,7 @@ func set_debug_panel_position(panel_position: Vector2) -> void:
 
 func append_debug_log(line: String) -> void:
 	debug_lines.append(line)
-	print("[DIR3] %s" % line)
+	print("[DIR] %s" % line)
 	while debug_lines.size() > MAX_DEBUG_LINES:
 		debug_lines.remove_at(0)
 
@@ -654,6 +666,7 @@ func set_message(text: String) -> void:
 
 
 func begin_atomic_input() -> void:
+	cancel_block_trigger_flash()
 	input_locked = true
 
 

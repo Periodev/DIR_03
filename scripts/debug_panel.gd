@@ -1,4 +1,4 @@
-class_name Dir3DebugPanel
+class_name DirDebugPanel
 extends Control
 
 const VisualStyle = preload("res://scripts/visual_style.gd")

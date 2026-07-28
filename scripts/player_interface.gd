@@ -1,4 +1,4 @@
-class_name Dir3PlayerInterface
+class_name DirPlayerInterface
 extends CanvasLayer
 
 const VisualStyle = preload("res://scripts/visual_style.gd")
@@ -86,7 +86,7 @@ func build_header() -> Control:
 	left_group.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(left_group)
 
-	var brand := make_label("DIR3", 14, mono_label_font)
+	var brand := make_label("DIR", 14, mono_label_font)
 	high_tone_labels.append(brand)
 	left_group.add_child(brand)
 	left_group.add_child(make_vertical_separator(16))
@@ -245,7 +245,7 @@ func build_slot_group() -> VBoxContainer:
 	slot_chip.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(slot_chip)
 
-	slot_description = make_label("空", 13, ui_font)
+	slot_description = make_label("EMPTY", 13, ui_font)
 	dim_tone_labels.append(slot_description)
 	row.add_child(slot_description)
 	return group
@@ -278,9 +278,9 @@ func build_key_hints() -> HBoxContainer:
 	var hints := HBoxContainer.new()
 	hints.add_theme_constant_override("separation", 16)
 	hints.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	add_key_hint(hints, "← ↑ ↓ →", "推")
-	add_key_hint(hints, "X", "安裝")
-	add_key_hint(hints, "SPACE", "觸發")
+	add_key_hint(hints, "← ↑ ↓ →", "PUSH")
+	add_key_hint(hints, "X", "INSTALL")
+	add_key_hint(hints, "SPACE", "TRIGGER")
 	return hints
 
 
@@ -358,7 +358,7 @@ func refresh() -> void:
 	var queue_glyph := direction_glyph(queue_name)
 	var has_queue := queue_name != ""
 	slot_chip.text = queue_glyph if has_queue else "·"
-	slot_description.text = "持有 %s" % queue_glyph if has_queue else "空"
+	slot_description.text = "HOLDING %s" % queue_glyph if has_queue else "EMPTY"
 	apply_slot_style(has_queue)
 
 	var filled_goals := 0

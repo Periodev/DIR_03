@@ -16,6 +16,8 @@ $asciiMapPath = Join-Path $root "scripts/ascii_map.gd"
 $levelPath = Join-Path $root "levels/level_test.txt"
 $projectPath = Join-Path $root "project.godot"
 $editorPath = Join-Path $root "tools/level_editor.html"
+$pyprojectPath = Join-Path $root "pyproject.toml"
+$solverCliPath = Join-Path $root "solver/cli.py"
 
 $mainEntry = Get-Content -LiteralPath $mainPath -Raw
 $gameBoard = Get-Content -LiteralPath $gameBoardPath -Raw
@@ -33,6 +35,9 @@ $asciiMap = Get-Content -LiteralPath $asciiMapPath -Raw
 $level = Get-Content -LiteralPath $levelPath -Raw
 $project = Get-Content -LiteralPath $projectPath -Raw
 $editor = Get-Content -LiteralPath $editorPath -Raw
+$pyproject = Get-Content -LiteralPath $pyprojectPath -Raw
+$solverCli = Get-Content -LiteralPath $solverCliPath -Raw
+$legacyProductName = "DIR" + "3"
 
 $checks = @(
 	@{
@@ -69,7 +74,15 @@ $checks = @(
 	},
 	@{
 		Name = "main.gd writes debug logs to the IDE console"
-		Pass = $main -match 'print\("\[DIR3\] %s" % line\)'
+		Pass = $main -match 'print\("\[DIR\] %s" % line\)'
+	},
+	@{
+		Name = "project consistently uses the formal DIR product name"
+		Pass = $project -match 'config/name="DIR"' -and $playerInterface -match 'make_label\("DIR",\s*14,\s*mono_label_font\)' -and $editor -match '<title>DIR Level Editor</title>' -and $pyproject -match 'name\s*=\s*"dir-solver"' -and $pyproject -match 'dir-solve\s*=\s*"solver\.cli:main"' -and $solverCli -match 'prog="dir-solve"' -and "$main`n$project`n$editor`n$pyproject`n$solverCli" -notmatch [regex]::Escape($legacyProductName)
+	},
+	@{
+		Name = "GDScript global classes use the DIR prefix"
+		Pass = $boardView -match "class_name\s+DirBoardView" -and $debugPanel -match "class_name\s+DirDebugPanel" -and $debugStyle -match "class_name\s+DirDebugStyle" -and $gameHud -match "class_name\s+DirGameHud" -and $playerBoardView -match "class_name\s+DirPlayerBoardView" -and $playerInterface -match "class_name\s+DirPlayerInterface" -and $visualStyle -match "class_name\s+DirVisualStyle"
 	},
 	@{
 		Name = "project.godot defines install_vector input"
@@ -220,6 +233,10 @@ $checks = @(
 		Pass = $playerInterface -match "build_facing_group" -and $playerInterface -match "build_slot_group" -and $playerInterface -match 'build_value_group\("GOALS"' -and $playerInterface -match 'build_value_group\("STEPS"'
 	},
 	@{
+		Name = "player interface uses English status and action labels"
+		Pass = $playerInterface -match '"EMPTY"' -and $playerInterface -match '"HOLDING %s"' -and $playerInterface -match '"PUSH"' -and $playerInterface -match '"INSTALL"' -and $playerInterface -match '"TRIGGER"' -and $playerInterface -notmatch '"(\u7a7a|\u6301\u6709|\u63a8|\u5b89\u88dd|\u89f8\u767c)"'
+	},
+	@{
 		Name = "player interface buttons do not capture gameplay keys"
 		Pass = $playerInterface -match "func\s+make_button\([\s\S]*focus_mode\s*=\s*Control\.FOCUS_NONE"
 	},
@@ -229,7 +246,7 @@ $checks = @(
 	},
 	@{
 		Name = "command player owns the separated debug panel"
-		Pass = $commandPlayer -match 'preload\("res://scripts/debug_panel\.gd"\)' -and $commandPlayer -match "debug_panel\s*=\s*DebugPanel\.new\(\)" -and $debugPanel -match "class_name\s+Dir3DebugPanel"
+		Pass = $commandPlayer -match 'preload\("res://scripts/debug_panel\.gd"\)' -and $commandPlayer -match "debug_panel\s*=\s*DebugPanel\.new\(\)" -and $debugPanel -match "class_name\s+DirDebugPanel"
 	},
 	@{
 		Name = "command player keeps the debug board renderer"
@@ -302,6 +319,14 @@ $checks = @(
 	@{
 		Name = "player facing chevron uses the enlarged proportions"
 		Pass = $visualStyle -match "FACING_CHV_LEN_RATIO\s*:=\s*0\.44" -and $visualStyle -match "FACING_CHV_DEPTH_RATIO\s*:=\s*0\.20" -and $visualStyle -match "FACING_CHV_STROKE_RATIO\s*:=\s*0\.50"
+	},
+	@{
+		Name = "successful triggers flash the consumed carrier direction"
+		Pass = ([regex]::Matches($gameBoard, "play_block_trigger_flash\(carrier_id,\s*vector_name\)")).Count -eq 2 -and $gameBoard -match 'has_method\("play_trigger_flash"\)' -and $playerBoardView -match "func\s+play_trigger_flash\(block_id:\s*int,\s*direction_name:\s*String\)" -and $playerBoardView -match "func\s+draw_trigger_flash\(\)[\s\S]*var\s+block_index:\s*int\s*=\s*int\([\s\S]*find_block_index_by_id\(trigger_flash_block_id\)[\s\S]*var\s+block_cell:\s*Vector2i\s*=\s*block\[`"cell`"\][\s\S]*draw_direction_triangle\(" -and $playerBoardView -match 'palette\["block_glyph"\]\.lerp\([\s\S]*palette\["trigger_flash"\]' -and $visualStyle -match '"trigger_flash": Color\("#ffffff"\)' -and $visualStyle -match '"trigger_flash": Color\("#141414"\)'
+	},
+	@{
+		Name = "new atomic input cancels stale trigger feedback"
+		Pass = $gameBoard -match "func\s+begin_atomic_input\(\)\s*->\s*void:\s*[\r\n]+\s*cancel_block_trigger_flash\(\)" -and $gameBoard -match 'has_method\("cancel_trigger_flash"\)' -and $playerBoardView -match "func\s+cancel_trigger_flash\(\)[\s\S]*trigger_flash_tween\.kill\(\)[\s\S]*finish_trigger_flash\(\)"
 	},
 	@{
 		Name = "player goals use dashed empty markers and replace the block edge when completed"

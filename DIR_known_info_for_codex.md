@@ -1,4 +1,4 @@
-# DIR3.0 Known Information for Codex
+# DIR Known Information for Codex
 
 Last updated: 2026-06-23
 Project: DIR, not DIV
@@ -8,13 +8,13 @@ Purpose: implementation/design handoff for Codex. This document records known de
 
 ## 1. High-level identity
 
-DIR3.0 is a rewrite of the DIR concept around **direction/momentum as a first-class resource**.
+DIR is the current rewrite of the concept around **direction/momentum as a first-class resource**.
 
 Earlier versions:
 
 - **DIR1.0**: store/release only. U/D/L/R were fixed. Player displacement was the main observable effect.
 - **DIR2.0**: added composition and turning. Produced many multi-solution movement-efficiency puzzles, but the design drifted toward efficient movement rather than a distinct direction-resource puzzle language.
-- **DIR3.0**: direction is treated as something that can be generated, stored, transferred, and released. The goal is to produce puzzles not expressible as DIV-style split/merge or DIR2.0 movement optimization.
+- **DIR**: direction is treated as something that can be generated, stored, transferred, and released. The goal is to produce puzzles not expressible as DIV-style split/merge or DIR2.0 movement optimization.
 
 Core framing:
 
@@ -28,7 +28,7 @@ Core framing:
 
 ## 2. Core loop
 
-DIR3.0 currently uses a three-stage loop:
+DIR currently uses a three-stage loop:
 
 1. **Generate**
    - A push action creates direction/momentum.
@@ -62,13 +62,13 @@ Terminology approximation:
 
 - **Push** is the first-level operation.
 - The player pushes objects or performs an empty push to produce direction/momentum.
-- DIR3.0 should avoid starting from many independent verbs.
+- DIR should avoid starting from many independent verbs.
 
 ### Candidate second-level operation
 
 - An **interact key** is being considered.
 - It may handle adjacent release or transfer.
-- This is inspired partly by DIV having separate object/world interaction, but DIR3.0 must not become DIV.
+- This is inspired partly by DIV having separate object/world interaction, but DIR must not become DIV.
 
 Current likely use of interact:
 
@@ -199,7 +199,7 @@ Key unresolved conflict:
 
 ## 6. Known design conflict: remote timing vs locality
 
-A central DIR3.0 problem:
+A central DIR problem:
 
 - Some puzzles require the player to trigger motion when they are no longer adjacent to the object.
 - But allowing arbitrary remote trigger may flatten the puzzle into command storage and delayed execution.
@@ -258,7 +258,7 @@ Effect:
 
 Importance:
 
-- This may be the first clear DIR3.0-native pattern.
+- This may be the first clear DIR-native pattern.
 - It was recognized as a major step after months of DIR iteration.
 
 ### 7.3 Orthogonal rotation
@@ -270,7 +270,7 @@ Scenario:
 Effect:
 
 - Produces a turn-like or rotation-like spatial result.
-- More useful to DIR3.0 than pure dash/efficiency movement.
+- More useful to DIR than pure dash/efficiency movement.
 
 ### 7.4 Dash
 
@@ -307,7 +307,7 @@ DIV:
 - two interactions were considered: object interaction and world interaction
 - deals with overlapping or combining solution states
 
-DIR3.0:
+DIR:
 
 - centered on direction as stored resource
 - push remains the first-level operation
@@ -324,8 +324,8 @@ References used for comparison, not direct targets:
 - **Patrick's Parabox**: direction/spatial recursion reference, but DIR should not become box-recursion.
 - **ChuChu Rocket!**: direction arrows as future path commands.
 - **SpaceChem / Zachtronics**: path and timing programming, but DIR should stay tactile and push-based.
-- **Maxwell's Demon Puzzle**: state stored in blocks. Its simplification comes from ignoring heat transfer and letting state transitions become automatic. DIR3.0 does not want full automation.
-- **Outpour**: physically complex puzzle reference. DIR3.0 should avoid depending on opaque physical complexity.
+- **Maxwell's Demon Puzzle**: state stored in blocks. Its simplification comes from ignoring heat transfer and letting state transitions become automatic. DIR does not want full automation.
+- **Outpour**: physically complex puzzle reference. DIR should avoid depending on opaque physical complexity.
 
 ---
 
@@ -406,11 +406,10 @@ A useful prototype should prove these cases first:
 
 ## 13. Current design stance
 
-- Keep DIR3.0 minimal.
+- Keep DIR minimal.
 - Push remains the root action.
 - Direction storage is the core novelty.
 - Do not add remote trigger casually.
 - Do not add automation just to solve one level.
 - Prefer rules that produce spring/orthogonal-turn patterns naturally.
 - Treat the fold-back block as the stress test for the release model.
-

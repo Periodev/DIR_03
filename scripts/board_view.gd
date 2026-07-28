@@ -1,4 +1,4 @@
-class_name Dir3BoardView
+class_name DirBoardView
 extends Node2D
 
 const VisualStyle = preload("res://scripts/debug_style.gd")

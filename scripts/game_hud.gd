@@ -1,4 +1,4 @@
-class_name Dir3GameHud
+class_name DirGameHud
 extends CanvasLayer
 
 const VisualStyle = preload("res://scripts/debug_style.gd")

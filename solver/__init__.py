@@ -1,4 +1,4 @@
-"""Offline state-space analysis for DIR3 levels."""
+"""Offline state-space analysis for DIR levels."""
 
 from .collection import NamedLevel, load_level_collection, parse_level_collection
 from .engine import COMMAND_ORDER, parse_commands, run_commands, step

@@ -1,4 +1,4 @@
-"""Shortest-path search for DIR3 levels."""
+"""Shortest-path search for DIR levels."""
 
 from __future__ import annotations
 
