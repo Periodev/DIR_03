@@ -10,7 +10,8 @@ const WALL_SHADOW_RATIO := 0.16
 const WALL_HATCH_WIDTH_RATIO := 2.0 / 96.0
 const WALL_HATCH_PERIOD_RATIO := 9.0 / 96.0
 const BLOCK_INSET_RATIO := 0.19
-const GOAL_INSET_RATIO := 0.19
+const BLOCK_EDGE_RATIO := 2.0 / 96.0
+const GOAL_INSET_RATIO := 0.21
 const BLOCK_GLYPH_RATIO := 0.32
 const PLATE_SAFE_RATIO := 0.62
 const GOAL_STROKE_RATIO := 3.0 / 96.0
@@ -51,7 +52,9 @@ const MONO_DARK := {
 	"post_top": Color("#9c9c9c"),
 	"post_base": Color("#0a0a0a"),
 	"goal": Color("#8c8c8c"),
+	"goal_complete": Color("#f2f2f2"),
 	"block": Color("#b9823d"),
+	"block_edge": Color("#101316"),
 	"block_band": Color("#8e622f"),
 	"block_loaded": Color("#b9823d"),
 	"block_glyph": Color("#141414"),
@@ -82,7 +85,9 @@ const MONO_LIGHT := {
 	"post_top": Color("#d9d7d2"),
 	"post_base": Color("#4a4947"),
 	"goal": Color("#807e7a"),
+	"goal_complete": Color("#1e1d1c"),
 	"block": Color("#a66f34"),
+	"block_edge": Color("#4b3521"),
 	"block_band": Color("#c18a50"),
 	"block_loaded": Color("#a66f34"),
 	"block_glyph": Color("#f4f3f1"),

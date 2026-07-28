@@ -262,6 +262,9 @@ func draw_vertical_post(rect: Rect2) -> void:
 
 func draw_goals() -> void:
 	for cell in game_board.goal_cells:
+		if game_board.find_block_index_at(cell) != -1:
+			continue
+
 		var inset := roundi(cell_size * VisualStyle.GOAL_INSET_RATIO)
 		var goal_rect := Rect2(
 			cell_to_position(cell) + Vector2(inset, inset),
@@ -290,20 +293,17 @@ func draw_blocks() -> void:
 			cell_to_position(cell) + Vector2(block_gap, block_gap),
 			Vector2(cell_size - block_gap * 2, cell_size - block_gap * 2)
 		)
-		draw_rect(block_rect, color)
-
-		if game_board.goal_cells.has(cell):
-			var outline_offset := scaled_px(3.0)
-			var outline_rect := block_rect.grow(outline_offset)
-			draw_dashed_shape(
-				PackedVector2Array([
-					outline_rect.position,
-					Vector2(outline_rect.end.x, outline_rect.position.y),
-					outline_rect.end,
-					Vector2(outline_rect.position.x, outline_rect.end.y),
-				]),
-				palette["goal"]
-			)
+		var edge_width := maxf(
+			1.0,
+			roundi(cell_size * VisualStyle.BLOCK_EDGE_RATIO)
+		)
+		var edge_color: Color = (
+			palette["goal_complete"]
+			if game_board.goal_cells.has(cell)
+			else palette["block_edge"]
+		)
+		draw_rect(block_rect, edge_color)
+		draw_rect(block_rect.grow(-edge_width), color)
 
 		if recovery_block:
 			var marker_size := scaled_font_size(16)

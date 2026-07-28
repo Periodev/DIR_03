@@ -252,6 +252,10 @@ $checks = @(
 		Pass = $visualStyle -match '"block": Color\("#b9823d"\)' -and $visualStyle -match '"block_loaded": Color\("#b9823d"\)' -and $visualStyle -match '"block": Color\("#a66f34"\)' -and $visualStyle -match '"block_loaded": Color\("#a66f34"\)' -and $playerBoardView -match 'var\s+color:\s*Color\s*=\s*palette\["block"\]'
 	},
 	@{
+		Name = "player blocks use a scaled dark edge"
+		Pass = $visualStyle -match "BLOCK_EDGE_RATIO\s*:=\s*2\.0\s*/\s*96\.0" -and $visualStyle -match '"block_edge": Color\("#101316"\)' -and $visualStyle -match '"block_edge": Color\("#4b3521"\)' -and $playerBoardView -match 'draw_rect\(block_rect,\s*edge_color\)[\s\S]*draw_rect\(block_rect\.grow\(-edge_width\),\s*color\)'
+	},
+	@{
 		Name = "player renderer separates the app background from walkable floor cells"
 		Pass = $playerInterface -match 'palette\["app_bg"\]' -and $playerBoardView -match 'palette\["floor"\]' -and $playerBoardView -match "if\s+is_wall_cell\(cell\):[\s\S]*continue"
 	},
@@ -288,8 +292,8 @@ $checks = @(
 		Pass = $playerBoardView -match "func\s+draw_player_facing\(\)[\s\S]*chevron_points\([\s\S]*palette\[`"floor`"\][\s\S]*chevron_points\(center,\s*forward,\s*length,\s*depth,\s*stroke\)[\s\S]*palette\[`"player`"\]" -and $visualStyle -match "FACING_CHV_CLEARANCE_RATIO\s*:=\s*0\.02"
 	},
 	@{
-		Name = "player goals use square markers and square block outlines"
-		Pass = $playerBoardView -match "func\s+draw_goals\(\)[\s\S]*GOAL_INSET_RATIO[\s\S]*draw_dashed_shape\(" -and $playerBoardView -match "outline_rect\s*:=\s*block_rect\.grow" -and $visualStyle -notmatch "GOAL_DIAMOND_RATIO"
+		Name = "player goals use dashed empty markers and replace the block edge when completed"
+		Pass = $visualStyle -match "GOAL_INSET_RATIO\s*:=\s*0\.21" -and $playerBoardView -match "func\s+draw_goals\(\)[\s\S]*find_block_index_at\(cell\)\s*!=\s*-1:[\s\S]*continue[\s\S]*GOAL_INSET_RATIO[\s\S]*draw_dashed_shape\(" -and $playerBoardView -match 'palette\["goal_complete"\][\s\S]*if\s+game_board\.goal_cells\.has\(cell\)[\s\S]*else\s+palette\["block_edge"\]' -and $playerBoardView -notmatch "outline_rect" -and $visualStyle -match '"goal_complete": Color\("#f2f2f2"\)' -and $visualStyle -match '"goal_complete": Color\("#1e1d1c"\)' -and $visualStyle -notmatch "GOAL_DIAMOND_RATIO"
 	},
 	@{
 		Name = "game board dispatches compact UDLRXT commands"
