@@ -268,12 +268,24 @@ $checks = @(
 		Pass = $playerBoardView -match "is_wall_cell\(cell \+ Vector2i\.UP\)" -and $playerBoardView -match "is_wall_cell\(cell \+ Vector2i\.DOWN\)"
 	},
 	@{
-		Name = "player fences use separated lit posts above blocks"
-		Pass = $playerBoardView -match "draw_legacy_blocks\(\)[\s\S]*draw_fences\(\)[\s\S]*draw_legacy_player\(\)" -and $playerBoardView -match "post_width \+ post_gap" -and $playerBoardView -match '"post_top"' -and $playerBoardView -match '"post_base"'
+		Name = "player fences use separated lit posts above blocks and below facing"
+		Pass = $playerBoardView -match "draw_blocks\(\)[\s\S]*draw_fences\(\)[\s\S]*draw_player_body\(\)[\s\S]*draw_player_stored_vector\(\)[\s\S]*draw_player_facing\(\)" -and $playerBoardView -match "post_width \+ post_gap" -and $playerBoardView -match '"post_top"' -and $playerBoardView -match '"post_base"'
 	},
 	@{
-		Name = "player renderer uses compact player and block insets"
-		Pass = $playerBoardView -match "cell_size\s*\*\s*VisualStyle\.BLOCK_INSET_RATIO" -and $playerBoardView -match "cell_size\s*\*\s*VisualStyle\.PLAYER_INSET_RATIO" -and $playerBoardView -notmatch "scaled_px\(DebugStyle\.CELL_GAP\)"
+		Name = "player renderer uses compact block and diamond body proportions"
+		Pass = $playerBoardView -match "cell_size\s*\*\s*VisualStyle\.BLOCK_INSET_RATIO" -and $playerBoardView -match "cell_size\s*\*\s*VisualStyle\.PLAYER_BODY_RATIO" -and $playerBoardView -notmatch "DebugStyle"
+	},
+	@{
+		Name = "player renderer shares one direction triangle with installed blocks"
+		Pass = $playerBoardView -match "func\s+draw_blocks\(\)[\s\S]*draw_direction_triangle\(" -and $playerBoardView -match "func\s+draw_player_stored_vector\(\)[\s\S]*draw_direction_triangle\(" -and $visualStyle -match "PLAYER_TRI_W_RATIO\s*:=\s*0\.21" -and $visualStyle -match "PLAYER_TRI_H_RATIO\s*:=\s*0\.18"
+	},
+	@{
+		Name = "player facing chevron renders last with fence clearance"
+		Pass = $playerBoardView -match "func\s+draw_player_facing\(\)[\s\S]*chevron_points\([\s\S]*palette\[`"floor`"\][\s\S]*chevron_points\(center,\s*forward,\s*length,\s*depth,\s*stroke\)[\s\S]*palette\[`"player`"\]" -and $visualStyle -match "FACING_CHV_CLEARANCE_RATIO\s*:=\s*0\.02"
+	},
+	@{
+		Name = "player goals use square markers and square block outlines"
+		Pass = $playerBoardView -match "func\s+draw_goals\(\)[\s\S]*GOAL_INSET_RATIO[\s\S]*draw_dashed_shape\(" -and $playerBoardView -match "outline_rect\s*:=\s*block_rect\.grow" -and $visualStyle -notmatch "GOAL_DIAMOND_RATIO"
 	},
 	@{
 		Name = "game board dispatches compact UDLRXT commands"
