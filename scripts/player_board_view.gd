@@ -4,10 +4,12 @@ extends Control
 const VisualStyle = preload("res://scripts/visual_style.gd")
 
 var game_board
-var cell_size := float(VisualStyle.CELL_SIZE)
+var cell_size := float(VisualStyle.PLAYER_CELL_SIZE)
 var light_theme := false
 var palette: Dictionary = {}
 var fallback_font: Font
+var facing_pulse_strength := 0.0
+var facing_pulse_tween: Tween
 
 
 func initialize(board) -> void:
@@ -33,6 +35,31 @@ func set_light_theme(enabled: bool) -> void:
 func set_cell_size(value: float) -> void:
 	cell_size = maxf(16.0, value)
 	refresh_layout_size()
+	queue_redraw()
+
+
+func play_facing_pulse() -> void:
+	if facing_pulse_tween != null and facing_pulse_tween.is_valid():
+		facing_pulse_tween.kill()
+
+	facing_pulse_strength = 0.0
+	facing_pulse_tween = create_tween()
+	facing_pulse_tween.tween_method(
+		set_facing_pulse_strength,
+		0.0,
+		1.0,
+		VisualStyle.FACING_PULSE_IN_SECONDS
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	facing_pulse_tween.tween_method(
+		set_facing_pulse_strength,
+		1.0,
+		0.0,
+		VisualStyle.FACING_PULSE_OUT_SECONDS
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+
+
+func set_facing_pulse_strength(value: float) -> void:
+	facing_pulse_strength = clampf(value, 0.0, 1.0)
 	queue_redraw()
 
 
@@ -387,7 +414,7 @@ func draw_player_facing() -> void:
 	)
 	draw_colored_polygon(
 		chevron_points(center, forward, length, depth, stroke),
-		palette["player"]
+		palette["player"].lerp(palette["action_pulse"], facing_pulse_strength)
 	)
 
 

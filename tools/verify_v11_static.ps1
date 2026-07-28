@@ -284,12 +284,24 @@ $checks = @(
 		Pass = $visualStyle -match "PLAYER_BODY_RATIO\s*:=\s*0\.66" -and $playerBoardView -match "cell_size\s*\*\s*VisualStyle\.BLOCK_INSET_RATIO" -and $playerBoardView -match "cell_size\s*\*\s*VisualStyle\.PLAYER_BODY_RATIO" -and $playerBoardView -notmatch "DebugStyle"
 	},
 	@{
+		Name = "player mode scales board cells to 1.5x without changing debug cells"
+		Pass = $visualStyle -match "PLAYER_CELL_SCALE\s*:=\s*1\.5" -and $visualStyle -match "PLAYER_CELL_SIZE\s*:=\s*CELL_SIZE\s*\*\s*PLAYER_CELL_SCALE" -and $playerBoardView -match "cell_size\s*:=\s*float\(VisualStyle\.PLAYER_CELL_SIZE\)" -and $boardView -match 'preload\("res://scripts/debug_style\.gd"\)' -and $debugStyle -match "CELL_SIZE\s*:=\s*96"
+	},
+	@{
 		Name = "player renderer shares one direction triangle with installed blocks"
 		Pass = $playerBoardView -match "func\s+draw_blocks\(\)[\s\S]*draw_direction_triangle\(" -and $playerBoardView -match "func\s+draw_player_stored_vector\(\)[\s\S]*draw_direction_triangle\(" -and $visualStyle -match "PLAYER_TRI_W_RATIO\s*:=\s*0\.21" -and $visualStyle -match "PLAYER_TRI_H_RATIO\s*:=\s*0\.18"
 	},
 	@{
 		Name = "player facing chevron renders last with fence clearance"
 		Pass = $playerBoardView -match "func\s+draw_player_facing\(\)[\s\S]*chevron_points\([\s\S]*palette\[`"floor`"\][\s\S]*chevron_points\(center,\s*forward,\s*length,\s*depth,\s*stroke\)[\s\S]*palette\[`"player`"\]" -and $visualStyle -match "FACING_CHV_CLEARANCE_RATIO\s*:=\s*0\.02"
+	},
+	@{
+		Name = "successful pushes and installs pulse facing color only"
+		Pass = $gameBoard -match "check_level_completion\(\)\s*[\r\n]+\s*render_all\(\)\s*[\r\n]+\s*play_facing_action_pulse\(\)" -and $gameBoard -match "Install: %s -> block %s; order %s\.[\s\S]*?render_all\(\)\s*[\r\n]+\s*play_facing_action_pulse\(\)" -and $gameBoard -match 'has_method\("play_facing_pulse"\)' -and $playerBoardView -match "func\s+play_facing_pulse\(\)" -and $playerBoardView -match 'palette\["player"\]\.lerp\(palette\["action_pulse"\],\s*facing_pulse_strength\)' -and $visualStyle -match '"action_pulse": Color\("#55d6e0"\)' -and $visualStyle -match '"action_pulse": Color\("#147d88"\)' -and $visualStyle -match "FACING_PULSE_IN_SECONDS\s*:=\s*0\.05" -and $visualStyle -match "FACING_PULSE_OUT_SECONDS\s*:=\s*0\.10" -and $playerBoardView -notmatch "facing_pulse_scale|facing_pulse_offset"
+	},
+	@{
+		Name = "player facing chevron uses the enlarged proportions"
+		Pass = $visualStyle -match "FACING_CHV_LEN_RATIO\s*:=\s*0\.44" -and $visualStyle -match "FACING_CHV_DEPTH_RATIO\s*:=\s*0\.20" -and $visualStyle -match "FACING_CHV_STROKE_RATIO\s*:=\s*0\.50"
 	},
 	@{
 		Name = "player goals use dashed empty markers and replace the block edge when completed"

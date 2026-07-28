@@ -2,6 +2,8 @@ class_name Dir3VisualStyle
 extends RefCounted
 
 const CELL_SIZE := 96
+const PLAYER_CELL_SCALE := 1.5
+const PLAYER_CELL_SIZE := CELL_SIZE * PLAYER_CELL_SCALE
 const BOARD_OFFSET := Vector2(96, 96)
 const DEBUG_PANEL_POSITION := Vector2(1090, 96)
 
@@ -21,11 +23,13 @@ const GOAL_DASH_GAP_RATIO := 5.0 / 96.0
 const PLAYER_BODY_RATIO := 0.66
 const PLAYER_TRI_W_RATIO := 0.21
 const PLAYER_TRI_H_RATIO := 0.18
-const FACING_CHV_LEN_RATIO := 0.38
-const FACING_CHV_DEPTH_RATIO := 0.17
-const FACING_CHV_STROKE_RATIO := 0.48
+const FACING_CHV_LEN_RATIO := 0.44
+const FACING_CHV_DEPTH_RATIO := 0.20
+const FACING_CHV_STROKE_RATIO := 0.50
 const FACING_CHV_GAP_RATIO := 0.026
 const FACING_CHV_CLEARANCE_RATIO := 0.02
+const FACING_PULSE_IN_SECONDS := 0.05
+const FACING_PULSE_OUT_SECONDS := 0.10
 
 const FENCE_POST_W_RATIO := 0.145
 const FENCE_POST_GAP_RATIO := 0.105
@@ -60,6 +64,7 @@ const MONO_DARK := {
 	"block_glyph": Color("#141414"),
 	"player": Color("#f2f2f2"),
 	"player_glyph": Color("#141414"),
+	"action_pulse": Color("#55d6e0"),
 	"hair": Color("#282828"),
 	"stroke": Color("#3a3a3a"),
 	"label": Color("#6e6e6e"),
@@ -93,6 +98,7 @@ const MONO_LIGHT := {
 	"block_glyph": Color("#f4f3f1"),
 	"player": Color("#1e1d1c"),
 	"player_glyph": Color("#f4f3f1"),
+	"action_pulse": Color("#147d88"),
 	"hair": Color("#cbc9c4"),
 	"stroke": Color("#b9b7b2"),
 	"label": Color("#8b8a86"),

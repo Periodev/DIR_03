@@ -163,6 +163,7 @@ func try_move(direction: Vector2i, direction_name: String) -> void:
 	])
 	check_level_completion()
 	render_all()
+	play_facing_action_pulse()
 	end_atomic_input()
 
 
@@ -215,6 +216,7 @@ func install_vector() -> void:
 		install_order_text(),
 	])
 	render_all()
+	play_facing_action_pulse()
 	end_atomic_input()
 
 
@@ -563,6 +565,11 @@ func render_all() -> void:
 	if board_view != null:
 		board_view.render()
 	update_hud()
+
+
+func play_facing_action_pulse() -> void:
+	if board_view != null and board_view.has_method("play_facing_pulse"):
+		board_view.play_facing_pulse()
 
 
 func update_hud() -> void:
