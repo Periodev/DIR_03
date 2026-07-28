@@ -244,8 +244,8 @@ $checks = @(
 		Pass = $visualStyle -match '"hair": Color\("#282828"\)' -and $visualStyle -match '"stroke": Color\("#3a3a3a"\)' -and $visualStyle -match '"hair": Color\("#cbc9c4"\)' -and $visualStyle -match '"stroke": Color\("#b9b7b2"\)'
 	},
 	@{
-		Name = "player style uses low-saturation blue-gray floors and walls"
-		Pass = $visualStyle -match '"floor": Color\("#1b2025"\)' -and $visualStyle -match '"wall": Color\("#2c333a"\)' -and $visualStyle -match '"wall_hatch": Color\("#3a444d"\)' -and $visualStyle -match '"floor": Color\("#d9dfe4"\)' -and $visualStyle -match '"wall": Color\("#cbd3da"\)' -and $visualStyle -match '"wall_hatch": Color\("#b9c4cd"\)'
+		Name = "player style separates cool floors from neutral steel walls"
+		Pass = $visualStyle -match '"floor": Color\("#19212a"\)' -and $visualStyle -match '"grid": Color\("#27333e"\)' -and $visualStyle -match '"wall": Color\("#303337"\)' -and $visualStyle -match '"floor": Color\("#d9e0e6"\)' -and $visualStyle -match '"grid": Color\("#c3cdd5"\)' -and $visualStyle -match '"wall": Color\("#cbc9c5"\)'
 	},
 	@{
 		Name = "player renderer separates the app background from walkable floor cells"
@@ -270,6 +270,10 @@ $checks = @(
 	@{
 		Name = "player fences use separated lit posts above blocks"
 		Pass = $playerBoardView -match "draw_legacy_blocks\(\)[\s\S]*draw_fences\(\)[\s\S]*draw_legacy_player\(\)" -and $playerBoardView -match "post_width \+ post_gap" -and $playerBoardView -match '"post_top"' -and $playerBoardView -match '"post_base"'
+	},
+	@{
+		Name = "player renderer uses compact player and block insets"
+		Pass = $playerBoardView -match "cell_size\s*\*\s*VisualStyle\.BLOCK_INSET_RATIO" -and $playerBoardView -match "cell_size\s*\*\s*VisualStyle\.PLAYER_INSET_RATIO" -and $playerBoardView -notmatch "scaled_px\(DebugStyle\.CELL_GAP\)"
 	},
 	@{
 		Name = "game board dispatches compact UDLRXT commands"

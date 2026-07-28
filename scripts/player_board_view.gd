@@ -286,30 +286,26 @@ func draw_legacy_blocks() -> void:
 		elif vector_name != "":
 			color = DebugStyle.INSTALLED_BLOCK_COLOR
 
+		var block_gap := roundi(cell_size * VisualStyle.BLOCK_INSET_RATIO)
+		var block_rect := Rect2(
+			cell_to_position(cell) + Vector2(block_gap, block_gap),
+			Vector2(cell_size - block_gap * 2, cell_size - block_gap * 2)
+		)
+
 		if game_board.goal_cells.has(cell):
-			var border_gap := scaled_px(4.0)
+			var border_width := scaled_px(4.0)
 			draw_rect(
-				Rect2(
-					cell_to_position(cell) + Vector2(border_gap, border_gap),
-					Vector2(cell_size - border_gap * 2, cell_size - border_gap * 2)
-				),
+				block_rect.grow(border_width),
 				DebugStyle.GOAL_BLOCK_BORDER_COLOR
 			)
 
-		var block_gap := scaled_px(DebugStyle.CELL_GAP)
-		draw_rect(
-			Rect2(
-				cell_to_position(cell) + Vector2(block_gap, block_gap),
-				Vector2(cell_size - block_gap * 2, cell_size - block_gap * 2)
-			),
-			color
-		)
+		draw_rect(block_rect, color)
 
 		if recovery_block:
 			draw_text_at(
 				cell_to_position(cell) + Vector2(
-					cell_size - scaled_px(34.0),
-					scaled_px(8.0)
+					cell_size - block_gap - scaled_px(26.0),
+					block_gap
 				),
 				"↺",
 				Color.WHITE,
@@ -325,7 +321,7 @@ func draw_legacy_blocks() -> void:
 
 
 func draw_legacy_player() -> void:
-	var player_gap := scaled_px(DebugStyle.CELL_GAP)
+	var player_gap := roundi(cell_size * VisualStyle.PLAYER_INSET_RATIO)
 	var player_position := cell_to_position(game_board.player_cell)
 	draw_rect(
 		Rect2(
