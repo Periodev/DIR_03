@@ -283,11 +283,7 @@ func draw_blocks() -> void:
 		var cell: Vector2i = block["cell"]
 		var vector_name: String = block["vector"]
 		var recovery_block: bool = game_board.is_recovery_block(block)
-		var color: Color = (
-			palette["block_loaded"]
-			if vector_name != ""
-			else palette["block"]
-		)
+		var color: Color = palette["block"]
 
 		var block_gap := roundi(cell_size * VisualStyle.BLOCK_INSET_RATIO)
 		var block_rect := Rect2(

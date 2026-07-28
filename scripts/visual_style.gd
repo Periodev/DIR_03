@@ -17,7 +17,7 @@ const GOAL_STROKE_RATIO := 3.0 / 96.0
 const GOAL_DASH_RATIO := 7.0 / 96.0
 const GOAL_DASH_GAP_RATIO := 5.0 / 96.0
 
-const PLAYER_BODY_RATIO := 0.80
+const PLAYER_BODY_RATIO := 0.66
 const PLAYER_TRI_W_RATIO := 0.21
 const PLAYER_TRI_H_RATIO := 0.18
 const FACING_CHV_LEN_RATIO := 0.38
@@ -51,9 +51,9 @@ const MONO_DARK := {
 	"post_top": Color("#9c9c9c"),
 	"post_base": Color("#0a0a0a"),
 	"goal": Color("#8c8c8c"),
-	"block": Color("#9a9a9a"),
-	"block_band": Color("#7e7e7e"),
-	"block_loaded": Color("#c9c9c9"),
+	"block": Color("#b9823d"),
+	"block_band": Color("#8e622f"),
+	"block_loaded": Color("#b9823d"),
 	"block_glyph": Color("#141414"),
 	"player": Color("#f2f2f2"),
 	"player_glyph": Color("#141414"),
@@ -82,9 +82,9 @@ const MONO_LIGHT := {
 	"post_top": Color("#d9d7d2"),
 	"post_base": Color("#4a4947"),
 	"goal": Color("#807e7a"),
-	"block": Color("#6e6c68"),
-	"block_band": Color("#8b8985"),
-	"block_loaded": Color("#3f3e3b"),
+	"block": Color("#a66f34"),
+	"block_band": Color("#c18a50"),
+	"block_loaded": Color("#a66f34"),
 	"block_glyph": Color("#f4f3f1"),
 	"player": Color("#1e1d1c"),
 	"player_glyph": Color("#f4f3f1"),
