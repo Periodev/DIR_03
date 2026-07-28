@@ -1,9 +1,20 @@
 extends "res://scripts/game_board.gd"
 
+const PlayerBoardView = preload("res://scripts/player_board_view.gd")
+const PlayerInterface = preload("res://scripts/player_interface.gd")
+
 
 func _ready() -> void:
 	undo_enabled = true
 	super()
+
+
+func create_board_view():
+	return PlayerBoardView.new()
+
+
+func create_game_hud():
+	return PlayerInterface.new()
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -48,6 +48,7 @@ var undo_stack: Array[BoardSnapshot] = []
 
 var board_view
 var game_hud
+var debug_panel
 var hud_layer: CanvasLayer
 
 
@@ -55,12 +56,13 @@ func _ready() -> void:
 	if not load_initial_level():
 		return
 
-	board_view = BoardView.new()
+	board_view = create_board_view()
 	board_view.initialize(self)
-	add_child(board_view)
 
-	game_hud = GameHud.new()
-	game_hud.initialize(self)
+	game_hud = create_game_hud()
+	game_hud.initialize(self, board_view)
+	if board_view.get_parent() == null:
+		add_child(board_view)
 	add_child(game_hud)
 	hud_layer = game_hud
 
@@ -68,6 +70,14 @@ func _ready() -> void:
 	append_debug_log("Ready: v1.1 vector queue prototype.")
 	check_level_completion()
 	render_all()
+
+
+func create_board_view():
+	return BoardView.new()
+
+
+func create_game_hud():
+	return GameHud.new()
 
 
 func execute_command(command: String) -> bool:
@@ -558,11 +568,13 @@ func render_all() -> void:
 func update_hud() -> void:
 	if game_hud != null:
 		game_hud.refresh()
+	if debug_panel != null:
+		debug_panel.refresh()
 
 
 func set_debug_panel_position(panel_position: Vector2) -> void:
-	if game_hud != null:
-		game_hud.set_debug_panel_position(panel_position)
+	if debug_panel != null:
+		debug_panel.position = panel_position
 
 
 func append_debug_log(line: String) -> void:

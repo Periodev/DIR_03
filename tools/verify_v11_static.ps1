@@ -4,8 +4,12 @@ $root = Split-Path -Parent $PSScriptRoot
 $mainPath = Join-Path $root "scripts/main.gd"
 $gameBoardPath = Join-Path $root "scripts/game_board.gd"
 $boardViewPath = Join-Path $root "scripts/board_view.gd"
+$playerBoardViewPath = Join-Path $root "scripts/player_board_view.gd"
 $gameHudPath = Join-Path $root "scripts/game_hud.gd"
+$playerInterfacePath = Join-Path $root "scripts/player_interface.gd"
+$debugPanelPath = Join-Path $root "scripts/debug_panel.gd"
 $visualStylePath = Join-Path $root "scripts/visual_style.gd"
+$debugStylePath = Join-Path $root "scripts/debug_style.gd"
 $commandPlayerPath = Join-Path $root "scripts/command_player.gd"
 $commandPlayerScenePath = Join-Path $root "scenes/command_player.tscn"
 $asciiMapPath = Join-Path $root "scripts/ascii_map.gd"
@@ -16,9 +20,13 @@ $editorPath = Join-Path $root "tools/level_editor.html"
 $mainEntry = Get-Content -LiteralPath $mainPath -Raw
 $gameBoard = Get-Content -LiteralPath $gameBoardPath -Raw
 $boardView = Get-Content -LiteralPath $boardViewPath -Raw
+$playerBoardView = Get-Content -LiteralPath $playerBoardViewPath -Raw
 $gameHud = Get-Content -LiteralPath $gameHudPath -Raw
+$playerInterface = Get-Content -LiteralPath $playerInterfacePath -Raw
+$debugPanel = Get-Content -LiteralPath $debugPanelPath -Raw
 $visualStyle = Get-Content -LiteralPath $visualStylePath -Raw
-$main = "$mainEntry`n$gameBoard`n$boardView`n$gameHud`n$visualStyle"
+$debugStyle = Get-Content -LiteralPath $debugStylePath -Raw
+$main = "$mainEntry`n$gameBoard`n$boardView`n$playerBoardView`n$gameHud`n$playerInterface`n$debugPanel`n$visualStyle`n$debugStyle"
 $commandPlayer = Get-Content -LiteralPath $commandPlayerPath -Raw
 $commandPlayerScene = Get-Content -LiteralPath $commandPlayerScenePath -Raw
 $asciiMap = Get-Content -LiteralPath $asciiMapPath -Raw
@@ -74,6 +82,10 @@ $checks = @(
 	@{
 		Name = "project.godot defines reset_level input"
 		Pass = $project -match "reset_level="
+	},
+	@{
+		Name = "project.godot binds player reset to R"
+		Pass = $project -match 'reset_level=\{[\s\S]*?keycode":82'
 	},
 	@{
 		Name = "project.godot defines Z undo input"
@@ -182,6 +194,82 @@ $checks = @(
 	@{
 		Name = "main scene and command player share game_board.gd"
 		Pass = $mainEntry -match 'extends\s+"res://scripts/game_board\.gd"' -and $commandPlayer -match 'extends\s+"res://scripts/game_board\.gd"'
+	},
+	@{
+		Name = "player mode injects the monochrome board renderer"
+		Pass = $mainEntry -match 'preload\("res://scripts/player_board_view\.gd"\)' -and $mainEntry -match "func\s+create_board_view\(\)[\s\S]*PlayerBoardView\.new\(\)"
+	},
+	@{
+		Name = "player mode injects the player interface shell"
+		Pass = $mainEntry -match 'preload\("res://scripts/player_interface\.gd"\)' -and $mainEntry -match "func\s+create_game_hud\(\)[\s\S]*PlayerInterface\.new\(\)"
+	},
+	@{
+		Name = "player interface uses fixed header and status bars"
+		Pass = $playerInterface -match "HEADER_HEIGHT\s*:=\s*60" -and $playerInterface -match "STATUS_HEIGHT\s*:=\s*88" -and $playerInterface -match "STAGE_MIN_HEIGHT\s*:=\s*480"
+	},
+	@{
+		Name = "player interface centers a locally positioned board"
+		Pass = $playerInterface -match "CenterContainer\.new\(\)" -and $playerInterface -match "board_host\.add_child\(board_view\)" -and $playerBoardView -match "return Vector2\(cell\.x \* cell_size, cell\.y \* cell_size\)"
+	},
+	@{
+		Name = "player message keeps a fixed-height layout slot"
+		Pass = $playerInterface -match "MESSAGE_HEIGHT\s*:=\s*20" -and $playerInterface -match "message_label\.clip_text\s*=\s*true"
+	},
+	@{
+		Name = "player interface exposes facing slot goals and steps"
+		Pass = $playerInterface -match "build_facing_group" -and $playerInterface -match "build_slot_group" -and $playerInterface -match 'build_value_group\("GOALS"' -and $playerInterface -match 'build_value_group\("STEPS"'
+	},
+	@{
+		Name = "player interface buttons do not capture gameplay keys"
+		Pass = $playerInterface -match "func\s+make_button\([\s\S]*focus_mode\s*=\s*Control\.FOCUS_NONE"
+	},
+	@{
+		Name = "player mode does not create a debug panel"
+		Pass = $playerInterface -notmatch "DebugPanel" -and $gameHud -notmatch "add_debug_panel"
+	},
+	@{
+		Name = "command player owns the separated debug panel"
+		Pass = $commandPlayer -match 'preload\("res://scripts/debug_panel\.gd"\)' -and $commandPlayer -match "debug_panel\s*=\s*DebugPanel\.new\(\)" -and $debugPanel -match "class_name\s+Dir3DebugPanel"
+	},
+	@{
+		Name = "command player keeps the debug board renderer"
+		Pass = $gameBoard -match 'preload\("res://scripts/board_view\.gd"\)' -and $gameBoard -match "func\s+create_board_view\(\)[\s\S]*BoardView\.new\(\)" -and $commandPlayer -notmatch "create_board_view"
+	},
+	@{
+		Name = "player style defines dark and light monochrome themes"
+		Pass = $visualStyle -match "MONO_DARK" -and $visualStyle -match "MONO_LIGHT" -and $visualStyle -match '"app_bg"' -and $visualStyle -match '"floor"' -and $visualStyle -match '"wall_hatch"' -and $visualStyle -match '"post_fill"'
+	},
+	@{
+		Name = "player style uses the revised low-contrast interface tones"
+		Pass = $visualStyle -match '"hair": Color\("#282828"\)' -and $visualStyle -match '"stroke": Color\("#3a3a3a"\)' -and $visualStyle -match '"hair": Color\("#cbc9c4"\)' -and $visualStyle -match '"stroke": Color\("#b9b7b2"\)'
+	},
+	@{
+		Name = "player style uses low-saturation blue-gray floors and walls"
+		Pass = $visualStyle -match '"floor": Color\("#1b2025"\)' -and $visualStyle -match '"wall": Color\("#2c333a"\)' -and $visualStyle -match '"wall_hatch": Color\("#3a444d"\)' -and $visualStyle -match '"floor": Color\("#d9dfe4"\)' -and $visualStyle -match '"wall": Color\("#cbd3da"\)' -and $visualStyle -match '"wall_hatch": Color\("#b9c4cd"\)'
+	},
+	@{
+		Name = "player renderer separates the app background from walkable floor cells"
+		Pass = $playerInterface -match 'palette\["app_bg"\]' -and $playerBoardView -match 'palette\["floor"\]' -and $playerBoardView -match "if\s+is_wall_cell\(cell\):[\s\S]*continue"
+	},
+	@{
+		Name = "debug views retain the original debug style"
+		Pass = $boardView -match 'preload\("res://scripts/debug_style\.gd"\)' -and $gameHud -match 'preload\("res://scripts/debug_style\.gd"\)' -and $commandPlayer -match 'preload\("res://scripts/debug_style\.gd"\)'
+	},
+	@{
+		Name = "player renderer draws ground shadows before walls"
+		Pass = $playerBoardView -match "draw_ground\(\)[\s\S]*draw_wall_shadows\(\)[\s\S]*draw_walls\(\)"
+	},
+	@{
+		Name = "player walls retain solid and hatched surface variants"
+		Pass = $visualStyle -match "WALL_STYLE_SOLID\s*:=\s*0" -and $visualStyle -match "WALL_STYLE_HATCHED\s*:=\s*1" -and $visualStyle -match "WALL_STYLE\s*:=\s*WALL_STYLE_SOLID" -and $playerBoardView -match "WALL_STYLE\s*==\s*VisualStyle\.WALL_STYLE_HATCHED[\s\S]*draw_wall_hatch"
+	},
+	@{
+		Name = "player walls use exposed-side bevels"
+		Pass = $playerBoardView -match "is_wall_cell\(cell \+ Vector2i\.UP\)" -and $playerBoardView -match "is_wall_cell\(cell \+ Vector2i\.DOWN\)"
+	},
+	@{
+		Name = "player fences use separated lit posts above blocks"
+		Pass = $playerBoardView -match "draw_legacy_blocks\(\)[\s\S]*draw_fences\(\)[\s\S]*draw_legacy_player\(\)" -and $playerBoardView -match "post_width \+ post_gap" -and $playerBoardView -match '"post_top"' -and $playerBoardView -match '"post_base"'
 	},
 	@{
 		Name = "game board dispatches compact UDLRXT commands"

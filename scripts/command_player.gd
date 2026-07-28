@@ -1,12 +1,13 @@
 extends "res://scripts/game_board.gd"
 
-const VisualStyle = preload("res://scripts/visual_style.gd")
+const VisualStyle = preload("res://scripts/debug_style.gd")
+const DebugPanel = preload("res://scripts/debug_panel.gd")
 
 const PANEL_SIZE := Vector2(390, 700)
 const PANEL_TOP := 96.0
 const PANEL_MARGIN := 16.0
 const PANEL_GAP := 16.0
-const DEBUG_PANEL_SIZE := Vector2(300, 700)
+const DEBUG_PANEL_SIZE := Vector2(268, 700)
 const DEFAULT_STEP_SECONDS := 0.3
 
 var command_panel: Control
@@ -29,12 +30,19 @@ func _ready() -> void:
 	if hud_layer == null:
 		return
 
+	add_debug_panel()
 	add_command_player_panel()
 	add_playback_timer()
 	get_viewport().size_changed.connect(layout_side_panels)
 	layout_side_panels()
 	level_text_edit.text = level_source_text
 	update_playback_status("Paste commands, then Run or Step.")
+
+
+func add_debug_panel() -> void:
+	debug_panel = DebugPanel.new()
+	debug_panel.initialize(self)
+	hud_layer.add_child(debug_panel)
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -1,7 +1,7 @@
 class_name Dir3BoardView
 extends Node2D
 
-const VisualStyle = preload("res://scripts/visual_style.gd")
+const VisualStyle = preload("res://scripts/debug_style.gd")
 
 var game_board
 var board_layer: Node2D
