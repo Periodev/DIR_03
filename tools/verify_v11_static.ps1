@@ -263,6 +263,10 @@ $checks = @(
 		Pass = $visualStyle -match '"hair": Color\("#282828"\)' -and $visualStyle -match '"stroke": Color\("#3a3a3a"\)' -and $visualStyle -match '"hair": Color\("#cbc9c4"\)' -and $visualStyle -match '"stroke": Color\("#b9b7b2"\)'
 	},
 	@{
+		Name = "player and trigger tones reserve contrast headroom"
+		Pass = $visualStyle -match '"player": Color\("#b8bec4"\)' -and $visualStyle -match '"trigger_flash": Color\("#dedede"\)' -and $visualStyle -match '"player": Color\("#484746"\)' -and $visualStyle -match '"trigger_flash": Color\("#30302f"\)'
+	},
+	@{
 		Name = "player style separates cool floors from neutral steel walls"
 		Pass = $visualStyle -match '"floor": Color\("#19212a"\)' -and $visualStyle -match '"grid": Color\("#27333e"\)' -and $visualStyle -match '"wall": Color\("#303337"\)' -and $visualStyle -match '"floor": Color\("#d9e0e6"\)' -and $visualStyle -match '"grid": Color\("#c3cdd5"\)' -and $visualStyle -match '"wall": Color\("#cbc9c5"\)'
 	},
@@ -315,8 +319,12 @@ $checks = @(
 		Pass = $playerBoardView -match "func\s+draw_player_facing\(\)[\s\S]*chevron_points\([\s\S]*palette\[`"floor`"\][\s\S]*chevron_points\(center,\s*forward,\s*length,\s*depth,\s*stroke\)[\s\S]*palette\[`"player`"\]" -and $visualStyle -match "FACING_CHV_CLEARANCE_RATIO\s*:=\s*0\.02"
 	},
 	@{
-		Name = "successful pushes and installs emit directional facing echoes"
-		Pass = $gameBoard -match "Push succeeded\.[\s\S]*?play_facing_action_pulse\(\)[\s\S]*?start_block_displacement\(" -and $gameBoard -match "Install: %s -> block %s; order %s\.[\s\S]*?render_all\(\)\s*[\r\n]+\s*play_facing_action_pulse\(\)" -and $gameBoard -match 'has_method\("play_facing_pulse"\)' -and $playerBoardView -match "func\s+play_facing_pulse\(\)" -and $playerBoardView -match "func\s+draw_facing_echo\(" -and ([regex]::Matches($playerBoardView, "draw_facing_echo\(").Count -eq 3) -and $playerBoardView -match 'echo_color:\s*Color\s*=\s*palette\["player"\]' -and $playerBoardView -match "FACING_ECHO_DISTANCE_RATIO" -and $playerBoardView -notmatch "action_pulse|facing_pulse_scale|facing_pulse_offset" -and $visualStyle -match "FACING_ECHO_DISTANCE_RATIO\s*:=\s*0\.10" -and $visualStyle -match "FACING_ECHO_SECONDS\s*:=\s*0\.12" -and $visualStyle -match "FACING_ECHO_SECOND_PHASE\s*:=\s*0\.20" -and $visualStyle -notmatch '"action_pulse"'
+		Name = "successful pushes and installs retreat then release the facing chevron"
+		Pass = $gameBoard -match "Push succeeded\.[\s\S]*?play_facing_action\(\)[\s\S]*?start_block_displacement\(" -and $gameBoard -match "Install: %s -> block %s; order %s\.[\s\S]*?render_all\(\)\s*[\r\n]+\s*play_facing_action\(\)" -and $gameBoard -match 'has_method\("play_facing_action"\)' -and $playerBoardView -match "func\s+play_facing_action\(\)" -and $playerBoardView -match "FACING_ACTION_RETREAT_SECONDS[\s\S]*FACING_ACTION_HOLD_SECONDS[\s\S]*FACING_ACTION_FORWARD_SECONDS[\s\S]*FACING_ACTION_SETTLE_SECONDS" -and $playerBoardView -match "set_facing_action_offset_ratio[\s\S]*-VisualStyle\.FACING_ACTION_RETREAT_RATIO[\s\S]*set_facing_action_offset_ratio[\s\S]*VisualStyle\.FACING_ACTION_FORWARD_RATIO" -and $playerBoardView -match "FACING_CHV_INSET_RATIO[\s\S]*facing_action_offset_ratio" -and $playerBoardView -notmatch "draw_facing_echo|FACING_ECHO|FACING_FLASH|action_flash|facing_pulse" -and $visualStyle -match "FACING_ACTION_RETREAT_RATIO\s*:=\s*0\.033" -and $visualStyle -match "FACING_ACTION_FORWARD_RATIO\s*:=\s*0\.055" -and $visualStyle -match "FACING_ACTION_RETREAT_SECONDS\s*:=\s*0\.030" -and $visualStyle -match "FACING_ACTION_HOLD_SECONDS\s*:=\s*0\.030" -and $visualStyle -match "FACING_ACTION_FORWARD_SECONDS\s*:=\s*0\.060" -and $visualStyle -match "FACING_ACTION_SETTLE_SECONDS\s*:=\s*0\.030"
+	},
+	@{
+		Name = "successful installs reveal the block vector after an independent delay"
+		Pass = $gameBoard -match "play_facing_action\(\)\s*[\r\n]+\s*if\s+start_install_reveal\(int\(block\[`"id`"\]\)\):\s*[\r\n]+\s*return" -and $gameBoard -match "func\s+start_install_reveal\(block_id:\s*int\)\s*->\s*bool:" -and $gameBoard -match 'has_method\("play_install_reveal"\)' -and $playerBoardView -match "func\s+play_install_reveal\(block_id:\s*int,\s*on_finished:\s*Callable\)" -and $playerBoardView -match "INSTALL_VECTOR_DELAY_SECONDS[\s\S]*reveal_installed_vector[\s\S]*FACING_ACTION_SETTLE_SECONDS[\s\S]*finish_displacement" -and $playerBoardView -match 'vector_name\s*!=\s*""\s*and\s*block_id\s*!=\s*install_reveal_block_id' -and $playerBoardView -match "func\s+reveal_installed_vector\(\)[\s\S]*install_reveal_block_id\s*=\s*-1" -and $visualStyle -match "PUSH_DISPLACEMENT_DELAY_SECONDS\s*:=\s*0\.12" -and $visualStyle -match "INSTALL_VECTOR_DELAY_SECONDS\s*:=\s*0\.12"
 	},
 	@{
 		Name = "player facing chevron uses thick inset proportions"
@@ -328,7 +336,7 @@ $checks = @(
 	},
 	@{
 		Name = "successful triggers fade while displacement runs"
-		Pass = ([regex]::Matches($gameBoard, "start_trigger_displacement\(\s*[\r\n]+\s*carrier_id,\s*[\r\n]+\s*vector_name,")).Count -eq 2 -and $gameBoard -match 'has_method\("play_trigger_displacement"\)' -and $playerBoardView -match "func\s+play_trigger_displacement\(" -and $playerBoardView -match "TRIGGER_FLASH_IN_SECONDS[\s\S]*TRIGGER_FLASH_HOLD_SECONDS[\s\S]*set_displacement_progress[\s\S]*parallel\(\)\.tween_method\(\s*[\r\n]+\s*set_trigger_flash_alpha[\s\S]*TRIGGER_FLASH_OUT_SECONDS" -and $playerBoardView -match "func\s+draw_trigger_flash\(\)[\s\S]*var\s+block_index:\s*int\s*=\s*int\([\s\S]*find_block_index_by_id\(trigger_flash_block_id\)[\s\S]*var\s+block_cell:\s*Vector2i\s*=\s*block\[`"cell`"\][\s\S]*draw_direction_triangle\(" -and $playerBoardView -match 'palette\["block_glyph"\]\.lerp\([\s\S]*palette\["trigger_flash"\]' -and $visualStyle -match "TRIGGER_FLASH_OUT_SECONDS\s*:=\s*DISPLACEMENT_SECONDS" -and $visualStyle -match '"trigger_flash": Color\("#ffffff"\)' -and $visualStyle -match '"trigger_flash": Color\("#141414"\)'
+		Pass = ([regex]::Matches($gameBoard, "start_trigger_displacement\(\s*[\r\n]+\s*carrier_id,\s*[\r\n]+\s*vector_name,")).Count -eq 2 -and $gameBoard -match 'has_method\("play_trigger_displacement"\)' -and $playerBoardView -match "func\s+play_trigger_displacement\(" -and $playerBoardView -match "TRIGGER_FLASH_IN_SECONDS[\s\S]*TRIGGER_FLASH_HOLD_SECONDS[\s\S]*set_displacement_progress[\s\S]*parallel\(\)\.tween_method\(\s*[\r\n]+\s*set_trigger_flash_alpha[\s\S]*TRIGGER_FLASH_OUT_SECONDS" -and $playerBoardView -match "func\s+draw_trigger_flash\(\)[\s\S]*var\s+block_index:\s*int\s*=\s*int\([\s\S]*find_block_index_by_id\(trigger_flash_block_id\)[\s\S]*var\s+block_cell:\s*Vector2i\s*=\s*block\[`"cell`"\][\s\S]*draw_direction_triangle\(" -and $playerBoardView -match 'palette\["block_glyph"\]\.lerp\([\s\S]*palette\["trigger_flash"\]' -and $visualStyle -match "TRIGGER_FLASH_OUT_SECONDS\s*:=\s*DISPLACEMENT_SECONDS" -and $visualStyle -match '"trigger_flash": Color\("#dedede"\)' -and $visualStyle -match '"trigger_flash": Color\("#30302f"\)'
 	},
 	@{
 		Name = "new atomic input cancels stale displacement callbacks"
@@ -336,7 +344,7 @@ $checks = @(
 	},
 	@{
 		Name = "graphics runtime animation check covers movement trigger and reset"
-		Pass = $playerAnimationCheck -match "check_player_displacement" -and $playerAnimationCheck -match "check_push_displacement" -and $playerAnimationCheck -match "check_free_trigger_sequence" -and $playerAnimationCheck -match "check_collision_trigger_sequence" -and $playerAnimationCheck -match "check_reset_cancels_animation"
+		Pass = $playerAnimationCheck -match "check_player_displacement" -and $playerAnimationCheck -match "check_push_displacement" -and $playerAnimationCheck -match "check_install_reveal" -and $playerAnimationCheck -match "check_free_trigger_sequence" -and $playerAnimationCheck -match "check_collision_trigger_sequence" -and $playerAnimationCheck -match "check_reset_cancels_animation"
 	},
 	@{
 		Name = "player goals use dashed empty markers and replace the block edge when completed"

@@ -165,7 +165,7 @@ func try_move(direction: Vector2i, direction_name: String) -> void:
 		cell_text(block_target),
 		"queue overwritten",
 	])
-	play_facing_action_pulse()
+	play_facing_action()
 	if start_block_displacement(
 		pushed_block_id,
 		block_from,
@@ -224,7 +224,9 @@ func install_vector() -> void:
 		install_order_text(),
 	])
 	render_all()
-	play_facing_action_pulse()
+	play_facing_action()
+	if start_install_reveal(int(block["id"])):
+		return
 	end_atomic_input()
 
 
@@ -590,9 +592,25 @@ func render_all() -> void:
 	update_hud()
 
 
-func play_facing_action_pulse() -> void:
-	if board_view != null and board_view.has_method("play_facing_pulse"):
-		board_view.play_facing_pulse()
+func play_facing_action() -> void:
+	if board_view != null and board_view.has_method("play_facing_action"):
+		board_view.play_facing_action()
+
+
+func start_install_reveal(block_id: int) -> bool:
+	if board_view == null or not board_view.has_method("play_install_reveal"):
+		return false
+
+	board_view.play_install_reveal(
+		block_id,
+		Callable(self, "finish_install_action")
+	)
+	return true
+
+
+func finish_install_action() -> void:
+	render_all()
+	end_atomic_input()
 
 
 func start_player_displacement(

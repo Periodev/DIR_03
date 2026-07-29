@@ -12,8 +12,8 @@ var cell_size := float(VisualStyle.PLAYER_CELL_SIZE)
 var light_theme := false
 var palette: Dictionary = {}
 var fallback_font: Font
-var facing_pulse_strength := 0.0
-var facing_pulse_tween: Tween
+var facing_action_offset_ratio := 0.0
+var facing_action_tween: Tween
 var displacement_subject := DISPLACEMENT_NONE
 var displacement_block_id := -1
 var displacement_from := Vector2i.ZERO
@@ -25,6 +25,7 @@ var trigger_flash_block_id := -1
 var trigger_flash_direction := ""
 var trigger_flash_mix := 0.0
 var trigger_flash_alpha := 0.0
+var install_reveal_block_id := -1
 
 
 func initialize(board) -> void:
@@ -53,25 +54,58 @@ func set_cell_size(value: float) -> void:
 	queue_redraw()
 
 
-func play_facing_pulse() -> void:
-	if facing_pulse_tween != null and facing_pulse_tween.is_valid():
-		facing_pulse_tween.kill()
+func play_facing_action() -> void:
+	if facing_action_tween != null and facing_action_tween.is_valid():
+		facing_action_tween.kill()
 
-	facing_pulse_strength = 0.0
-	facing_pulse_tween = create_tween()
-	facing_pulse_tween.tween_method(
-		set_facing_pulse_strength,
+	facing_action_offset_ratio = 0.0
+	facing_action_tween = create_tween()
+	facing_action_tween.tween_method(
+		set_facing_action_offset_ratio,
 		0.0,
-		1.0,
-		VisualStyle.FACING_ECHO_SECONDS
+		-VisualStyle.FACING_ACTION_RETREAT_RATIO,
+		VisualStyle.FACING_ACTION_RETREAT_SECONDS
 	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	facing_pulse_tween.tween_callback(
-		set_facing_pulse_strength.bind(0.0)
+	facing_action_tween.tween_interval(
+		VisualStyle.FACING_ACTION_HOLD_SECONDS
 	)
+	facing_action_tween.tween_method(
+		set_facing_action_offset_ratio,
+		-VisualStyle.FACING_ACTION_RETREAT_RATIO,
+		VisualStyle.FACING_ACTION_FORWARD_RATIO,
+		VisualStyle.FACING_ACTION_FORWARD_SECONDS
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	facing_action_tween.tween_method(
+		set_facing_action_offset_ratio,
+		VisualStyle.FACING_ACTION_FORWARD_RATIO,
+		0.0,
+		VisualStyle.FACING_ACTION_SETTLE_SECONDS
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
-func set_facing_pulse_strength(value: float) -> void:
-	facing_pulse_strength = clampf(value, 0.0, 1.0)
+func set_facing_action_offset_ratio(value: float) -> void:
+	facing_action_offset_ratio = value
+	queue_redraw()
+
+
+func play_install_reveal(block_id: int, on_finished: Callable) -> void:
+	cancel_displacement()
+	install_reveal_block_id = block_id
+	displacement_finished = on_finished
+	displacement_tween = create_tween()
+	displacement_tween.tween_interval(
+		VisualStyle.INSTALL_VECTOR_DELAY_SECONDS
+	)
+	displacement_tween.tween_callback(reveal_installed_vector)
+	displacement_tween.tween_interval(
+		VisualStyle.FACING_ACTION_SETTLE_SECONDS
+	)
+	displacement_tween.tween_callback(finish_displacement)
+	queue_redraw()
+
+
+func reveal_installed_vector() -> void:
+	install_reveal_block_id = -1
 	queue_redraw()
 
 
@@ -212,6 +246,7 @@ func clear_displacement_state() -> void:
 	trigger_flash_direction = ""
 	trigger_flash_mix = 0.0
 	trigger_flash_alpha = 0.0
+	install_reveal_block_id = -1
 	queue_redraw()
 
 
@@ -510,6 +545,7 @@ func draw_block_at(
 	block_position: Vector2,
 	occupied_cell: Vector2i
 ) -> void:
+	var block_id: int = int(block["id"])
 	var vector_name: String = block["vector"]
 	var recovery_block: bool = game_board.is_recovery_block(block)
 	var color: Color = palette["block"]
@@ -541,7 +577,7 @@ func draw_block_at(
 			palette["block_glyph"],
 			marker_size
 		)
-	if vector_name != "":
+	if vector_name != "" and block_id != install_reveal_block_id:
 		draw_direction_triangle(
 			block_position + Vector2.ONE * cell_size / 2.0,
 			vector_name,
@@ -637,6 +673,7 @@ func draw_player_facing() -> void:
 		+ forward * (
 			cell_size / 2.0
 			- cell_size * VisualStyle.FACING_CHV_INSET_RATIO
+			+ cell_size * facing_action_offset_ratio
 		)
 	)
 	var length := float(roundi(cell_size * VisualStyle.FACING_CHV_LEN_RATIO))
@@ -657,65 +694,9 @@ func draw_player_facing() -> void:
 		),
 		palette["floor"]
 	)
-	draw_facing_echo(
-		center,
-		forward,
-		length,
-		depth,
-		stroke,
-		facing_pulse_strength,
-		VisualStyle.FACING_ECHO_ALPHA
-	)
-	var second_phase := inverse_lerp(
-		VisualStyle.FACING_ECHO_SECOND_PHASE,
-		1.0,
-		facing_pulse_strength
-	)
-	draw_facing_echo(
-		center,
-		forward,
-		length,
-		depth,
-		stroke,
-		second_phase,
-		VisualStyle.FACING_ECHO_SECOND_ALPHA
-	)
 	draw_colored_polygon(
 		chevron_points(center, forward, length, depth, stroke),
 		palette["player"]
-	)
-
-
-func draw_facing_echo(
-	center: Vector2,
-	forward: Vector2,
-	length: float,
-	depth: float,
-	stroke: float,
-	phase: float,
-	max_alpha: float
-) -> void:
-	if facing_pulse_strength <= 0.0 or phase <= 0.0 or phase >= 1.0:
-		return
-
-	var echo_color: Color = palette["player"]
-	echo_color.a *= (1.0 - phase) * max_alpha
-	var echo_center := (
-		center
-		+ forward
-		* cell_size
-		* VisualStyle.FACING_ECHO_DISTANCE_RATIO
-		* phase
-	)
-	draw_colored_polygon(
-		chevron_points(
-			echo_center,
-			forward,
-			length,
-			depth,
-			stroke
-		),
-		echo_color
 	)
 
 

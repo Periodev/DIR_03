@@ -18,6 +18,7 @@ func run_checks() -> void:
 
 	await check_player_displacement(game)
 	await check_push_displacement(game)
+	await check_install_reveal(game)
 	await check_free_trigger_sequence(game)
 	await check_collision_trigger_sequence(game)
 	await check_reset_cancels_animation(game)
@@ -48,13 +49,36 @@ func check_push_displacement(game: Node) -> void:
 	var started: bool = bool(game.execute_command("R"))
 	require(started, "push command should be accepted")
 	require(bool(game.input_locked), "push should lock input")
-	await create_timer(0.04).timeout
+	await create_timer(
+		VisualStyle.FACING_ACTION_RETREAT_SECONDS / 2.0
+	).timeout
 	var view: Node = game.board_view
+	require(
+		float(view.facing_action_offset_ratio) < 0.0,
+		"push should retreat the facing chevron before release"
+	)
 	require(
 		float(view.displacement_progress) < 0.01,
 		"pushed block should wait for the push delay"
 	)
-	await create_timer(0.25).timeout
+	await create_timer(
+		VisualStyle.FACING_ACTION_RETREAT_SECONDS / 2.0
+		+ VisualStyle.FACING_ACTION_HOLD_SECONDS
+		+ VisualStyle.FACING_ACTION_FORWARD_SECONDS * 0.7
+	).timeout
+	require(
+		float(view.facing_action_offset_ratio) > 0.0,
+		"push should send the facing chevron slightly forward"
+	)
+	require(
+		float(view.displacement_progress) < 0.01,
+		"pushed block should remain still until the facing action finishes"
+	)
+	await create_timer(
+		VisualStyle.PUSH_DISPLACEMENT_DELAY_SECONDS * 0.5
+		+ VisualStyle.DISPLACEMENT_SECONDS
+		+ 0.05
+	).timeout
 	var block_index: int = int(game.find_block_index_by_id(1))
 	var block: Dictionary = game.blocks[block_index]
 	require(
@@ -62,6 +86,55 @@ func check_push_displacement(game: Node) -> void:
 		"pushed block should finish at the target cell"
 	)
 	require(not bool(game.input_locked), "push should unlock after animation")
+
+
+func check_install_reveal(game: Node) -> void:
+	require_level(game, "@A.")
+	game.player_queue = "Right"
+	game.render_all()
+	var started: bool = bool(game.execute_command("X"))
+	require(started, "install command should be accepted")
+	require(bool(game.input_locked), "install reveal should lock input")
+	var view: Node = game.board_view
+	require(
+		int(view.install_reveal_block_id) == 1,
+		"installed direction should remain hidden during the reveal delay"
+	)
+	await create_timer(
+		VisualStyle.INSTALL_VECTOR_DELAY_SECONDS * 0.55
+	).timeout
+	require(
+		float(view.facing_action_offset_ratio) < 0.0,
+		"install should hold then release the facing chevron before reveal"
+	)
+	require(
+		int(view.install_reveal_block_id) == 1,
+		"installed direction should still be hidden halfway through the delay"
+	)
+	await create_timer(
+		VisualStyle.INSTALL_VECTOR_DELAY_SECONDS * 0.45
+	).timeout
+	var block_index: int = int(game.find_block_index_by_id(1))
+	var block: Dictionary = game.blocks[block_index]
+	require(
+		String(block["vector"]) == "Right",
+		"install reveal should preserve the installed direction"
+	)
+	require(
+		int(view.install_reveal_block_id) == -1,
+		"installed direction should appear after the reveal delay"
+	)
+	require(
+		bool(game.input_locked),
+		"install should remain locked while the facing chevron settles"
+	)
+	await create_timer(
+		VisualStyle.FACING_ACTION_SETTLE_SECONDS + 0.05
+	).timeout
+	require(
+		not bool(game.input_locked),
+		"install should unlock after the facing chevron settles"
+	)
 
 
 func check_free_trigger_sequence(game: Node) -> void:
