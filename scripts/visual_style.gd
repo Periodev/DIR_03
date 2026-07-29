@@ -25,12 +25,13 @@ const PLAYER_TRI_W_RATIO := 0.21
 const PLAYER_TRI_H_RATIO := 0.18
 const FACING_CHV_LEN_RATIO := 0.44
 const FACING_CHV_DEPTH_RATIO := 0.20
-const FACING_CHV_STROKE_RATIO := 0.62
+const FACING_CHV_STROKE_RATIO := 0.40
 const FACING_CHV_GAP_RATIO := 0.026
 const FACING_CHV_INSET_RATIO := 0.025
-const FACING_CHV_CLEARANCE_RATIO := 0.02
-const FACING_ACTION_RETREAT_RATIO := 0.033
-const FACING_ACTION_FORWARD_RATIO := 0.055
+const FACING_CHV_OUTLINE_RATIO := 0.010
+const FACING_CHV_CLEARANCE_RATIO := 0.014
+const FACING_ACTION_RETREAT_RATIO := 0.066
+const FACING_ACTION_FORWARD_RATIO := 0.110
 const FACING_ACTION_RETREAT_SECONDS := 0.030
 const FACING_ACTION_HOLD_SECONDS := 0.030
 const FACING_ACTION_FORWARD_SECONDS := 0.060
@@ -73,8 +74,8 @@ const MONO_DARK := {
 	"block_band": Color("#8e622f"),
 	"block_loaded": Color("#b9823d"),
 	"block_glyph": Color("#141414"),
+	"direction_fill": Color("#141414"),
 	"player": Color("#b8bec4"),
-	"player_glyph": Color("#141414"),
 	"trigger_flash": Color("#dedede"),
 	"hair": Color("#282828"),
 	"stroke": Color("#3a3a3a"),
@@ -107,8 +108,8 @@ const MONO_LIGHT := {
 	"block_band": Color("#c18a50"),
 	"block_loaded": Color("#a66f34"),
 	"block_glyph": Color("#f4f3f1"),
+	"direction_fill": Color("#f4f3f1"),
 	"player": Color("#484746"),
-	"player_glyph": Color("#f4f3f1"),
 	"trigger_flash": Color("#30302f"),
 	"hair": Color("#cbc9c4"),
 	"stroke": Color("#b9b7b2"),

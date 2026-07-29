@@ -581,7 +581,7 @@ func draw_block_at(
 		draw_direction_triangle(
 			block_position + Vector2.ONE * cell_size / 2.0,
 			vector_name,
-			palette["block_glyph"]
+			palette["direction_fill"]
 		)
 
 
@@ -617,7 +617,7 @@ func draw_trigger_flash() -> void:
 		and trigger_flash_block_id == displacement_block_id
 	):
 		flash_center = animated_cell_position() + Vector2.ONE * cell_size / 2.0
-	var color: Color = palette["block_glyph"].lerp(
+	var color: Color = palette["direction_fill"].lerp(
 		palette["trigger_flash"],
 		trigger_flash_mix
 	)
@@ -659,7 +659,7 @@ func draw_player_stored_vector() -> void:
 	draw_direction_triangle(
 		player_draw_center(),
 		game_board.player_queue,
-		palette["player_glyph"]
+		palette["direction_fill"]
 	)
 
 
@@ -679,20 +679,35 @@ func draw_player_facing() -> void:
 	var length := float(roundi(cell_size * VisualStyle.FACING_CHV_LEN_RATIO))
 	var depth := float(roundi(cell_size * VisualStyle.FACING_CHV_DEPTH_RATIO))
 	var stroke := float(roundi(depth * VisualStyle.FACING_CHV_STROKE_RATIO))
+	var outline := maxf(
+		1.0,
+		roundi(cell_size * VisualStyle.FACING_CHV_OUTLINE_RATIO)
+	)
 	var clearance := maxf(
 		2.0,
 		roundi(cell_size * VisualStyle.FACING_CHV_CLEARANCE_RATIO)
 	)
+	var outer_padding := outline + clearance
 
 	draw_colored_polygon(
 		chevron_points(
 			center,
 			forward,
-			length + clearance * 2.0,
-			depth + clearance * 2.0,
-			stroke + clearance * 2.0
+			length + outer_padding * 2.0,
+			depth + outer_padding * 2.0,
+			stroke + outer_padding * 2.0
 		),
 		palette["floor"]
+	)
+	draw_colored_polygon(
+		chevron_points(
+			center,
+			forward,
+			length + outline * 2.0,
+			depth + outline * 2.0,
+			stroke + outline * 2.0
+		),
+		palette["direction_fill"]
 	)
 	draw_colored_polygon(
 		chevron_points(center, forward, length, depth, stroke),
