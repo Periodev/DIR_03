@@ -54,6 +54,10 @@ func check_push_displacement(game: Node) -> void:
 	).timeout
 	var view: Node = game.board_view
 	require(
+		bool(view.player_queue_reveal_pending),
+		"pushed direction should remain hidden before movement starts"
+	)
+	require(
 		float(view.facing_action_offset_ratio) < 0.0,
 		"push should retreat the facing chevron before release"
 	)
@@ -74,10 +78,19 @@ func check_push_displacement(game: Node) -> void:
 		float(view.displacement_progress) < 0.01,
 		"pushed block should remain still until the facing action finishes"
 	)
+	require(
+		bool(view.player_queue_reveal_pending),
+		"pushed direction should remain hidden through the push delay"
+	)
 	await create_timer(
 		VisualStyle.PUSH_DISPLACEMENT_DELAY_SECONDS * 0.5
-		+ VisualStyle.DISPLACEMENT_SECONDS
-		+ 0.05
+	).timeout
+	require(
+		not bool(view.player_queue_reveal_pending),
+		"pushed direction should appear when block movement starts"
+	)
+	await create_timer(
+		VisualStyle.DISPLACEMENT_SECONDS + 0.05
 	).timeout
 	var block_index: int = int(game.find_block_index_by_id(1))
 	var block: Dictionary = game.blocks[block_index]

@@ -26,6 +26,7 @@ var trigger_flash_direction := ""
 var trigger_flash_mix := 0.0
 var trigger_flash_alpha := 0.0
 var install_reveal_block_id := -1
+var player_queue_reveal_pending := false
 
 
 func initialize(board) -> void:
@@ -137,10 +138,12 @@ func play_block_displacement(
 		to_cell,
 		on_finished
 	)
+	player_queue_reveal_pending = true
 	displacement_tween = create_tween()
 	displacement_tween.tween_interval(
 		VisualStyle.PUSH_DISPLACEMENT_DELAY_SECONDS
 	)
+	displacement_tween.tween_callback(reveal_player_queue)
 	displacement_tween.tween_method(
 		set_displacement_progress,
 		0.0,
@@ -148,6 +151,11 @@ func play_block_displacement(
 		VisualStyle.DISPLACEMENT_SECONDS
 	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	displacement_tween.tween_callback(finish_displacement)
+
+
+func reveal_player_queue() -> void:
+	player_queue_reveal_pending = false
+	queue_redraw()
 
 
 func play_trigger_displacement(
@@ -247,6 +255,7 @@ func clear_displacement_state() -> void:
 	trigger_flash_mix = 0.0
 	trigger_flash_alpha = 0.0
 	install_reveal_block_id = -1
+	player_queue_reveal_pending = false
 	queue_redraw()
 
 
@@ -653,7 +662,7 @@ func draw_player_body() -> void:
 
 
 func draw_player_stored_vector() -> void:
-	if game_board.player_queue == "":
+	if game_board.player_queue == "" or player_queue_reveal_pending:
 		return
 
 	draw_direction_triangle(
