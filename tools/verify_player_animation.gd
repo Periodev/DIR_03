@@ -1,6 +1,7 @@
 extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const VisualStyle = preload("res://scripts/visual_style.gd")
 
 var failures := 0
 
@@ -69,7 +70,10 @@ func check_free_trigger_sequence(game: Node) -> void:
 	var started: bool = bool(game.execute_command("T"))
 	require(started, "free trigger command should be accepted")
 	require(bool(game.input_locked), "free trigger should lock input")
-	await create_timer(0.07).timeout
+	await create_timer(
+		VisualStyle.TRIGGER_FLASH_IN_SECONDS
+		+ VisualStyle.TRIGGER_FLASH_HOLD_SECONDS / 2.0
+	).timeout
 	var view: Node = game.board_view
 	require(
 		float(view.trigger_flash_mix) > 0.9,
@@ -79,7 +83,22 @@ func check_free_trigger_sequence(game: Node) -> void:
 		float(view.displacement_progress) < 0.01,
 		"triggered block should wait for the white flash"
 	)
-	await create_timer(0.18).timeout
+	await create_timer(
+		VisualStyle.TRIGGER_FLASH_HOLD_SECONDS / 2.0
+		+ VisualStyle.DISPLACEMENT_SECONDS / 2.0
+	).timeout
+	require(
+		float(view.trigger_flash_alpha) < 0.9,
+		"trigger direction should fade during movement"
+	)
+	require(
+		float(view.displacement_progress) > 0.05,
+		"triggered block should move while the flash fades"
+	)
+	await create_timer(
+		VisualStyle.DISPLACEMENT_SECONDS / 2.0
+		+ VisualStyle.DISPLACEMENT_SECONDS
+	).timeout
 	var block_index: int = int(game.find_block_index_by_id(1))
 	var block: Dictionary = game.blocks[block_index]
 	require(
@@ -95,7 +114,7 @@ func check_collision_trigger_sequence(game: Node) -> void:
 	var started: bool = bool(game.execute_command("T"))
 	require(started, "collision trigger command should be accepted")
 	require(bool(game.input_locked), "collision trigger should lock input")
-	await create_timer(0.25).timeout
+	await create_timer(trigger_total_seconds() + 0.05).timeout
 	var carrier_index: int = int(game.find_block_index_by_id(1))
 	var pushed_index: int = int(game.find_block_index_by_id(2))
 	var carrier: Dictionary = game.blocks[carrier_index]
@@ -121,7 +140,7 @@ func check_reset_cancels_animation(game: Node) -> void:
 	require(bool(game.input_locked), "trigger should be active before reset")
 	game.reset_level()
 	require(not bool(game.input_locked), "reset should unlock immediately")
-	await create_timer(0.25).timeout
+	await create_timer(trigger_total_seconds() + 0.05).timeout
 	var carrier_index: int = int(game.find_block_index_by_id(1))
 	var pushed_index: int = int(game.find_block_index_by_id(2))
 	var carrier: Dictionary = game.blocks[carrier_index]
@@ -143,6 +162,17 @@ func check_reset_cancels_animation(game: Node) -> void:
 func require_level(game: Node, source: String) -> void:
 	var error: String = str(game.replace_level_from_text(source))
 	require(error == "", "test level should parse: %s" % error)
+
+
+func trigger_total_seconds() -> float:
+	return (
+		VisualStyle.TRIGGER_FLASH_IN_SECONDS
+		+ VisualStyle.TRIGGER_FLASH_HOLD_SECONDS
+		+ maxf(
+			VisualStyle.TRIGGER_FLASH_OUT_SECONDS,
+			VisualStyle.DISPLACEMENT_SECONDS
+		)
+	)
 
 
 func install_test_vector(
