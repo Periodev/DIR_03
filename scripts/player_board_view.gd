@@ -25,6 +25,9 @@ var trigger_flash_block_id := -1
 var trigger_flash_direction := ""
 var trigger_flash_mix := 0.0
 var trigger_flash_alpha := 0.0
+var collision_carrier_block_id := -1
+var collision_direction := ""
+var collision_source_offset_ratio := 0.0
 var install_reveal_block_id := -1
 var player_queue_reveal_pending := false
 
@@ -177,6 +180,10 @@ func play_trigger_displacement(
 	trigger_flash_direction = direction_name
 	trigger_flash_mix = 0.0
 	trigger_flash_alpha = 1.0
+	var is_collision := carrier_id != moving_block_id
+	collision_carrier_block_id = carrier_id if is_collision else -1
+	collision_direction = direction_name if is_collision else ""
+	collision_source_offset_ratio = 0.0
 
 	displacement_tween = create_tween()
 	displacement_tween.tween_method(
@@ -186,18 +193,40 @@ func play_trigger_displacement(
 		VisualStyle.TRIGGER_FLASH_IN_SECONDS
 	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	displacement_tween.tween_interval(VisualStyle.TRIGGER_FLASH_HOLD_SECONDS)
-	displacement_tween.tween_method(
-		set_displacement_progress,
-		0.0,
-		1.0,
-		VisualStyle.DISPLACEMENT_SECONDS
-	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	displacement_tween.parallel().tween_method(
-		set_trigger_flash_alpha,
-		1.0,
-		0.0,
-		VisualStyle.TRIGGER_FLASH_OUT_SECONDS
-	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	if is_collision:
+		displacement_tween.tween_method(
+			set_collision_source_offset_ratio,
+			0.0,
+			VisualStyle.COLLISION_CONTACT_OFFSET_RATIO,
+			VisualStyle.COLLISION_APPROACH_SECONDS
+		).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		displacement_tween.tween_interval(VisualStyle.COLLISION_HOLD_SECONDS)
+	if is_collision:
+		displacement_tween.tween_method(
+			set_collision_lead_progress,
+			0.0,
+			1.0,
+			VisualStyle.COLLISION_TARGET_LEAD_SECONDS
+		).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		displacement_tween.tween_method(
+			set_collision_follow_progress,
+			0.0,
+			1.0,
+			VisualStyle.COLLISION_TARGET_FOLLOW_SECONDS
+		)
+	else:
+		displacement_tween.tween_method(
+			set_displacement_progress,
+			0.0,
+			1.0,
+			VisualStyle.DISPLACEMENT_SECONDS
+		).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		displacement_tween.parallel().tween_method(
+			set_trigger_flash_alpha,
+			1.0,
+			0.0,
+			VisualStyle.TRIGGER_FLASH_OUT_SECONDS
+		).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	displacement_tween.tween_callback(finish_displacement)
 
 
@@ -254,6 +283,9 @@ func clear_displacement_state() -> void:
 	trigger_flash_direction = ""
 	trigger_flash_mix = 0.0
 	trigger_flash_alpha = 0.0
+	collision_carrier_block_id = -1
+	collision_direction = ""
+	collision_source_offset_ratio = 0.0
 	install_reveal_block_id = -1
 	player_queue_reveal_pending = false
 	queue_redraw()
@@ -272,6 +304,58 @@ func set_trigger_flash_mix(value: float) -> void:
 func set_trigger_flash_alpha(value: float) -> void:
 	trigger_flash_alpha = clampf(value, 0.0, 1.0)
 	queue_redraw()
+
+
+func set_collision_source_offset_ratio(value: float) -> void:
+	collision_source_offset_ratio = clampf(
+		value,
+		0.0,
+		VisualStyle.COLLISION_CONTACT_OFFSET_RATIO
+	)
+	queue_redraw()
+
+
+func set_collision_lead_progress(value: float) -> void:
+	var progress := clampf(value, 0.0, 1.0)
+	displacement_progress = (
+		VisualStyle.COLLISION_TARGET_LEAD_RATIO * progress
+	)
+	update_collision_flash(
+		progress * VisualStyle.COLLISION_TARGET_LEAD_SECONDS
+	)
+	queue_redraw()
+
+
+func set_collision_follow_progress(value: float) -> void:
+	var progress := clampf(value, 0.0, 1.0)
+	var elapsed := progress * VisualStyle.COLLISION_TARGET_FOLLOW_SECONDS
+	displacement_progress = lerpf(
+		VisualStyle.COLLISION_TARGET_LEAD_RATIO,
+		1.0,
+		sin(progress * PI / 2.0)
+	)
+	var return_progress := clampf(
+		elapsed / VisualStyle.COLLISION_RETURN_SECONDS,
+		0.0,
+		1.0
+	)
+	collision_source_offset_ratio = (
+		VisualStyle.COLLISION_CONTACT_OFFSET_RATIO
+		* (1.0 - sin(return_progress * PI / 2.0))
+	)
+	update_collision_flash(
+		VisualStyle.COLLISION_TARGET_LEAD_SECONDS + elapsed
+	)
+	queue_redraw()
+
+
+func update_collision_flash(elapsed: float) -> void:
+	var flash_progress := clampf(
+		elapsed / VisualStyle.TRIGGER_FLASH_OUT_SECONDS,
+		0.0,
+		1.0
+	)
+	trigger_flash_alpha = 1.0 - sin(flash_progress * PI / 2.0)
 
 
 func _draw() -> void:
@@ -530,7 +614,14 @@ func draw_blocks() -> void:
 			continue
 
 		var cell: Vector2i = block["cell"]
-		draw_block_at(block, cell_to_position(cell), cell)
+		var block_position := cell_to_position(cell)
+		if block_id == collision_carrier_block_id:
+			block_position += (
+				direction_vector(collision_direction)
+				* cell_size
+				* collision_source_offset_ratio
+			)
+		draw_block_at(block, block_position, cell)
 
 	if displacement_subject != DISPLACEMENT_BLOCK:
 		return
@@ -621,6 +712,12 @@ func draw_trigger_flash() -> void:
 	var block: Dictionary = game_board.blocks[block_index]
 	var block_cell: Vector2i = block["cell"]
 	var flash_center := cell_center(block_cell)
+	if trigger_flash_block_id == collision_carrier_block_id:
+		flash_center += (
+			direction_vector(collision_direction)
+			* cell_size
+			* collision_source_offset_ratio
+		)
 	if (
 		displacement_subject == DISPLACEMENT_BLOCK
 		and trigger_flash_block_id == displacement_block_id

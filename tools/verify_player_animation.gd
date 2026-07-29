@@ -169,6 +169,10 @@ func check_free_trigger_sequence(game: Node) -> void:
 		float(view.displacement_progress) < 0.01,
 		"triggered block should wait for the white flash"
 	)
+	require(
+		int(view.collision_carrier_block_id) == -1,
+		"free trigger should not animate a collision source"
+	)
 	await create_timer(
 		VisualStyle.TRIGGER_FLASH_HOLD_SECONDS / 2.0
 		+ VisualStyle.DISPLACEMENT_SECONDS / 2.0
@@ -200,7 +204,58 @@ func check_collision_trigger_sequence(game: Node) -> void:
 	var started: bool = bool(game.execute_command("T"))
 	require(started, "collision trigger command should be accepted")
 	require(bool(game.input_locked), "collision trigger should lock input")
-	await create_timer(trigger_total_seconds() + 0.05).timeout
+	var approach_start := (
+		VisualStyle.TRIGGER_FLASH_IN_SECONDS
+		+ VisualStyle.TRIGGER_FLASH_HOLD_SECONDS
+	)
+	await create_timer(
+		approach_start + VisualStyle.COLLISION_APPROACH_SECONDS / 2.0
+	).timeout
+	var view: Node = game.board_view
+	require(
+		int(view.collision_carrier_block_id) == 1,
+		"collision should identify the anchored source block"
+	)
+	require(
+		float(view.collision_source_offset_ratio) > 0.0,
+		"collision source should approach the target"
+	)
+	require(
+		float(view.collision_source_offset_ratio)
+			<= VisualStyle.COLLISION_CONTACT_OFFSET_RATIO,
+		"collision source should not pass the contact boundary"
+	)
+	require(
+		float(view.displacement_progress) < 0.01,
+		"collision target should wait until after contact"
+	)
+	await create_timer(
+		VisualStyle.COLLISION_APPROACH_SECONDS / 2.0
+		+ VisualStyle.COLLISION_HOLD_SECONDS
+		+ VisualStyle.COLLISION_TARGET_LEAD_SECONDS
+		+ 0.02
+	).timeout
+	require(
+		float(view.displacement_progress)
+			> VisualStyle.COLLISION_TARGET_LEAD_RATIO,
+		"collision target should continue after the lead handoff"
+	)
+	require(
+		float(view.collision_source_offset_ratio)
+			< VisualStyle.COLLISION_CONTACT_OFFSET_RATIO,
+		"collision source should return only after the target lead"
+	)
+	require(
+		float(view.collision_source_offset_ratio) > 0.0,
+		"collision source should still be returning after the handoff"
+	)
+	await create_timer(
+		collision_trigger_total_seconds()
+		- approach_start
+		- VisualStyle.COLLISION_APPROACH_SECONDS
+		- VisualStyle.COLLISION_HOLD_SECONDS
+		+ 0.05
+	).timeout
 	var carrier_index: int = int(game.find_block_index_by_id(1))
 	var pushed_index: int = int(game.find_block_index_by_id(2))
 	var carrier: Dictionary = game.blocks[carrier_index]
@@ -217,6 +272,10 @@ func check_collision_trigger_sequence(game: Node) -> void:
 		not bool(game.input_locked),
 		"collision trigger should unlock after animation"
 	)
+	require(
+		int(view.collision_carrier_block_id) == -1,
+		"collision source animation should clear after movement"
+	)
 
 
 func check_reset_cancels_animation(game: Node) -> void:
@@ -226,7 +285,7 @@ func check_reset_cancels_animation(game: Node) -> void:
 	require(bool(game.input_locked), "trigger should be active before reset")
 	game.reset_level()
 	require(not bool(game.input_locked), "reset should unlock immediately")
-	await create_timer(trigger_total_seconds() + 0.05).timeout
+	await create_timer(collision_trigger_total_seconds() + 0.05).timeout
 	var carrier_index: int = int(game.find_block_index_by_id(1))
 	var pushed_index: int = int(game.find_block_index_by_id(2))
 	var carrier: Dictionary = game.blocks[carrier_index]
@@ -258,6 +317,16 @@ func trigger_total_seconds() -> float:
 			VisualStyle.TRIGGER_FLASH_OUT_SECONDS,
 			VisualStyle.DISPLACEMENT_SECONDS
 		)
+	)
+
+
+func collision_trigger_total_seconds() -> float:
+	return (
+		VisualStyle.TRIGGER_FLASH_IN_SECONDS
+		+ VisualStyle.TRIGGER_FLASH_HOLD_SECONDS
+		+ VisualStyle.COLLISION_APPROACH_SECONDS
+		+ VisualStyle.COLLISION_HOLD_SECONDS
+		+ VisualStyle.COLLISION_TARGET_SECONDS
 	)
 
 
