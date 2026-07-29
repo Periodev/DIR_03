@@ -315,16 +315,16 @@ $checks = @(
 		Pass = $playerBoardView -match "func\s+draw_player_facing\(\)[\s\S]*chevron_points\([\s\S]*palette\[`"floor`"\][\s\S]*chevron_points\(center,\s*forward,\s*length,\s*depth,\s*stroke\)[\s\S]*palette\[`"player`"\]" -and $visualStyle -match "FACING_CHV_CLEARANCE_RATIO\s*:=\s*0\.02"
 	},
 	@{
-		Name = "successful pushes and installs pulse facing color only"
-		Pass = $gameBoard -match "Push succeeded\.[\s\S]*?play_facing_action_pulse\(\)[\s\S]*?start_block_displacement\(" -and $gameBoard -match "Install: %s -> block %s; order %s\.[\s\S]*?render_all\(\)\s*[\r\n]+\s*play_facing_action_pulse\(\)" -and $gameBoard -match 'has_method\("play_facing_pulse"\)' -and $playerBoardView -match "func\s+play_facing_pulse\(\)" -and $playerBoardView -match 'palette\["player"\]\.lerp\(palette\["action_pulse"\],\s*facing_pulse_strength\)' -and $visualStyle -match '"action_pulse": Color\("#55d6e0"\)' -and $visualStyle -match '"action_pulse": Color\("#147d88"\)' -and $visualStyle -match "FACING_PULSE_IN_SECONDS\s*:=\s*0\.05" -and $visualStyle -match "FACING_PULSE_OUT_SECONDS\s*:=\s*0\.10" -and $playerBoardView -notmatch "facing_pulse_scale|facing_pulse_offset"
+		Name = "successful pushes and installs emit directional facing echoes"
+		Pass = $gameBoard -match "Push succeeded\.[\s\S]*?play_facing_action_pulse\(\)[\s\S]*?start_block_displacement\(" -and $gameBoard -match "Install: %s -> block %s; order %s\.[\s\S]*?render_all\(\)\s*[\r\n]+\s*play_facing_action_pulse\(\)" -and $gameBoard -match 'has_method\("play_facing_pulse"\)' -and $playerBoardView -match "func\s+play_facing_pulse\(\)" -and $playerBoardView -match "func\s+draw_facing_echo\(" -and ([regex]::Matches($playerBoardView, "draw_facing_echo\(").Count -eq 3) -and $playerBoardView -match 'echo_color:\s*Color\s*=\s*palette\["player"\]' -and $playerBoardView -match "FACING_ECHO_DISTANCE_RATIO" -and $playerBoardView -notmatch "action_pulse|facing_pulse_scale|facing_pulse_offset" -and $visualStyle -match "FACING_ECHO_DISTANCE_RATIO\s*:=\s*0\.10" -and $visualStyle -match "FACING_ECHO_SECONDS\s*:=\s*0\.12" -and $visualStyle -match "FACING_ECHO_SECOND_PHASE\s*:=\s*0\.20" -and $visualStyle -notmatch '"action_pulse"'
 	},
 	@{
-		Name = "player facing chevron uses the enlarged proportions"
-		Pass = $visualStyle -match "FACING_CHV_LEN_RATIO\s*:=\s*0\.44" -and $visualStyle -match "FACING_CHV_DEPTH_RATIO\s*:=\s*0\.20" -and $visualStyle -match "FACING_CHV_STROKE_RATIO\s*:=\s*0\.50"
+		Name = "player facing chevron uses thick inset proportions"
+		Pass = $visualStyle -match "FACING_CHV_LEN_RATIO\s*:=\s*0\.44" -and $visualStyle -match "FACING_CHV_DEPTH_RATIO\s*:=\s*0\.20" -and $visualStyle -match "FACING_CHV_STROKE_RATIO\s*:=\s*0\.62" -and $visualStyle -match "FACING_CHV_INSET_RATIO\s*:=\s*0\.025" -and $playerBoardView -match "cell_size\s*/\s*2\.0[\s\S]*cell_size\s*\*\s*VisualStyle\.FACING_CHV_INSET_RATIO"
 	},
 	@{
 		Name = "player mode animates player and block displacement"
-		Pass = $gameBoard -match "start_player_displacement\(player_from,\s*target\)" -and $gameBoard -match "start_block_displacement\([\s\S]*pushed_block_id,[\s\S]*block_from,[\s\S]*block_target" -and $gameBoard -match 'has_method\("play_player_displacement"\)' -and $gameBoard -match 'has_method\("play_block_displacement"\)' -and $playerBoardView -match "func\s+play_player_displacement\(" -and $playerBoardView -match "func\s+play_block_displacement\(" -and $playerBoardView -match "func\s+animated_cell_position\(\)[\s\S]*\.lerp\(" -and $visualStyle -match "DISPLACEMENT_SECONDS\s*:=\s*0\.13"
+		Pass = $gameBoard -match "start_player_displacement\(player_from,\s*target\)" -and $gameBoard -match "start_block_displacement\([\s\S]*pushed_block_id,[\s\S]*block_from,[\s\S]*block_target" -and $gameBoard -match 'has_method\("play_player_displacement"\)' -and $gameBoard -match 'has_method\("play_block_displacement"\)' -and $playerBoardView -match "func\s+play_player_displacement\(" -and $playerBoardView -match "func\s+play_block_displacement\([\s\S]*PUSH_DISPLACEMENT_DELAY_SECONDS[\s\S]*set_displacement_progress" -and $playerBoardView -match "func\s+animated_cell_position\(\)[\s\S]*\.lerp\(" -and $visualStyle -match "PUSH_DISPLACEMENT_DELAY_SECONDS\s*:=\s*0\.08" -and $visualStyle -match "DISPLACEMENT_SECONDS\s*:=\s*0\.13"
 	},
 	@{
 		Name = "successful triggers flash before displacement"

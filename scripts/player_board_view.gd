@@ -63,14 +63,11 @@ func play_facing_pulse() -> void:
 		set_facing_pulse_strength,
 		0.0,
 		1.0,
-		VisualStyle.FACING_PULSE_IN_SECONDS
+		VisualStyle.FACING_ECHO_SECONDS
 	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	facing_pulse_tween.tween_method(
-		set_facing_pulse_strength,
-		1.0,
-		0.0,
-		VisualStyle.FACING_PULSE_OUT_SECONDS
-	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	facing_pulse_tween.tween_callback(
+		set_facing_pulse_strength.bind(0.0)
+	)
 
 
 func set_facing_pulse_strength(value: float) -> void:
@@ -106,7 +103,17 @@ func play_block_displacement(
 		to_cell,
 		on_finished
 	)
-	start_displacement_tween(Tween.TRANS_SINE, Tween.EASE_IN_OUT)
+	displacement_tween = create_tween()
+	displacement_tween.tween_interval(
+		VisualStyle.PUSH_DISPLACEMENT_DELAY_SECONDS
+	)
+	displacement_tween.tween_method(
+		set_displacement_progress,
+		0.0,
+		1.0,
+		VisualStyle.DISPLACEMENT_SECONDS
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	displacement_tween.tween_callback(finish_displacement)
 
 
 func play_trigger_displacement(
@@ -627,7 +634,10 @@ func draw_player_facing() -> void:
 
 	var center := (
 		player_draw_center()
-		+ forward * cell_size / 2.0
+		+ forward * (
+			cell_size / 2.0
+			- cell_size * VisualStyle.FACING_CHV_INSET_RATIO
+		)
 	)
 	var length := float(roundi(cell_size * VisualStyle.FACING_CHV_LEN_RATIO))
 	var depth := float(roundi(cell_size * VisualStyle.FACING_CHV_DEPTH_RATIO))
@@ -647,9 +657,65 @@ func draw_player_facing() -> void:
 		),
 		palette["floor"]
 	)
+	draw_facing_echo(
+		center,
+		forward,
+		length,
+		depth,
+		stroke,
+		facing_pulse_strength,
+		VisualStyle.FACING_ECHO_ALPHA
+	)
+	var second_phase := inverse_lerp(
+		VisualStyle.FACING_ECHO_SECOND_PHASE,
+		1.0,
+		facing_pulse_strength
+	)
+	draw_facing_echo(
+		center,
+		forward,
+		length,
+		depth,
+		stroke,
+		second_phase,
+		VisualStyle.FACING_ECHO_SECOND_ALPHA
+	)
 	draw_colored_polygon(
 		chevron_points(center, forward, length, depth, stroke),
-		palette["player"].lerp(palette["action_pulse"], facing_pulse_strength)
+		palette["player"]
+	)
+
+
+func draw_facing_echo(
+	center: Vector2,
+	forward: Vector2,
+	length: float,
+	depth: float,
+	stroke: float,
+	phase: float,
+	max_alpha: float
+) -> void:
+	if facing_pulse_strength <= 0.0 or phase <= 0.0 or phase >= 1.0:
+		return
+
+	var echo_color: Color = palette["player"]
+	echo_color.a *= (1.0 - phase) * max_alpha
+	var echo_center := (
+		center
+		+ forward
+		* cell_size
+		* VisualStyle.FACING_ECHO_DISTANCE_RATIO
+		* phase
+	)
+	draw_colored_polygon(
+		chevron_points(
+			echo_center,
+			forward,
+			length,
+			depth,
+			stroke
+		),
+		echo_color
 	)
 
 

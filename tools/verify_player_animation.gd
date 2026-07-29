@@ -13,6 +13,7 @@ func run_checks() -> void:
 	var game: Node = MAIN_SCENE.instantiate()
 	root.add_child(game)
 	await process_frame
+	await create_timer(0.25).timeout
 
 	await check_player_displacement(game)
 	await check_push_displacement(game)
@@ -33,7 +34,7 @@ func check_player_displacement(game: Node) -> void:
 	var started: bool = bool(game.execute_command("R"))
 	require(started, "player move command should be accepted")
 	require(bool(game.input_locked), "player move should lock input")
-	await create_timer(0.18).timeout
+	await create_timer(0.25).timeout
 	require(not bool(game.input_locked), "player move should unlock after animation")
 	require(
 		Vector2i(game.player_cell) == Vector2i(1, 0),
@@ -46,7 +47,13 @@ func check_push_displacement(game: Node) -> void:
 	var started: bool = bool(game.execute_command("R"))
 	require(started, "push command should be accepted")
 	require(bool(game.input_locked), "push should lock input")
-	await create_timer(0.18).timeout
+	await create_timer(0.04).timeout
+	var view: Node = game.board_view
+	require(
+		float(view.displacement_progress) < 0.01,
+		"pushed block should wait for the push delay"
+	)
+	await create_timer(0.25).timeout
 	var block_index: int = int(game.find_block_index_by_id(1))
 	var block: Dictionary = game.blocks[block_index]
 	require(

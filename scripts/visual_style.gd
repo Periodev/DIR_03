@@ -25,11 +25,16 @@ const PLAYER_TRI_W_RATIO := 0.21
 const PLAYER_TRI_H_RATIO := 0.18
 const FACING_CHV_LEN_RATIO := 0.44
 const FACING_CHV_DEPTH_RATIO := 0.20
-const FACING_CHV_STROKE_RATIO := 0.50
+const FACING_CHV_STROKE_RATIO := 0.62
 const FACING_CHV_GAP_RATIO := 0.026
+const FACING_CHV_INSET_RATIO := 0.025
 const FACING_CHV_CLEARANCE_RATIO := 0.02
-const FACING_PULSE_IN_SECONDS := 0.05
-const FACING_PULSE_OUT_SECONDS := 0.10
+const FACING_ECHO_DISTANCE_RATIO := 0.10
+const FACING_ECHO_SECONDS := 0.12
+const FACING_ECHO_ALPHA := 0.55
+const FACING_ECHO_SECOND_PHASE := 0.20
+const FACING_ECHO_SECOND_ALPHA := 0.35
+const PUSH_DISPLACEMENT_DELAY_SECONDS := 0.08
 const DISPLACEMENT_SECONDS := 0.13
 const TRIGGER_FLASH_IN_SECONDS := 0.06
 const TRIGGER_FLASH_HOLD_SECONDS := 0.03
@@ -68,7 +73,6 @@ const MONO_DARK := {
 	"block_glyph": Color("#141414"),
 	"player": Color("#f2f2f2"),
 	"player_glyph": Color("#141414"),
-	"action_pulse": Color("#55d6e0"),
 	"trigger_flash": Color("#ffffff"),
 	"hair": Color("#282828"),
 	"stroke": Color("#3a3a3a"),
@@ -103,7 +107,6 @@ const MONO_LIGHT := {
 	"block_glyph": Color("#f4f3f1"),
 	"player": Color("#1e1d1c"),
 	"player_glyph": Color("#f4f3f1"),
-	"action_pulse": Color("#147d88"),
 	"trigger_flash": Color("#141414"),
 	"hair": Color("#cbc9c4"),
 	"stroke": Color("#b9b7b2"),
