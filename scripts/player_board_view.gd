@@ -3,6 +3,10 @@ extends Control
 
 const VisualStyle = preload("res://scripts/visual_style.gd")
 
+const DISPLACEMENT_NONE := 0
+const DISPLACEMENT_PLAYER := 1
+const DISPLACEMENT_BLOCK := 2
+
 var game_board
 var cell_size := float(VisualStyle.PLAYER_CELL_SIZE)
 var light_theme := false
@@ -10,11 +14,17 @@ var palette: Dictionary = {}
 var fallback_font: Font
 var facing_pulse_strength := 0.0
 var facing_pulse_tween: Tween
+var displacement_subject := DISPLACEMENT_NONE
+var displacement_block_id := -1
+var displacement_from := Vector2i.ZERO
+var displacement_to := Vector2i.ZERO
+var displacement_progress := 0.0
+var displacement_tween: Tween
+var displacement_finished: Callable = Callable()
 var trigger_flash_block_id := -1
 var trigger_flash_direction := ""
 var trigger_flash_mix := 0.0
 var trigger_flash_alpha := 0.0
-var trigger_flash_tween: Tween
 
 
 func initialize(board) -> void:
@@ -68,43 +78,138 @@ func set_facing_pulse_strength(value: float) -> void:
 	queue_redraw()
 
 
-func play_trigger_flash(block_id: int, direction_name: String) -> void:
-	cancel_trigger_flash()
-	trigger_flash_block_id = block_id
+func play_player_displacement(
+	from_cell: Vector2i,
+	to_cell: Vector2i,
+	on_finished: Callable
+) -> void:
+	prepare_displacement(
+		DISPLACEMENT_PLAYER,
+		-1,
+		from_cell,
+		to_cell,
+		on_finished
+	)
+	start_displacement_tween(Tween.TRANS_SINE, Tween.EASE_IN_OUT)
+
+
+func play_block_displacement(
+	block_id: int,
+	from_cell: Vector2i,
+	to_cell: Vector2i,
+	on_finished: Callable
+) -> void:
+	prepare_displacement(
+		DISPLACEMENT_BLOCK,
+		block_id,
+		from_cell,
+		to_cell,
+		on_finished
+	)
+	start_displacement_tween(Tween.TRANS_SINE, Tween.EASE_IN_OUT)
+
+
+func play_trigger_displacement(
+	carrier_id: int,
+	direction_name: String,
+	moving_block_id: int,
+	from_cell: Vector2i,
+	to_cell: Vector2i,
+	on_finished: Callable
+) -> void:
+	prepare_displacement(
+		DISPLACEMENT_BLOCK,
+		moving_block_id,
+		from_cell,
+		to_cell,
+		on_finished
+	)
+	trigger_flash_block_id = carrier_id
 	trigger_flash_direction = direction_name
 	trigger_flash_mix = 0.0
 	trigger_flash_alpha = 1.0
-	queue_redraw()
 
-	trigger_flash_tween = create_tween()
-	trigger_flash_tween.tween_method(
+	displacement_tween = create_tween()
+	displacement_tween.tween_method(
 		set_trigger_flash_mix,
 		0.0,
 		1.0,
 		VisualStyle.TRIGGER_FLASH_IN_SECONDS
 	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	trigger_flash_tween.tween_interval(VisualStyle.TRIGGER_FLASH_HOLD_SECONDS)
-	trigger_flash_tween.tween_method(
+	displacement_tween.tween_interval(VisualStyle.TRIGGER_FLASH_HOLD_SECONDS)
+	displacement_tween.tween_method(
+		set_displacement_progress,
+		0.0,
+		1.0,
+		VisualStyle.DISPLACEMENT_SECONDS
+	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	displacement_tween.parallel().tween_method(
 		set_trigger_flash_alpha,
 		1.0,
 		0.0,
 		VisualStyle.TRIGGER_FLASH_OUT_SECONDS
 	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
-	trigger_flash_tween.tween_callback(finish_trigger_flash)
+	displacement_tween.tween_callback(finish_displacement)
 
 
-func cancel_trigger_flash() -> void:
-	if trigger_flash_tween != null and trigger_flash_tween.is_valid():
-		trigger_flash_tween.kill()
-	finish_trigger_flash()
+func prepare_displacement(
+	subject: int,
+	block_id: int,
+	from_cell: Vector2i,
+	to_cell: Vector2i,
+	on_finished: Callable
+) -> void:
+	cancel_displacement()
+	displacement_subject = subject
+	displacement_block_id = block_id
+	displacement_from = from_cell
+	displacement_to = to_cell
+	displacement_progress = 0.0
+	displacement_finished = on_finished
+	queue_redraw()
 
 
-func finish_trigger_flash() -> void:
-	trigger_flash_tween = null
+func start_displacement_tween(transition: Tween.TransitionType, ease: Tween.EaseType) -> void:
+	displacement_tween = create_tween()
+	displacement_tween.tween_method(
+		set_displacement_progress,
+		0.0,
+		1.0,
+		VisualStyle.DISPLACEMENT_SECONDS
+	).set_trans(transition).set_ease(ease)
+	displacement_tween.tween_callback(finish_displacement)
+
+
+func cancel_displacement() -> void:
+	if displacement_tween != null and displacement_tween.is_valid():
+		displacement_tween.kill()
+	clear_displacement_state()
+
+
+func finish_displacement() -> void:
+	var on_finished: Callable = displacement_finished
+	clear_displacement_state()
+	if on_finished.is_valid():
+		on_finished.call()
+
+
+func clear_displacement_state() -> void:
+	displacement_tween = null
+	displacement_subject = DISPLACEMENT_NONE
+	displacement_block_id = -1
+	displacement_from = Vector2i.ZERO
+	displacement_to = Vector2i.ZERO
+	displacement_progress = 0.0
+	displacement_finished = Callable()
 	trigger_flash_block_id = -1
 	trigger_flash_direction = ""
 	trigger_flash_mix = 0.0
 	trigger_flash_alpha = 0.0
+	queue_redraw()
+
+
+func set_displacement_progress(value: float) -> void:
+	displacement_progress = clampf(value, 0.0, 1.0)
 	queue_redraw()
 
 
@@ -345,7 +450,7 @@ func draw_vertical_post(rect: Rect2) -> void:
 
 func draw_goals() -> void:
 	for cell in game_board.goal_cells:
-		if game_board.find_block_index_at(cell) != -1:
+		if is_goal_visually_occupied(cell):
 			continue
 
 		var inset := roundi(cell_size * VisualStyle.GOAL_INSET_RATIO)
@@ -366,45 +471,89 @@ func draw_goals() -> void:
 
 func draw_blocks() -> void:
 	for block in game_board.blocks:
+		var block_id: int = int(block["id"])
+		if (
+			displacement_subject == DISPLACEMENT_BLOCK
+			and block_id == displacement_block_id
+		):
+			continue
+
 		var cell: Vector2i = block["cell"]
-		var vector_name: String = block["vector"]
-		var recovery_block: bool = game_board.is_recovery_block(block)
-		var color: Color = palette["block"]
+		draw_block_at(block, cell_to_position(cell), cell)
 
-		var block_gap := roundi(cell_size * VisualStyle.BLOCK_INSET_RATIO)
-		var block_rect := Rect2(
-			cell_to_position(cell) + Vector2(block_gap, block_gap),
-			Vector2(cell_size - block_gap * 2, cell_size - block_gap * 2)
-		)
-		var edge_width := maxf(
-			1.0,
-			roundi(cell_size * VisualStyle.BLOCK_EDGE_RATIO)
-		)
-		var edge_color: Color = (
-			palette["goal_complete"]
-			if game_board.goal_cells.has(cell)
-			else palette["block_edge"]
-		)
-		draw_rect(block_rect, edge_color)
-		draw_rect(block_rect.grow(-edge_width), color)
+	if displacement_subject != DISPLACEMENT_BLOCK:
+		return
 
-		if recovery_block:
-			var marker_size := scaled_font_size(16)
-			draw_text_at(
-				block_rect.position + Vector2(
-					scaled_px(4.0),
-					block_rect.size.y - marker_size - scaled_px(3.0)
-				),
-				"↺",
-				palette["block_glyph"],
-				marker_size
-			)
-		if vector_name != "":
-			draw_direction_triangle(
-				cell_center(cell),
-				vector_name,
-				palette["block_glyph"]
-			)
+	var block_index: int = int(
+		game_board.find_block_index_by_id(displacement_block_id)
+	)
+	if block_index == -1:
+		return
+
+	var moving_block: Dictionary = game_board.blocks[block_index]
+	draw_block_at(
+		moving_block,
+		animated_cell_position(),
+		displacement_from
+	)
+
+
+func draw_block_at(
+	block: Dictionary,
+	block_position: Vector2,
+	occupied_cell: Vector2i
+) -> void:
+	var vector_name: String = block["vector"]
+	var recovery_block: bool = game_board.is_recovery_block(block)
+	var color: Color = palette["block"]
+	var block_gap := roundi(cell_size * VisualStyle.BLOCK_INSET_RATIO)
+	var block_rect := Rect2(
+		block_position + Vector2(block_gap, block_gap),
+		Vector2(cell_size - block_gap * 2, cell_size - block_gap * 2)
+	)
+	var edge_width := maxf(
+		1.0,
+		roundi(cell_size * VisualStyle.BLOCK_EDGE_RATIO)
+	)
+	var edge_color: Color = (
+		palette["goal_complete"]
+		if game_board.goal_cells.has(occupied_cell)
+		else palette["block_edge"]
+	)
+	draw_rect(block_rect, edge_color)
+	draw_rect(block_rect.grow(-edge_width), color)
+
+	if recovery_block:
+		var marker_size := scaled_font_size(16)
+		draw_text_at(
+			block_rect.position + Vector2(
+				scaled_px(4.0),
+				block_rect.size.y - marker_size - scaled_px(3.0)
+			),
+			"↺",
+			palette["block_glyph"],
+			marker_size
+		)
+	if vector_name != "":
+		draw_direction_triangle(
+			block_position + Vector2.ONE * cell_size / 2.0,
+			vector_name,
+			palette["block_glyph"]
+		)
+
+
+func is_goal_visually_occupied(goal_cell: Vector2i) -> bool:
+	for block in game_board.blocks:
+		var block_id: int = int(block["id"])
+		var block_cell: Vector2i = block["cell"]
+		if (
+			displacement_subject == DISPLACEMENT_BLOCK
+			and block_id == displacement_block_id
+		):
+			block_cell = displacement_from
+		if block_cell == goal_cell:
+			return true
+	return false
 
 
 func draw_trigger_flash() -> void:
@@ -419,20 +568,26 @@ func draw_trigger_flash() -> void:
 
 	var block: Dictionary = game_board.blocks[block_index]
 	var block_cell: Vector2i = block["cell"]
+	var flash_center := cell_center(block_cell)
+	if (
+		displacement_subject == DISPLACEMENT_BLOCK
+		and trigger_flash_block_id == displacement_block_id
+	):
+		flash_center = animated_cell_position() + Vector2.ONE * cell_size / 2.0
 	var color: Color = palette["block_glyph"].lerp(
 		palette["trigger_flash"],
 		trigger_flash_mix
 	)
 	color.a *= trigger_flash_alpha
 	draw_direction_triangle(
-		cell_center(block_cell),
+		flash_center,
 		trigger_flash_direction,
 		color
 	)
 
 
 func draw_player_body() -> void:
-	var center := cell_center(game_board.player_cell)
+	var center := player_draw_center()
 	var body_size := roundi(cell_size * VisualStyle.PLAYER_BODY_RATIO)
 	var chevron_depth := roundi(cell_size * VisualStyle.FACING_CHV_DEPTH_RATIO)
 	var chevron_gap := maxf(
@@ -459,7 +614,7 @@ func draw_player_stored_vector() -> void:
 		return
 
 	draw_direction_triangle(
-		cell_center(game_board.player_cell),
+		player_draw_center(),
 		game_board.player_queue,
 		palette["player_glyph"]
 	)
@@ -471,7 +626,7 @@ func draw_player_facing() -> void:
 		return
 
 	var center := (
-		cell_center(game_board.player_cell)
+		player_draw_center()
 		+ forward * cell_size / 2.0
 	)
 	var length := float(roundi(cell_size * VisualStyle.FACING_CHV_LEN_RATIO))
@@ -629,6 +784,19 @@ func cell_to_position(cell: Vector2i) -> Vector2:
 
 func cell_center(cell: Vector2i) -> Vector2:
 	return cell_to_position(cell) + Vector2.ONE * cell_size / 2.0
+
+
+func animated_cell_position() -> Vector2:
+	return cell_to_position(displacement_from).lerp(
+		cell_to_position(displacement_to),
+		displacement_progress
+	)
+
+
+func player_draw_center() -> Vector2:
+	if displacement_subject == DISPLACEMENT_PLAYER:
+		return animated_cell_position() + Vector2.ONE * cell_size / 2.0
+	return cell_center(game_board.player_cell)
 
 
 func scaled_px(value: float) -> int:

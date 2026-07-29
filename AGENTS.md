@@ -33,3 +33,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\verify_v11_static.ps
 - Treat a nonzero Godot exit or a parser error as a failed verification.
   Sandbox-only editor cache errors are environmental when Godot still exits
   successfully and script registration completes.
+
+## Player Animation Checks
+
+- Animation changes must run `res://tools/verify_player_animation.gd` in the
+  normal graphics runtime. The Windows headless game runtime can crash inside
+  Godot 4.6.1 before reporting script results.
+- Give Godot a log path inside the workspace; the default `user://` log path
+  may be unavailable in sandboxed runs.
+- The animation check must cover input locking, free release, collision
+  release, and Reset cancellation without changing command depth.

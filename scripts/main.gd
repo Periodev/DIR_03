@@ -18,11 +18,10 @@ func create_game_hud():
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if input_locked:
-		return
-
 	if event.is_action_pressed("reset_level"):
 		reset_level()
+		return
+	if input_locked:
 		return
 	if event.is_action_pressed("undo_command"):
 		undo_last_command()

@@ -133,11 +133,13 @@ func try_move(direction: Vector2i, direction_name: String) -> void:
 		return
 
 	if block_index == -1:
+		var player_from: Vector2i = player_cell
 		player_cell = target
 		set_message("Moved through empty space. Queue unchanged.")
 		append_debug_log("Move %s: player -> %s." % [direction_name, cell_text(player_cell)])
-		render_all()
-		end_atomic_input()
+		if start_player_displacement(player_from, target):
+			return
+		finish_displacement_action(false)
 		return
 
 	var block_target := target + direction
@@ -150,6 +152,8 @@ func try_move(direction: Vector2i, direction_name: String) -> void:
 		return
 
 	var pushed_block: Dictionary = blocks[block_index]
+	var block_from: Vector2i = pushed_block["cell"]
+	var pushed_block_id: int = int(pushed_block["id"])
 	pushed_block["cell"] = block_target
 	blocks[block_index] = pushed_block
 
@@ -161,10 +165,14 @@ func try_move(direction: Vector2i, direction_name: String) -> void:
 		cell_text(block_target),
 		"queue overwritten",
 	])
-	check_level_completion()
-	render_all()
 	play_facing_action_pulse()
-	end_atomic_input()
+	if start_block_displacement(
+		pushed_block_id,
+		block_from,
+		block_target
+	):
+		return
+	finish_displacement_action(true)
 
 
 func install_vector() -> void:
@@ -271,6 +279,7 @@ func trigger_vector() -> void:
 
 	var front_block_index := find_block_index_at(target)
 	if front_block_index == -1:
+		var carrier_from: Vector2i = carrier["cell"]
 		carrier["cell"] = target
 		consume_carrier_vector(carrier_index, carrier)
 		set_message("Triggered %s. Block %s moved one cell." % [vector_name, block_label(carrier_id)])
@@ -279,10 +288,15 @@ func trigger_vector() -> void:
 			block_label(carrier_id),
 			cell_text(target),
 		])
-		check_level_completion()
-		render_all()
-		play_block_trigger_flash(carrier_id, vector_name)
-		end_atomic_input()
+		if start_trigger_displacement(
+			carrier_id,
+			vector_name,
+			carrier_id,
+			carrier_from,
+			target
+		):
+			return
+		finish_displacement_action(true)
 		return
 
 	var pushed_target := target + direction
@@ -297,6 +311,8 @@ func trigger_vector() -> void:
 		return
 
 	var pushed_block: Dictionary = blocks[front_block_index]
+	var pushed_from: Vector2i = pushed_block["cell"]
+	var pushed_block_id: int = int(pushed_block["id"])
 	pushed_block["cell"] = pushed_target
 	blocks[front_block_index] = pushed_block
 	consume_carrier_vector(carrier_index, carrier)
@@ -311,10 +327,15 @@ func trigger_vector() -> void:
 		block_label(pushed_block["id"]),
 		cell_text(pushed_target),
 	])
-	check_level_completion()
-	render_all()
-	play_block_trigger_flash(carrier_id, vector_name)
-	end_atomic_input()
+	if start_trigger_displacement(
+		carrier_id,
+		vector_name,
+		pushed_block_id,
+		pushed_from,
+		pushed_target
+	):
+		return
+	finish_displacement_action(true)
 
 
 func undo_last_command() -> bool:
@@ -574,14 +595,69 @@ func play_facing_action_pulse() -> void:
 		board_view.play_facing_pulse()
 
 
-func play_block_trigger_flash(block_id: int, direction_name: String) -> void:
-	if board_view != null and board_view.has_method("play_trigger_flash"):
-		board_view.play_trigger_flash(block_id, direction_name)
+func start_player_displacement(
+	from_cell: Vector2i,
+	to_cell: Vector2i
+) -> bool:
+	if board_view == null or not board_view.has_method("play_player_displacement"):
+		return false
+
+	board_view.play_player_displacement(
+		from_cell,
+		to_cell,
+		Callable(self, "finish_displacement_action").bind(false)
+	)
+	return true
 
 
-func cancel_block_trigger_flash() -> void:
-	if board_view != null and board_view.has_method("cancel_trigger_flash"):
-		board_view.cancel_trigger_flash()
+func start_block_displacement(
+	block_id: int,
+	from_cell: Vector2i,
+	to_cell: Vector2i
+) -> bool:
+	if board_view == null or not board_view.has_method("play_block_displacement"):
+		return false
+
+	board_view.play_block_displacement(
+		block_id,
+		from_cell,
+		to_cell,
+		Callable(self, "finish_displacement_action").bind(true)
+	)
+	return true
+
+
+func start_trigger_displacement(
+	carrier_id: int,
+	direction_name: String,
+	moving_block_id: int,
+	from_cell: Vector2i,
+	to_cell: Vector2i
+) -> bool:
+	if board_view == null or not board_view.has_method("play_trigger_displacement"):
+		return false
+
+	board_view.play_trigger_displacement(
+		carrier_id,
+		direction_name,
+		moving_block_id,
+		from_cell,
+		to_cell,
+		Callable(self, "finish_displacement_action").bind(true)
+	)
+	return true
+
+
+func finish_displacement_action(check_completion: bool) -> void:
+	if check_completion:
+		check_level_completion()
+	render_all()
+	end_atomic_input()
+
+
+func cancel_board_displacement() -> void:
+	if board_view != null and board_view.has_method("cancel_displacement"):
+		board_view.cancel_displacement()
 
 
 func update_hud() -> void:
@@ -666,7 +742,7 @@ func set_message(text: String) -> void:
 
 
 func begin_atomic_input() -> void:
-	cancel_block_trigger_flash()
+	cancel_board_displacement()
 	input_locked = true
 
 

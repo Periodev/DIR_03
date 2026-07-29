@@ -16,6 +16,7 @@ $asciiMapPath = Join-Path $root "scripts/ascii_map.gd"
 $levelPath = Join-Path $root "levels/level_test.txt"
 $projectPath = Join-Path $root "project.godot"
 $editorPath = Join-Path $root "tools/level_editor.html"
+$playerAnimationCheckPath = Join-Path $root "tools/verify_player_animation.gd"
 $pyprojectPath = Join-Path $root "pyproject.toml"
 $solverCliPath = Join-Path $root "solver/cli.py"
 
@@ -35,6 +36,7 @@ $asciiMap = Get-Content -LiteralPath $asciiMapPath -Raw
 $level = Get-Content -LiteralPath $levelPath -Raw
 $project = Get-Content -LiteralPath $projectPath -Raw
 $editor = Get-Content -LiteralPath $editorPath -Raw
+$playerAnimationCheck = Get-Content -LiteralPath $playerAnimationCheckPath -Raw
 $pyproject = Get-Content -LiteralPath $pyprojectPath -Raw
 $solverCli = Get-Content -LiteralPath $solverCliPath -Raw
 $legacyProductName = "DIR" + "3"
@@ -110,7 +112,7 @@ $checks = @(
 	},
 	@{
 		Name = "main.gd handles reset_level input"
-		Pass = $main -match "is_action_pressed\(\""reset_level\""\)"
+		Pass = $mainEntry -match 'is_action_pressed\("reset_level"\)[\s\S]*if input_locked:'
 	},
 	@{
 		Name = "main game handles undo before completion lock"
@@ -314,23 +316,31 @@ $checks = @(
 	},
 	@{
 		Name = "successful pushes and installs pulse facing color only"
-		Pass = $gameBoard -match "check_level_completion\(\)\s*[\r\n]+\s*render_all\(\)\s*[\r\n]+\s*play_facing_action_pulse\(\)" -and $gameBoard -match "Install: %s -> block %s; order %s\.[\s\S]*?render_all\(\)\s*[\r\n]+\s*play_facing_action_pulse\(\)" -and $gameBoard -match 'has_method\("play_facing_pulse"\)' -and $playerBoardView -match "func\s+play_facing_pulse\(\)" -and $playerBoardView -match 'palette\["player"\]\.lerp\(palette\["action_pulse"\],\s*facing_pulse_strength\)' -and $visualStyle -match '"action_pulse": Color\("#55d6e0"\)' -and $visualStyle -match '"action_pulse": Color\("#147d88"\)' -and $visualStyle -match "FACING_PULSE_IN_SECONDS\s*:=\s*0\.05" -and $visualStyle -match "FACING_PULSE_OUT_SECONDS\s*:=\s*0\.10" -and $playerBoardView -notmatch "facing_pulse_scale|facing_pulse_offset"
+		Pass = $gameBoard -match "Push succeeded\.[\s\S]*?play_facing_action_pulse\(\)[\s\S]*?start_block_displacement\(" -and $gameBoard -match "Install: %s -> block %s; order %s\.[\s\S]*?render_all\(\)\s*[\r\n]+\s*play_facing_action_pulse\(\)" -and $gameBoard -match 'has_method\("play_facing_pulse"\)' -and $playerBoardView -match "func\s+play_facing_pulse\(\)" -and $playerBoardView -match 'palette\["player"\]\.lerp\(palette\["action_pulse"\],\s*facing_pulse_strength\)' -and $visualStyle -match '"action_pulse": Color\("#55d6e0"\)' -and $visualStyle -match '"action_pulse": Color\("#147d88"\)' -and $visualStyle -match "FACING_PULSE_IN_SECONDS\s*:=\s*0\.05" -and $visualStyle -match "FACING_PULSE_OUT_SECONDS\s*:=\s*0\.10" -and $playerBoardView -notmatch "facing_pulse_scale|facing_pulse_offset"
 	},
 	@{
 		Name = "player facing chevron uses the enlarged proportions"
 		Pass = $visualStyle -match "FACING_CHV_LEN_RATIO\s*:=\s*0\.44" -and $visualStyle -match "FACING_CHV_DEPTH_RATIO\s*:=\s*0\.20" -and $visualStyle -match "FACING_CHV_STROKE_RATIO\s*:=\s*0\.50"
 	},
 	@{
-		Name = "successful triggers flash the consumed carrier direction"
-		Pass = ([regex]::Matches($gameBoard, "play_block_trigger_flash\(carrier_id,\s*vector_name\)")).Count -eq 2 -and $gameBoard -match 'has_method\("play_trigger_flash"\)' -and $playerBoardView -match "func\s+play_trigger_flash\(block_id:\s*int,\s*direction_name:\s*String\)" -and $playerBoardView -match "func\s+draw_trigger_flash\(\)[\s\S]*var\s+block_index:\s*int\s*=\s*int\([\s\S]*find_block_index_by_id\(trigger_flash_block_id\)[\s\S]*var\s+block_cell:\s*Vector2i\s*=\s*block\[`"cell`"\][\s\S]*draw_direction_triangle\(" -and $playerBoardView -match 'palette\["block_glyph"\]\.lerp\([\s\S]*palette\["trigger_flash"\]' -and $visualStyle -match '"trigger_flash": Color\("#ffffff"\)' -and $visualStyle -match '"trigger_flash": Color\("#141414"\)'
+		Name = "player mode animates player and block displacement"
+		Pass = $gameBoard -match "start_player_displacement\(player_from,\s*target\)" -and $gameBoard -match "start_block_displacement\([\s\S]*pushed_block_id,[\s\S]*block_from,[\s\S]*block_target" -and $gameBoard -match 'has_method\("play_player_displacement"\)' -and $gameBoard -match 'has_method\("play_block_displacement"\)' -and $playerBoardView -match "func\s+play_player_displacement\(" -and $playerBoardView -match "func\s+play_block_displacement\(" -and $playerBoardView -match "func\s+animated_cell_position\(\)[\s\S]*\.lerp\(" -and $visualStyle -match "DISPLACEMENT_SECONDS\s*:=\s*0\.13"
 	},
 	@{
-		Name = "new atomic input cancels stale trigger feedback"
-		Pass = $gameBoard -match "func\s+begin_atomic_input\(\)\s*->\s*void:\s*[\r\n]+\s*cancel_block_trigger_flash\(\)" -and $gameBoard -match 'has_method\("cancel_trigger_flash"\)' -and $playerBoardView -match "func\s+cancel_trigger_flash\(\)[\s\S]*trigger_flash_tween\.kill\(\)[\s\S]*finish_trigger_flash\(\)"
+		Name = "successful triggers flash before displacement"
+		Pass = ([regex]::Matches($gameBoard, "start_trigger_displacement\(\s*[\r\n]+\s*carrier_id,\s*[\r\n]+\s*vector_name,")).Count -eq 2 -and $gameBoard -match 'has_method\("play_trigger_displacement"\)' -and $playerBoardView -match "func\s+play_trigger_displacement\(" -and $playerBoardView -match "TRIGGER_FLASH_IN_SECONDS[\s\S]*TRIGGER_FLASH_HOLD_SECONDS[\s\S]*set_displacement_progress" -and $playerBoardView -match "func\s+draw_trigger_flash\(\)[\s\S]*var\s+block_index:\s*int\s*=\s*int\([\s\S]*find_block_index_by_id\(trigger_flash_block_id\)[\s\S]*var\s+block_cell:\s*Vector2i\s*=\s*block\[`"cell`"\][\s\S]*draw_direction_triangle\(" -and $playerBoardView -match 'palette\["block_glyph"\]\.lerp\([\s\S]*palette\["trigger_flash"\]' -and $visualStyle -match '"trigger_flash": Color\("#ffffff"\)' -and $visualStyle -match '"trigger_flash": Color\("#141414"\)'
+	},
+	@{
+		Name = "new atomic input cancels stale displacement callbacks"
+		Pass = $gameBoard -match "func\s+begin_atomic_input\(\)\s*->\s*void:\s*[\r\n]+\s*cancel_board_displacement\(\)" -and $gameBoard -match 'has_method\("cancel_displacement"\)' -and $playerBoardView -match "func\s+cancel_displacement\(\)[\s\S]*displacement_tween\.kill\(\)[\s\S]*clear_displacement_state\(\)" -and $playerBoardView -match "displacement_finished\s*=\s*Callable\(\)"
+	},
+	@{
+		Name = "graphics runtime animation check covers movement trigger and reset"
+		Pass = $playerAnimationCheck -match "check_player_displacement" -and $playerAnimationCheck -match "check_push_displacement" -and $playerAnimationCheck -match "check_free_trigger_sequence" -and $playerAnimationCheck -match "check_collision_trigger_sequence" -and $playerAnimationCheck -match "check_reset_cancels_animation"
 	},
 	@{
 		Name = "player goals use dashed empty markers and replace the block edge when completed"
-		Pass = $visualStyle -match "GOAL_INSET_RATIO\s*:=\s*0\.21" -and $playerBoardView -match "func\s+draw_goals\(\)[\s\S]*find_block_index_at\(cell\)\s*!=\s*-1:[\s\S]*continue[\s\S]*GOAL_INSET_RATIO[\s\S]*draw_dashed_shape\(" -and $playerBoardView -match 'palette\["goal_complete"\][\s\S]*if\s+game_board\.goal_cells\.has\(cell\)[\s\S]*else\s+palette\["block_edge"\]' -and $playerBoardView -notmatch "outline_rect" -and $visualStyle -match '"goal_complete": Color\("#f2f2f2"\)' -and $visualStyle -match '"goal_complete": Color\("#1e1d1c"\)' -and $visualStyle -notmatch "GOAL_DIAMOND_RATIO"
+		Pass = $visualStyle -match "GOAL_INSET_RATIO\s*:=\s*0\.21" -and $playerBoardView -match "func\s+draw_goals\(\)[\s\S]*is_goal_visually_occupied\(cell\)[\s\S]*continue[\s\S]*GOAL_INSET_RATIO[\s\S]*draw_dashed_shape\(" -and $playerBoardView -match 'palette\["goal_complete"\][\s\S]*if\s+game_board\.goal_cells\.has\(occupied_cell\)[\s\S]*else\s+palette\["block_edge"\]' -and $playerBoardView -notmatch "outline_rect" -and $visualStyle -match '"goal_complete": Color\("#f2f2f2"\)' -and $visualStyle -match '"goal_complete": Color\("#1e1d1c"\)' -and $visualStyle -notmatch "GOAL_DIAMOND_RATIO"
 	},
 	@{
 		Name = "game board dispatches compact UDLRXT commands"
