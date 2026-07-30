@@ -13,11 +13,12 @@ class CollectionTests(unittest.TestCase):
     def test_loads_all_first_area_levels_in_order(self) -> None:
         entries = load_level_collection(ROOT / "levels" / "area_01.txt")
 
-        self.assertEqual(len(entries), 11)
-        self.assertEqual(entries[0].name, "L 轉")
-        self.assertEqual(entries[1].name, "轉移")
-        self.assertEqual(entries[2].name, "拉回")
-        self.assertEqual(entries[4].name, "隔欄轉移")
+        self.assertEqual(len(entries), 12)
+        self.assertEqual(entries[0].name, "推動")
+        self.assertEqual(entries[1].name, "L 轉")
+        self.assertEqual(entries[2].name, "轉移")
+        self.assertEqual(entries[3].name, "拉回")
+        self.assertEqual(entries[5].name, "隔欄轉移")
         self.assertEqual(entries[-2].name, "發條")
         self.assertEqual(entries[-1].name, "綜合")
 

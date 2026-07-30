@@ -1,0 +1,1691 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DIR Area Map Editor</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #11161c;
+      --panel: #1a222c;
+      --panel-raised: #202a35;
+      --line: #3d4958;
+      --line-strong: #627184;
+      --text: #edf1f5;
+      --muted: #9aa8b8;
+      --void: #0b0f14;
+      --path: #34404d;
+      --path-edge: #4a5868;
+      --selection: #f4f7fa;
+      --area-1: #5bc0be;
+      --area-2: #e7b85a;
+      --area-3: #e27a68;
+      --easy: #6bc48d;
+      --normal: #71b7e6;
+      --hard: #e2c75b;
+      --expert: #ec8b54;
+      --extreme: #e45f6c;
+      --danger: #e26b73;
+      --cell-size: 30px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 1080px;
+      min-height: 720px;
+      overflow: hidden;
+      background: var(--page);
+      color: var(--text);
+      font-family: Inter, "Segoe UI", sans-serif;
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    .map-cell:focus-visible {
+      outline: 2px solid var(--selection);
+      outline-offset: 2px;
+    }
+
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-rows: 58px 1fr 34px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--line);
+      background: #151b22;
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      min-width: 236px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    .map-format {
+      color: var(--muted);
+      font: 11px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .tool,
+    .command,
+    .tab,
+    .icon-command {
+      min-height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #1b232d;
+      color: var(--text);
+    }
+
+    .tool,
+    .command {
+      padding: 5px 10px;
+    }
+
+    .tool:hover,
+    .command:hover,
+    .tab:hover,
+    .icon-command:hover {
+      border-color: var(--line-strong);
+      background: #27323e;
+    }
+
+    .tool[aria-pressed="true"] {
+      border-color: var(--selection);
+      background: #edf1f5;
+      color: #11161c;
+    }
+
+    .command[aria-pressed="true"] {
+      border-color: var(--easy);
+      color: var(--easy);
+      background: #17281f;
+    }
+
+    .tool-key {
+      display: inline-grid;
+      place-items: center;
+      min-width: 17px;
+      margin-right: 4px;
+      font: 700 12px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 26px;
+      margin: 0 3px;
+      background: var(--line);
+    }
+
+    .size-controls {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-left: auto;
+    }
+
+    .size-controls input {
+      width: 54px;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #10161d;
+      color: var(--text);
+      padding: 4px 7px;
+    }
+
+    .size-separator { color: var(--muted); }
+
+    .content {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 354px;
+    }
+
+    .workspace {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      background: var(--page);
+    }
+
+    .map-shell {
+      position: relative;
+      max-width: calc(100% - 40px);
+      max-height: calc(100% - 40px);
+      border: 1px solid var(--line);
+      background: var(--void);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .26);
+    }
+
+    #map-grid {
+      position: relative;
+      display: grid;
+      width: max-content;
+      background: var(--void);
+      touch-action: none;
+      user-select: none;
+    }
+
+    .map-link {
+      position: absolute;
+      z-index: 1;
+      background: var(--path-edge);
+      pointer-events: none;
+    }
+
+    .map-link.horizontal {
+      width: var(--cell-size);
+      height: max(3px, calc(var(--cell-size) * .08));
+      transform: translateY(-50%);
+    }
+
+    .map-link.vertical {
+      width: max(3px, calc(var(--cell-size) * .08));
+      height: var(--cell-size);
+      transform: translateX(-50%);
+    }
+
+    .map-link.hidden-preview {
+      opacity: .18;
+    }
+
+    .map-link.locked-preview {
+      opacity: .42;
+    }
+
+    .map-cell {
+      position: relative;
+      width: var(--cell-size);
+      height: var(--cell-size);
+      border: 0;
+      border-radius: 0;
+      padding: 0;
+      overflow: visible;
+      background: var(--void);
+      color: var(--text);
+    }
+
+    .map-cell::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border: 1px solid transparent;
+      pointer-events: none;
+    }
+
+    .map-cell.path {
+      background: var(--path);
+    }
+
+    .map-cell.path::before {
+      border-color: rgba(105, 123, 143, .16);
+    }
+
+    #map-grid[data-tool="path"] .map-cell:hover::before,
+    #map-grid[data-tool="erase"] .map-cell:hover::before,
+    #map-grid[data-tool="start"] .map-cell:hover::before,
+    #map-grid[data-tool="exit"] .map-cell:hover::before,
+    #map-grid[data-tool="level"] .map-cell:hover::before {
+      border-color: var(--selection);
+      background: rgba(255, 255, 255, .10);
+    }
+
+    .map-cell.selected::after {
+      content: "";
+      position: absolute;
+      z-index: 5;
+      inset: -3px;
+      border: 2px solid var(--selection);
+      pointer-events: none;
+    }
+
+    .level-node,
+    .marker {
+      position: absolute;
+      z-index: 3;
+      inset: 3px;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--area-color, var(--selection));
+      background: #18212a;
+      color: var(--text);
+      font: 700 clamp(8px, calc(var(--cell-size) * .33), 12px)/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .level-node.long-id {
+      font-size: clamp(7px, calc(var(--cell-size) * .25), 10px);
+    }
+
+    .level-node.branch {
+      inset: 5px;
+      border-style: dashed;
+    }
+
+    .level-node.locked-preview {
+      opacity: .48;
+    }
+
+    .level-node.hidden-preview {
+      opacity: .22;
+      border-style: dotted;
+      background: transparent;
+    }
+
+    .level-node::after {
+      content: "";
+      position: absolute;
+      width: max(4px, calc(var(--cell-size) * .17));
+      height: max(4px, calc(var(--cell-size) * .17));
+      right: -3px;
+      bottom: -3px;
+      border: 1px solid #10161d;
+      background: var(--difficulty);
+    }
+
+    .level-node::before {
+      content: attr(data-id);
+    }
+
+    .level-node.area-1 { --area-color: var(--area-1); }
+    .level-node.area-2 { --area-color: var(--area-2); }
+    .level-node.area-3 { --area-color: var(--area-3); }
+    .level-node.diff-E { --difficulty: var(--easy); }
+    .level-node.diff-N { --difficulty: var(--normal); }
+    .level-node.diff-H { --difficulty: var(--hard); }
+    .level-node.diff-X { --difficulty: var(--expert); }
+    .level-node.diff-XX { --difficulty: var(--extreme); }
+
+    .marker {
+      inset: 6px;
+      border-color: var(--selection);
+      background: var(--selection);
+      color: #10161d;
+    }
+
+    .marker.exit {
+      background: #10161d;
+      color: var(--selection);
+    }
+
+    .area-label {
+      position: absolute;
+      z-index: 6;
+      height: var(--cell-size);
+      display: flex;
+      align-items: center;
+      color: var(--area-color);
+      font: 700 clamp(9px, calc(var(--cell-size) * .35), 12px)/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .area-label::before {
+      content: "";
+      width: calc(var(--cell-size) * .55);
+      height: 2px;
+      margin-right: 7px;
+      background: currentColor;
+    }
+
+    .sidebar {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 42px 1fr;
+      border-left: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .tab {
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .tab[aria-selected="true"] {
+      color: var(--text);
+      box-shadow: inset 0 -2px 0 var(--selection);
+    }
+
+    .tab-panel {
+      min-height: 0;
+      overflow: auto;
+    }
+
+    .tab-panel[hidden] { display: none; }
+
+    .section {
+      padding: 15px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .field {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .field.full { grid-column: 1 / -1; }
+
+    .field input,
+    .field select {
+      width: 100%;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #111820;
+      color: var(--text);
+      padding: 5px 8px;
+    }
+
+    .field input:disabled,
+    .field select:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+
+    .inspector-actions,
+    .data-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .inspector-actions .command,
+    .data-actions .command {
+      flex: 1;
+    }
+
+    .command.danger {
+      border-color: rgba(226, 107, 115, .65);
+      color: #ffb1b7;
+    }
+
+    .level-list {
+      display: grid;
+      gap: 4px;
+    }
+
+    .level-list-button {
+      width: 100%;
+      min-height: 38px;
+      display: grid;
+      grid-template-columns: 43px minmax(0, 1fr) 32px;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text);
+      padding: 5px 7px;
+      text-align: left;
+    }
+
+    .level-list-button:hover { background: var(--panel-raised); }
+
+    .level-list-button[aria-pressed="true"] {
+      border-color: var(--selection);
+      background: #27313c;
+    }
+
+    .level-list-button.unplaced { opacity: .55; }
+
+    .list-id {
+      color: var(--muted);
+      font: 700 11px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    .list-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12px;
+    }
+
+    .difficulty {
+      justify-self: end;
+      color: var(--difficulty);
+      font: 750 11px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 520px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #0d131a;
+      color: #dfe8f0;
+      padding: 11px;
+      font: 11px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+      tab-size: 2;
+    }
+
+    .statusbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 18px;
+      border-top: 1px solid var(--line);
+      background: #151b22;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    #status.error { color: #ff9fa7; }
+
+    .legend {
+      display: flex;
+      gap: 13px;
+      align-items: center;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-swatch {
+      width: 8px;
+      height: 8px;
+      background: currentColor;
+    }
+
+    @media (max-height: 780px) {
+      .section { padding: 11px 14px; }
+      .form-grid { gap: 7px; }
+      .field input, .field select { height: 31px; }
+      .level-list-button { min-height: 32px; }
+      textarea { min-height: 430px; }
+    }
+
+    @media (max-width: 1180px) {
+      .brand { min-width: 176px; }
+      h1 { font-size: 16px; white-space: nowrap; }
+      .brand .map-format { display: none; }
+      .tool { padding-inline: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <h1>DIR Area Map Editor</h1>
+        <span class="map-format">dir-area-map-v2</span>
+      </div>
+      <div class="toolbar" role="toolbar" aria-label="Map tools">
+        <button class="tool" type="button" data-tool="select" aria-pressed="true" title="Select or drag a level">
+          <span class="tool-key">V</span>Select
+        </button>
+        <button class="tool" type="button" data-tool="path" aria-pressed="false" title="Paint walkable path">
+          <span class="tool-key">P</span>Path
+        </button>
+        <button class="tool" type="button" data-tool="level" aria-pressed="false" title="Place the selected level">
+          <span class="tool-key">L</span>Level
+        </button>
+        <button class="tool" type="button" data-tool="start" aria-pressed="false" title="Move player start">
+          <span class="tool-key">S</span>Entry
+        </button>
+        <button class="tool" type="button" data-tool="exit" aria-pressed="false" title="Move final exit">
+          <span class="tool-key">E</span>Exit
+        </button>
+        <button class="tool" type="button" data-tool="erase" aria-pressed="false" title="Erase path">
+          <span class="tool-key">X</span>Erase
+        </button>
+        <span class="toolbar-divider" aria-hidden="true"></span>
+        <button id="reset-map" class="command" type="button" title="Restore the initial Area 01 layout">Reset</button>
+        <button id="test-mode" class="command" type="button" aria-pressed="true" title="Make every level visible and available">TEST: OPEN</button>
+      </div>
+      <div class="size-controls" aria-label="Map size">
+        <input id="map-width" type="number" min="6" max="40" value="7" aria-label="Map width">
+        <span class="size-separator">x</span>
+        <input id="map-height" type="number" min="5" max="30" value="5" aria-label="Map height">
+        <button id="resize-map" class="command" type="button">Resize</button>
+      </div>
+    </header>
+
+    <div class="content">
+      <section id="workspace" class="workspace" aria-label="World map canvas">
+        <div class="map-shell">
+          <div id="map-grid" role="grid" aria-label="DIR world map"></div>
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <div class="tabs" role="tablist" aria-label="Editor panels">
+          <button id="level-tab" class="tab" type="button" role="tab" aria-selected="true" aria-controls="level-panel">LEVELS</button>
+          <button id="data-tab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="data-panel">DATA</button>
+        </div>
+
+        <div id="level-panel" class="tab-panel" role="tabpanel" aria-labelledby="level-tab">
+          <section class="section">
+            <div class="section-heading">
+              <h2>Selected Level</h2>
+              <button id="new-level" class="command" type="button">New Level</button>
+            </div>
+            <div class="form-grid">
+              <label class="field">
+                ID
+                <input id="level-id" type="text" maxlength="20" autocomplete="off">
+              </label>
+              <label class="field">
+                Area
+                <select id="level-area">
+                  <option value="1">Area 01</option>
+                  <option value="2">Area 02</option>
+                  <option value="3">Area 03</option>
+                </select>
+              </label>
+              <label class="field full">
+                Name
+                <input id="level-name" type="text" maxlength="60" autocomplete="off">
+              </label>
+              <label class="field">
+                Difficulty
+                <select id="level-difficulty">
+                  <option value="E">E - Easy</option>
+                  <option value="N">N - Normal</option>
+                  <option value="H">H - Hard</option>
+                  <option value="X">X - Expert</option>
+                  <option value="XX">XX - Extreme</option>
+                </select>
+              </label>
+              <label class="field">
+                Route
+                <select id="level-route">
+                  <option value="main">Main</option>
+                  <option value="branch">Branch</option>
+                </select>
+              </label>
+              <label class="field">
+                Requires
+                <input id="level-requires" type="text" placeholder="1-2, 1-3" autocomplete="off">
+              </label>
+              <label class="field">
+                Reveal
+                <select id="level-reveal">
+                  <option value="always">Always visible</option>
+                  <option value="after_requirements">After requirements</option>
+                </select>
+              </label>
+              <label class="field full">
+                Links
+                <input id="level-links" type="text" placeholder="1-1, 1-2" autocomplete="off">
+              </label>
+              <label class="field full">
+                Source
+                <input id="level-source" type="text" autocomplete="off">
+              </label>
+              <label class="field">
+                Source index
+                <input id="level-index" type="number" min="1" max="999">
+              </label>
+            </div>
+            <div class="inspector-actions">
+              <button id="unplace-level" class="command" type="button">Unplace</button>
+              <button id="delete-level" class="command danger" type="button">Delete</button>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-heading">
+              <h2>All Levels</h2>
+              <span id="level-count" class="map-format"></span>
+            </div>
+            <div id="level-list" class="level-list"></div>
+          </section>
+        </div>
+
+        <div id="data-panel" class="tab-panel" role="tabpanel" aria-labelledby="data-tab" hidden>
+          <section class="section">
+            <div class="section-heading">
+              <h2>Area Map Data</h2>
+            </div>
+            <textarea id="map-data" spellcheck="false" aria-label="Area map JSON"></textarea>
+            <div class="data-actions">
+              <button id="apply-data" class="command" type="button">Apply</button>
+              <button id="copy-data" class="command" type="button">Copy</button>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </div>
+
+    <footer class="statusbar">
+      <span id="status" aria-live="polite"></span>
+      <div class="legend" aria-label="Difficulty legend">
+        <span class="legend-item" style="color: var(--easy)"><span class="legend-swatch"></span>E</span>
+        <span class="legend-item" style="color: var(--normal)"><span class="legend-swatch"></span>N</span>
+        <span class="legend-item" style="color: var(--hard)"><span class="legend-swatch"></span>H</span>
+        <span class="legend-item" style="color: var(--expert)"><span class="legend-swatch"></span>X</span>
+        <span class="legend-item" style="color: var(--extreme)"><span class="legend-swatch"></span>XX</span>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    "use strict";
+
+    const MAP_FORMAT = "dir-area-map-v2";
+    const MIN_WIDTH = 6;
+    const MAX_WIDTH = 40;
+    const MIN_HEIGHT = 5;
+    const MAX_HEIGHT = 30;
+    const DIFFICULTIES = new Set(["E", "N", "H", "X", "XX"]);
+    const ROUTES = new Set(["main", "branch"]);
+    const REVEALS = new Set(["always", "after_requirements"]);
+
+    const levelDefinitions = [
+      { id: "1-0", name: "推動", area: 1, difficulty: "E", route: "main", reveal: "always", requires: [], source: "levels/area_01.txt", source_index: 1, x: 1, y: 1 },
+      { id: "1-1", name: "L 轉", area: 1, difficulty: "E", route: "main", reveal: "always", requires: ["1-0"], source: "levels/area_01.txt", source_index: 2, x: 1, y: 2 },
+      { id: "1-2", name: "轉移", area: 1, difficulty: "E", route: "main", reveal: "always", requires: ["1-1"], source: "levels/area_01.txt", source_index: 3, x: 2, y: 1 },
+      { id: "1-3", name: "拉回", area: 1, difficulty: "N", route: "main", reveal: "always", requires: ["1-2"], source: "levels/area_01.txt", source_index: 4, x: 2, y: 2 },
+      { id: "1-4", name: "方向分散", area: 1, difficulty: "N", route: "main", reveal: "always", requires: ["1-3"], source: "levels/area_01.txt", source_index: 5, x: 3, y: 2 },
+      { id: "1-5", name: "隔欄轉移", area: 1, difficulty: "E", route: "main", reveal: "always", requires: ["1-4"], source: "levels/area_01.txt", source_index: 6, x: 3, y: 1 },
+      { id: "1-6", name: "雙向拉回", area: 1, difficulty: "N", route: "branch", reveal: "after_requirements", requires: ["1-3"], source: "levels/area_01.txt", source_index: 7, x: 2, y: 3 },
+      { id: "1-7", name: "折返閃避", area: 1, difficulty: "H", route: "main", reveal: "always", requires: ["1-5"], source: "levels/area_01.txt", source_index: 8, x: 4, y: 1 },
+      { id: "1-8", name: "折返拉回", area: 1, difficulty: "H", route: "branch", reveal: "after_requirements", requires: ["1-7"], source: "levels/area_01.txt", source_index: 9, x: 4, y: 2 },
+      { id: "1-9", name: "反轉", area: 1, difficulty: "H", route: "main", reveal: "always", requires: ["1-7"], source: "levels/area_01.txt", source_index: 10, x: 5, y: 1 },
+      { id: "1-10", name: "發條", area: 1, difficulty: "X", route: "branch", reveal: "after_requirements", requires: ["1-9"], source: "levels/area_01.txt", source_index: 11, x: 5, y: 2 },
+      { id: "1-11", name: "綜合", area: 1, difficulty: "X", route: "branch", reveal: "after_requirements", requires: ["1-10"], source: "levels/area_01.txt", source_index: 12, x: 5, y: 3 },
+    ];
+
+    const initialLinks = [
+      ["1-0", "1-1"],
+      ["1-0", "1-2"],
+      ["1-1", "1-3"],
+      ["1-2", "1-3"],
+      ["1-3", "1-4"],
+      ["1-4", "1-5"],
+      ["1-5", "1-7"],
+      ["1-7", "1-9"],
+      ["1-3", "1-6"],
+      ["1-7", "1-8"],
+      ["1-9", "1-10"],
+      ["1-10", "1-11"],
+    ];
+
+    const areaLabels = [
+      { text: "AREA 01 / VECTOR", area: 1, x: 1, y: 0 },
+    ];
+
+    const mapGrid = document.querySelector("#map-grid");
+    const workspace = document.querySelector("#workspace");
+    const mapData = document.querySelector("#map-data");
+    const statusElement = document.querySelector("#status");
+    const levelList = document.querySelector("#level-list");
+    const levelCount = document.querySelector("#level-count");
+    const widthInput = document.querySelector("#map-width");
+    const heightInput = document.querySelector("#map-height");
+    const inspector = {
+      id: document.querySelector("#level-id"),
+      name: document.querySelector("#level-name"),
+      area: document.querySelector("#level-area"),
+      difficulty: document.querySelector("#level-difficulty"),
+      route: document.querySelector("#level-route"),
+      requires: document.querySelector("#level-requires"),
+      links: document.querySelector("#level-links"),
+      reveal: document.querySelector("#level-reveal"),
+      source: document.querySelector("#level-source"),
+      sourceIndex: document.querySelector("#level-index"),
+    };
+
+    let state;
+    let selectedTool = "select";
+    let selectedLevelId = "1-0";
+    let testModeAllOpen = true;
+    let paintActive = false;
+    let draggedLevelId = null;
+
+    function cloneLevels(levels) {
+      return levels.map(level => ({ ...level, requires: [...level.requires] }));
+    }
+
+    function cloneLinks(links) {
+      return links.map(link => [...link]);
+    }
+
+    function createTerrain(width, height) {
+      return Array.from({ length: height }, () => Array(width).fill(false));
+    }
+
+    function findLevel(id) {
+      return state.levels.find(level => level.id === id) || null;
+    }
+
+    function createInitialState() {
+      const next = {
+        format: MAP_FORMAT,
+        area: 1,
+        width: 7,
+        height: 5,
+        terrain: createTerrain(7, 5),
+        entry: { x: 0, y: 1 },
+        entryLevel: "1-0",
+        exit: { x: 6, y: 1 },
+        exitAfter: "1-9",
+        levels: cloneLevels(levelDefinitions),
+        links: cloneLinks(initialLinks),
+      };
+      state = next;
+      state.terrain[state.entry.y][state.entry.x] = true;
+      state.terrain[state.exit.y][state.exit.x] = true;
+      state.levels
+        .filter(level => level.reveal === "always")
+        .forEach(level => { state.terrain[level.y][level.x] = true; });
+      return state;
+    }
+
+    function setStatus(message, isError = false) {
+      statusElement.textContent = message;
+      statusElement.classList.toggle("error", isError);
+    }
+
+    function isInside(x, y) {
+      return x >= 0 && x < state.width && y >= 0 && y < state.height;
+    }
+
+    function levelAt(x, y) {
+      return state.levels.find(level => level.x === x && level.y === y) || null;
+    }
+
+    function markerAt(x, y) {
+      if (state.entry.x === x && state.entry.y === y) return "entry";
+      if (state.exit.x === x && state.exit.y === y) return "exit";
+      return "";
+    }
+
+    function positionOccupied(x, y, ignoredLevelId = "") {
+      if (markerAt(x, y)) return true;
+      return state.levels.some(level => level.id !== ignoredLevelId && level.x === x && level.y === y);
+    }
+
+    function serializeState() {
+      return {
+        format: MAP_FORMAT,
+        area: state.area,
+        size: { width: state.width, height: state.height },
+        terrain: state.terrain.map(row => row.map(cell => cell ? "#" : ".").join("")),
+        markers: {
+          entry: { ...state.entry },
+          exit: { ...state.exit },
+        },
+        entry_level: state.entryLevel,
+        exit_after: state.exitAfter,
+        test_mode_all_open: testModeAllOpen,
+        links: cloneLinks(state.links),
+        levels: state.levels.map(level => ({
+          id: level.id,
+          name: level.name,
+          area: level.area,
+          difficulty: level.difficulty,
+          route: level.route,
+          reveal: level.reveal,
+          requires: [...level.requires],
+          source: level.source,
+          source_index: level.source_index,
+          position: Number.isInteger(level.x) && Number.isInteger(level.y)
+            ? { x: level.x, y: level.y }
+            : null,
+        })),
+      };
+    }
+
+    function syncData() {
+      mapData.value = JSON.stringify(serializeState(), null, 2);
+    }
+
+    function syncStatus(message = "") {
+      const placed = state.levels.filter(level => Number.isInteger(level.x) && Number.isInteger(level.y)).length;
+      const preview = testModeAllOpen ? "test: all open" : "progression preview";
+      const base = `Area ${String(state.area).padStart(2, "0")} | ${state.width} x ${state.height} | ${placed}/${state.levels.length} levels placed | ${preview}`;
+      setStatus(message ? `${base} | ${message}` : base);
+      levelCount.textContent = `${placed}/${state.levels.length}`;
+    }
+
+    function difficultyColorClass(difficulty) {
+      return `diff-${DIFFICULTIES.has(difficulty) ? difficulty : "N"}`;
+    }
+
+    function previewClassForLevel(level) {
+      if (testModeAllOpen) return "";
+      if (level.reveal === "after_requirements") return "hidden-preview";
+      return level.requires.length ? "locked-preview" : "";
+    }
+
+    function linkedIds(levelId) {
+      return state.links
+        .filter(link => link.includes(levelId))
+        .map(link => link[0] === levelId ? link[1] : link[0]);
+    }
+
+    function renderLinks() {
+      const visibleLinks = [
+        ...state.links.map(link => ({
+          left: findLevel(link[0]),
+          right: findLevel(link[1]),
+          levels: link.map(findLevel),
+        })),
+        { left: state.entry, right: findLevel(state.entryLevel), levels: [findLevel(state.entryLevel)] },
+        { left: findLevel(state.exitAfter), right: state.exit, levels: [findLevel(state.exitAfter)] },
+      ];
+      visibleLinks.forEach(({ left, right, levels }) => {
+        if (!left || !right || !Number.isInteger(left.x) || !Number.isInteger(right.x)) return;
+        if (manhattanDistance(left, right) !== 1) return;
+
+        const element = document.createElement("span");
+        const previewClasses = levels.filter(Boolean).map(previewClassForLevel);
+        if (previewClasses.includes("hidden-preview")) element.classList.add("hidden-preview");
+        else if (previewClasses.includes("locked-preview")) element.classList.add("locked-preview");
+
+        if (left.y === right.y) {
+          element.classList.add("map-link", "horizontal");
+          element.style.left = `calc(${Math.min(left.x, right.x) + 0.5} * var(--cell-size))`;
+          element.style.top = `calc(${left.y + 0.5} * var(--cell-size))`;
+        } else {
+          element.classList.add("map-link", "vertical");
+          element.style.left = `calc(${left.x + 0.5} * var(--cell-size))`;
+          element.style.top = `calc(${Math.min(left.y, right.y) + 0.5} * var(--cell-size))`;
+        }
+        mapGrid.append(element);
+      });
+    }
+
+    function renderMap() {
+      mapGrid.innerHTML = "";
+      mapGrid.dataset.tool = selectedTool;
+      mapGrid.style.gridTemplateColumns = `repeat(${state.width}, var(--cell-size))`;
+      mapGrid.style.gridTemplateRows = `repeat(${state.height}, var(--cell-size))`;
+
+      for (let y = 0; y < state.height; y += 1) {
+        for (let x = 0; x < state.width; x += 1) {
+          const level = levelAt(x, y);
+          const marker = markerAt(x, y);
+          const cell = document.createElement("button");
+          const levelPathVisible = level && (testModeAllOpen || level.reveal === "always");
+          cell.type = "button";
+          cell.className = `map-cell${state.terrain[y][x] || levelPathVisible || marker ? " path" : ""}${level?.id === selectedLevelId ? " selected" : ""}`;
+          cell.dataset.x = String(x);
+          cell.dataset.y = String(y);
+          cell.setAttribute("role", "gridcell");
+
+          if (level) {
+            const node = document.createElement("span");
+            const previewClass = previewClassForLevel(level);
+            node.className = `level-node area-${level.area} ${difficultyColorClass(level.difficulty)} ${level.route}${level.id.length > 3 ? " long-id" : ""}${previewClass ? ` ${previewClass}` : ""}`;
+            node.dataset.id = level.id;
+            node.dataset.short = String(level.source_index);
+            cell.title = `${level.id} ${level.name} | ${level.difficulty} | ${level.route} | ${level.reveal}`;
+            cell.setAttribute("aria-label", cell.title);
+            cell.draggable = true;
+            cell.addEventListener("dragstart", event => {
+              draggedLevelId = level.id;
+              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.setData("text/plain", level.id);
+            });
+            cell.addEventListener("dragend", () => { draggedLevelId = null; });
+            cell.append(node);
+          } else if (marker) {
+            const markerElement = document.createElement("span");
+            markerElement.className = `marker ${marker}`;
+            markerElement.textContent = marker === "entry" ? "S" : "E";
+            cell.title = marker === "entry" ? "Area entry" : "Area exit";
+            cell.setAttribute("aria-label", `${cell.title} at ${x}, ${y}`);
+            cell.append(markerElement);
+          } else {
+            cell.setAttribute("aria-label", `Map cell ${x}, ${y}${state.terrain[y][x] ? ", path" : ", void"}`);
+          }
+
+          cell.addEventListener("pointerdown", event => handlePointerDown(event, x, y));
+          cell.addEventListener("pointerenter", () => handlePointerEnter(x, y));
+          cell.addEventListener("click", () => handleCellClick(x, y));
+          cell.addEventListener("dragover", event => {
+            if (!draggedLevelId) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+          });
+          cell.addEventListener("drop", event => {
+            event.preventDefault();
+            moveLevel(event.dataTransfer.getData("text/plain") || draggedLevelId, x, y);
+          });
+          mapGrid.append(cell);
+        }
+      }
+
+      renderLinks();
+
+      areaLabels.forEach(label => {
+        if (!isInside(label.x, label.y)) return;
+        const element = document.createElement("span");
+        element.className = "area-label";
+        element.textContent = label.text;
+        element.style.left = `calc(${label.x} * var(--cell-size))`;
+        element.style.top = `calc(${label.y} * var(--cell-size))`;
+        element.style.setProperty("--area-color", `var(--area-${label.area})`);
+        mapGrid.append(element);
+      });
+
+      fitMap();
+      syncData();
+      syncStatus();
+    }
+
+    function renderLevelList() {
+      levelList.innerHTML = "";
+      state.levels
+        .slice()
+        .sort((left, right) => left.area - right.area || left.source_index - right.source_index || left.id.localeCompare(right.id))
+        .forEach(level => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `level-list-button ${difficultyColorClass(level.difficulty)}${Number.isInteger(level.x) ? "" : " unplaced"}`;
+          button.setAttribute("aria-pressed", String(level.id === selectedLevelId));
+          button.title = Number.isInteger(level.x) ? `Select ${level.id}` : `Select unplaced level ${level.id}`;
+
+          const id = document.createElement("span");
+          id.className = "list-id";
+          id.textContent = level.id;
+          const name = document.createElement("span");
+          name.className = "list-name";
+          name.textContent = level.name;
+          const difficulty = document.createElement("span");
+          difficulty.className = "difficulty";
+          difficulty.textContent = level.difficulty;
+
+          button.append(id, name, difficulty);
+          button.addEventListener("click", () => {
+            selectLevel(level.id);
+            if (!Number.isInteger(level.x)) setTool("level");
+          });
+          levelList.append(button);
+        });
+    }
+
+    function selectLevel(id) {
+      selectedLevelId = findLevel(id) ? id : "";
+      syncInspector();
+      renderLevelList();
+      renderMap();
+    }
+
+    function syncInspector() {
+      const level = findLevel(selectedLevelId);
+      Object.values(inspector).forEach(element => { element.disabled = !level; });
+      inspector.area.disabled = true;
+      document.querySelector("#unplace-level").disabled = !level || !Number.isInteger(level.x);
+      document.querySelector("#delete-level").disabled = !level;
+      if (!level) {
+        Object.values(inspector).forEach(element => { element.value = ""; });
+        return;
+      }
+      inspector.id.value = level.id;
+      inspector.name.value = level.name;
+      inspector.area.value = String(level.area);
+      inspector.difficulty.value = level.difficulty;
+      inspector.route.value = level.route;
+      inspector.requires.value = level.requires.join(", ");
+      inspector.links.value = linkedIds(level.id).join(", ");
+      inspector.reveal.value = level.reveal;
+      inspector.source.value = level.source;
+      inspector.sourceIndex.value = String(level.source_index);
+    }
+
+    function updateSelectedLevel(field, value) {
+      const level = findLevel(selectedLevelId);
+      if (!level) return;
+      level[field] = value;
+      renderLevelList();
+      renderMap();
+    }
+
+    function updateLevelId() {
+      const level = findLevel(selectedLevelId);
+      if (!level) return;
+      const nextId = inspector.id.value.trim();
+      if (!nextId) {
+        inspector.id.value = level.id;
+        return setStatus("Level ID cannot be empty.", true);
+      }
+      if (nextId !== level.id && findLevel(nextId)) {
+        inspector.id.value = level.id;
+        return setStatus(`Level ID ${nextId} already exists.`, true);
+      }
+      const oldId = level.id;
+      level.id = nextId;
+      state.levels.forEach(candidate => {
+        candidate.requires = candidate.requires.map(id => id === oldId ? nextId : id);
+      });
+      state.links = state.links.map(link => link.map(id => id === oldId ? nextId : id));
+      if (state.entryLevel === oldId) state.entryLevel = nextId;
+      if (state.exitAfter === oldId) state.exitAfter = nextId;
+      selectedLevelId = nextId;
+      syncInspector();
+      renderLevelList();
+      renderMap();
+    }
+
+    function manhattanDistance(left, right) {
+      return Math.abs(left.x - right.x) + Math.abs(left.y - right.y);
+    }
+
+    function parseIdList(value) {
+      return [...new Set(value.split(",").map(id => id.trim()).filter(Boolean))];
+    }
+
+    function dependencyGraphHasCycle(levelId, requires) {
+      const dependencies = new Map(state.levels.map(level => [
+        level.id,
+        level.id === levelId ? requires : level.requires,
+      ]));
+      const visiting = new Set();
+      const visited = new Set();
+      function visit(id) {
+        if (visiting.has(id)) return true;
+        if (visited.has(id)) return false;
+        visiting.add(id);
+        for (const requirement of dependencies.get(id) || []) {
+          if (visit(requirement)) return true;
+        }
+        visiting.delete(id);
+        visited.add(id);
+        return false;
+      }
+      return [...dependencies.keys()].some(visit);
+    }
+
+    function updateRequirements() {
+      const level = findLevel(selectedLevelId);
+      if (!level) return;
+      const requires = parseIdList(inspector.requires.value);
+      const missing = requires.find(id => !findLevel(id));
+      if (missing) {
+        inspector.requires.value = level.requires.join(", ");
+        return setStatus(`Requirement ${missing} does not exist.`, true);
+      }
+      if (requires.includes(level.id)) {
+        inspector.requires.value = level.requires.join(", ");
+        return setStatus("A level cannot require itself.", true);
+      }
+      if (dependencyGraphHasCycle(level.id, requires)) {
+        inspector.requires.value = level.requires.join(", ");
+        return setStatus("Requirements would create a cycle.", true);
+      }
+      level.requires = requires;
+      if (!requires.length) level.reveal = "always";
+      syncInspector();
+      renderMap();
+    }
+
+    function updateLinks() {
+      const level = findLevel(selectedLevelId);
+      if (!level) return;
+      const ids = parseIdList(inspector.links.value);
+      const missing = ids.find(id => !findLevel(id));
+      if (missing) {
+        inspector.links.value = linkedIds(level.id).join(", ");
+        return setStatus(`Linked level ${missing} does not exist.`, true);
+      }
+      if (ids.includes(level.id)) {
+        inspector.links.value = linkedIds(level.id).join(", ");
+        return setStatus("A level cannot link to itself.", true);
+      }
+      const separated = ids.find(id => {
+        const linked = findLevel(id);
+        return Number.isInteger(level.x) && Number.isInteger(linked?.x)
+          && manhattanDistance(level, linked) !== 1;
+      });
+      if (separated) {
+        inspector.links.value = linkedIds(level.id).join(", ");
+        return setStatus(`Linked levels ${level.id} and ${separated} must be adjacent.`, true);
+      }
+      state.links = state.links.filter(link => !link.includes(level.id));
+      ids.forEach(id => state.links.push([level.id, id]));
+      syncInspector();
+      renderMap();
+    }
+
+    function setTool(tool) {
+      selectedTool = tool;
+      document.querySelectorAll("[data-tool]").forEach(button => {
+        button.setAttribute("aria-pressed", String(button.dataset.tool === tool));
+      });
+      mapGrid.dataset.tool = tool;
+    }
+
+    function handlePointerDown(event, x, y) {
+      if (event.button !== 0 || !["path", "erase"].includes(selectedTool)) return;
+      event.preventDefault();
+      paintActive = true;
+      paintCell(x, y);
+    }
+
+    function handlePointerEnter(x, y) {
+      if (paintActive) paintCell(x, y);
+    }
+
+    function paintCell(x, y) {
+      if (selectedTool === "path") state.terrain[y][x] = true;
+      if (selectedTool === "erase" && !positionOccupied(x, y)) state.terrain[y][x] = false;
+      renderMap();
+    }
+
+    function handleCellClick(x, y) {
+      if (["path", "erase"].includes(selectedTool)) return;
+      const level = levelAt(x, y);
+      if (selectedTool === "select") {
+        if (level) selectLevel(level.id);
+        return;
+      }
+      if (selectedTool === "level") return moveLevel(selectedLevelId, x, y);
+      if (selectedTool === "start") return moveMarker("entry", x, y);
+      if (selectedTool === "exit") return moveMarker("exit", x, y);
+    }
+
+    function moveLevel(id, x, y) {
+      const level = findLevel(id);
+      if (!level) return setStatus("Select a level before placing it.", true);
+      if (positionOccupied(x, y, id)) return setStatus(`Cell ${x}, ${y} is occupied.`, true);
+      const nextPosition = { x, y };
+      const separatedLink = linkedIds(level.id)
+        .map(findLevel)
+        .find(linked => Number.isInteger(linked?.x) && manhattanDistance(nextPosition, linked) !== 1);
+      if (separatedLink) {
+        return setStatus(`${level.id} must remain adjacent to linked level ${separatedLink.id}.`, true);
+      }
+      if (level.id === state.entryLevel && manhattanDistance(nextPosition, state.entry) !== 1) {
+        return setStatus(`${level.id} must remain adjacent to the area entry.`, true);
+      }
+      if (level.id === state.exitAfter && manhattanDistance(nextPosition, state.exit) !== 1) {
+        return setStatus(`${level.id} must remain adjacent to the area exit.`, true);
+      }
+      level.x = x;
+      level.y = y;
+      if (level.reveal === "always") state.terrain[y][x] = true;
+      selectedLevelId = id;
+      syncInspector();
+      renderLevelList();
+      renderMap();
+    }
+
+    function moveMarker(marker, x, y) {
+      if (state[marker].x === x && state[marker].y === y) return;
+      if (positionOccupied(x, y)) return setStatus(`Cell ${x}, ${y} is occupied.`, true);
+      if (marker === "entry") {
+        const entryLevel = findLevel(state.entryLevel);
+        if (entryLevel && Number.isInteger(entryLevel.x) && manhattanDistance({ x, y }, entryLevel) !== 1) {
+          return setStatus(`Area entry must remain adjacent to ${entryLevel.id}.`, true);
+        }
+      }
+      if (marker === "exit") {
+        const exitParent = findLevel(state.exitAfter);
+        if (exitParent && Number.isInteger(exitParent.x) && manhattanDistance({ x, y }, exitParent) !== 1) {
+          return setStatus(`Area exit must remain adjacent to ${exitParent.id}.`, true);
+        }
+      }
+      state[marker] = { x, y };
+      state.terrain[y][x] = true;
+      renderMap();
+    }
+
+    function fitMap() {
+      const availableWidth = Math.max(0, workspace.clientWidth - 42);
+      const availableHeight = Math.max(0, workspace.clientHeight - 42);
+      const cellSize = Math.max(14, Math.min(64,
+        Math.floor(availableWidth / state.width),
+        Math.floor(availableHeight / state.height)
+      ));
+      document.documentElement.style.setProperty("--cell-size", `${cellSize}px`);
+    }
+
+    function resizeMap() {
+      const nextWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, Number(widthInput.value) || state.width));
+      const nextHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, Number(heightInput.value) || state.height));
+      const outOfBoundsLevel = state.levels.find(level =>
+        Number.isInteger(level.x) && (level.x >= nextWidth || level.y >= nextHeight)
+      );
+      const markerOutOfBounds = [state.entry, state.exit].some(point => point.x >= nextWidth || point.y >= nextHeight);
+      if (outOfBoundsLevel || markerOutOfBounds) {
+        widthInput.value = state.width;
+        heightInput.value = state.height;
+        return setStatus("Move levels and markers inside the new bounds before shrinking.", true);
+      }
+      const nextTerrain = createTerrain(nextWidth, nextHeight);
+      for (let y = 0; y < Math.min(nextHeight, state.height); y += 1) {
+        for (let x = 0; x < Math.min(nextWidth, state.width); x += 1) {
+          nextTerrain[y][x] = state.terrain[y][x];
+        }
+      }
+      state.width = nextWidth;
+      state.height = nextHeight;
+      state.terrain = nextTerrain;
+      widthInput.value = nextWidth;
+      heightInput.value = nextHeight;
+      renderMap();
+    }
+
+    function validatePoint(point, name, width, height) {
+      if (!point || !Number.isInteger(point.x) || !Number.isInteger(point.y)) {
+        throw new Error(`${name} must contain integer x and y.`);
+      }
+      if (point.x < 0 || point.x >= width || point.y < 0 || point.y >= height) {
+        throw new Error(`${name} is outside the map.`);
+      }
+      return { x: point.x, y: point.y };
+    }
+
+    function parseData() {
+      const data = JSON.parse(mapData.value);
+      if (data.format !== MAP_FORMAT) throw new Error(`Expected format ${MAP_FORMAT}.`);
+      const areaNumber = Number(data.area);
+      if (!Number.isInteger(areaNumber) || areaNumber < 1 || areaNumber > 9) throw new Error("Area must be 1-9.");
+      const width = Number(data.size?.width);
+      const height = Number(data.size?.height);
+      if (!Number.isInteger(width) || width < MIN_WIDTH || width > MAX_WIDTH) throw new Error(`Width must be ${MIN_WIDTH}-${MAX_WIDTH}.`);
+      if (!Number.isInteger(height) || height < MIN_HEIGHT || height > MAX_HEIGHT) throw new Error(`Height must be ${MIN_HEIGHT}-${MAX_HEIGHT}.`);
+      if (!Array.isArray(data.terrain) || data.terrain.length !== height) throw new Error("Terrain row count does not match height.");
+      const terrain = data.terrain.map((row, y) => {
+        if (typeof row !== "string" || row.length !== width) throw new Error(`Terrain row ${y + 1} does not match width.`);
+        return Array.from(row, symbol => {
+          if (symbol === "#") return true;
+          if (symbol === ".") return false;
+          throw new Error("Terrain accepts only # and .");
+        });
+      });
+      const entry = validatePoint(data.markers?.entry, "Entry marker", width, height);
+      const exit = validatePoint(data.markers?.exit, "Exit marker", width, height);
+      if (!Array.isArray(data.levels)) throw new Error("Levels must be an array.");
+      const ids = new Set();
+      const positions = new Set([`${entry.x},${entry.y}`, `${exit.x},${exit.y}`]);
+      const levels = data.levels.map((raw, index) => {
+        const id = String(raw.id || "").trim();
+        if (!id) throw new Error(`Level ${index + 1} has no ID.`);
+        if (ids.has(id)) throw new Error(`Duplicate level ID: ${id}.`);
+        ids.add(id);
+        const area = Number(raw.area);
+        if (area !== areaNumber) throw new Error(`Level ${id} must belong to Area ${areaNumber}.`);
+        const difficulty = String(raw.difficulty || "N");
+        if (!DIFFICULTIES.has(difficulty)) throw new Error(`Level ${id} has an invalid difficulty.`);
+        const route = String(raw.route || "main");
+        if (!ROUTES.has(route)) throw new Error(`Level ${id} has an invalid route.`);
+        const reveal = String(raw.reveal || (route === "main" ? "always" : "after_requirements"));
+        if (!REVEALS.has(reveal)) throw new Error(`Level ${id} has an invalid reveal policy.`);
+        if (route === "main" && reveal !== "always") throw new Error(`Main level ${id} must always be visible.`);
+        let x = null;
+        let y = null;
+        if (raw.position !== null && raw.position !== undefined) {
+          const point = validatePoint(raw.position, `Level ${id}`, width, height);
+          const positionKey = `${point.x},${point.y}`;
+          if (positions.has(positionKey)) throw new Error(`Level ${id} overlaps another object.`);
+          positions.add(positionKey);
+          x = point.x;
+          y = point.y;
+        }
+        return {
+          id,
+          name: String(raw.name || id),
+          area,
+          difficulty,
+          route,
+          reveal,
+          requires: Array.isArray(raw.requires)
+            ? [...new Set(raw.requires.map(id => String(id).trim()).filter(Boolean))]
+            : [],
+          source: String(raw.source || ""),
+          source_index: Math.max(1, Number(raw.source_index) || 1),
+          x,
+          y,
+        };
+      });
+      const byId = new Map(levels.map(level => [level.id, level]));
+      levels.forEach(level => {
+        const missing = level.requires.find(id => !byId.has(id));
+        if (missing) throw new Error(`Level ${level.id} has missing requirement ${missing}.`);
+        if (level.requires.includes(level.id)) throw new Error(`Level ${level.id} cannot require itself.`);
+      });
+
+      const visiting = new Set();
+      const visited = new Set();
+      function visitRequirements(id) {
+        if (visiting.has(id)) throw new Error(`Requirement graph contains a cycle at ${id}.`);
+        if (visited.has(id)) return;
+        visiting.add(id);
+        for (const requirement of byId.get(id)?.requires || []) {
+          visitRequirements(requirement);
+        }
+        visiting.delete(id);
+        visited.add(id);
+      }
+      levels.forEach(level => visitRequirements(level.id));
+
+      if (!Array.isArray(data.links)) throw new Error("Links must be an array.");
+      const linkKeys = new Set();
+      const links = data.links.map((raw, index) => {
+        if (!Array.isArray(raw) || raw.length !== 2) throw new Error(`Link ${index + 1} must contain two level IDs.`);
+        const pair = raw.map(id => String(id).trim());
+        if (!byId.has(pair[0]) || !byId.has(pair[1])) throw new Error(`Link ${index + 1} refers to a missing level.`);
+        if (pair[0] === pair[1]) throw new Error(`Link ${index + 1} cannot connect a level to itself.`);
+        const key = [...pair].sort().join("\u0000");
+        if (linkKeys.has(key)) throw new Error(`Duplicate link between ${pair[0]} and ${pair[1]}.`);
+        linkKeys.add(key);
+        const first = byId.get(pair[0]);
+        const second = byId.get(pair[1]);
+        if (Number.isInteger(first.x) && Number.isInteger(second.x) && manhattanDistance(first, second) !== 1) {
+          throw new Error(`Linked levels ${first.id} and ${second.id} must be adjacent.`);
+        }
+        return pair;
+      });
+
+      const entryLevel = String(data.entry_level || "").trim();
+      const entryTarget = byId.get(entryLevel);
+      if (!entryTarget) throw new Error(`Area entry refers to missing level ${entryLevel || "(empty)"}.`);
+      if (Number.isInteger(entryTarget.x) && manhattanDistance(entryTarget, entry) !== 1) {
+        throw new Error(`Area entry must be adjacent to ${entryLevel}.`);
+      }
+      const exitAfter = String(data.exit_after || "").trim();
+      const exitParent = byId.get(exitAfter);
+      if (!exitParent) throw new Error(`Area exit requires missing level ${exitAfter || "(empty)"}.`);
+      if (Number.isInteger(exitParent.x) && manhattanDistance(exitParent, exit) !== 1) {
+        throw new Error(`Area exit must be adjacent to exit requirement ${exitAfter}.`);
+      }
+      return {
+        format: MAP_FORMAT,
+        area: areaNumber,
+        width,
+        height,
+        terrain,
+        entry,
+        entryLevel,
+        exit,
+        exitAfter,
+        levels,
+        links,
+        testModeAllOpen: data.test_mode_all_open !== false,
+      };
+    }
+
+    function applyData() {
+      try {
+        state = parseData();
+        testModeAllOpen = state.testModeAllOpen;
+        selectedLevelId = state.levels[0]?.id || "";
+        widthInput.value = state.width;
+        heightInput.value = state.height;
+        syncTestModeButton();
+        syncInspector();
+        renderLevelList();
+        renderMap();
+        showTab("level");
+        syncStatus("Data applied.");
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : String(error), true);
+      }
+    }
+
+    async function copyData() {
+      syncData();
+      mapData.select();
+      try {
+        await navigator.clipboard.writeText(mapData.value);
+        syncStatus("Data copied.");
+      } catch (_) {
+        document.execCommand("copy");
+        syncStatus("Data copied with browser fallback.");
+      }
+    }
+
+    function createNewLevel() {
+      const prerequisite = findLevel(selectedLevelId);
+      if (!prerequisite) return setStatus("Select a prerequisite level before creating a branch.", true);
+      let suffix = 1;
+      while (findLevel(`${state.area}-${suffix}`)) suffix += 1;
+      const id = `${state.area}-${suffix}`;
+      const sourceIndex = Math.max(0, ...state.levels.map(level => level.source_index)) + 1;
+      state.levels.push({
+        id,
+        name: "New Level",
+        area: state.area,
+        difficulty: "N",
+        route: "branch",
+        reveal: "after_requirements",
+        requires: [prerequisite.id],
+        source: `levels/area_${String(state.area).padStart(2, "0")}.txt`,
+        source_index: sourceIndex,
+        x: null,
+        y: null,
+      });
+      state.links.push([prerequisite.id, id]);
+      selectedLevelId = id;
+      syncInspector();
+      renderLevelList();
+      renderMap();
+      setTool("level");
+      syncStatus(`Place ${id} on the map.`);
+    }
+
+    function unplaceSelectedLevel() {
+      const level = findLevel(selectedLevelId);
+      if (!level) return;
+      if (state.entryLevel === level.id) return setStatus("The area entry level must remain placed.", true);
+      if (state.exitAfter === level.id) return setStatus("The area exit requirement must remain placed.", true);
+      level.x = null;
+      level.y = null;
+      syncInspector();
+      renderLevelList();
+      renderMap();
+      setTool("level");
+    }
+
+    function deleteSelectedLevel() {
+      const level = findLevel(selectedLevelId);
+      if (!level) return;
+      const dependents = state.levels.filter(candidate => candidate.requires.includes(level.id));
+      if (dependents.length) return setStatus(`Remove ${level.id} from requirements of ${dependents.map(item => item.id).join(", ")} first.`, true);
+      const linked = linkedIds(level.id);
+      if (linked.length) return setStatus(`Remove links from ${level.id} to ${linked.join(", ")} first.`, true);
+      if (state.entryLevel === level.id) return setStatus("Change the area entry level before deleting this level.", true);
+      if (state.exitAfter === level.id) return setStatus("Change the area exit requirement before deleting this level.", true);
+      if (!window.confirm(`Delete ${level.id} ${level.name}?`)) return;
+      state.levels = state.levels.filter(candidate => candidate.id !== level.id);
+      selectedLevelId = state.levels[0]?.id || "";
+      syncInspector();
+      renderLevelList();
+      renderMap();
+    }
+
+    function showTab(tabName) {
+      const levelActive = tabName === "level";
+      document.querySelector("#level-tab").setAttribute("aria-selected", String(levelActive));
+      document.querySelector("#data-tab").setAttribute("aria-selected", String(!levelActive));
+      document.querySelector("#level-panel").hidden = !levelActive;
+      document.querySelector("#data-panel").hidden = levelActive;
+      if (!levelActive) syncData();
+    }
+
+    function resetMap() {
+      if (!window.confirm("Restore the initial Area 01 map?")) return;
+      createInitialState();
+      testModeAllOpen = true;
+      selectedLevelId = "1-0";
+      widthInput.value = state.width;
+      heightInput.value = state.height;
+      syncTestModeButton();
+      syncInspector();
+      renderLevelList();
+      renderMap();
+      syncStatus("Initial layout restored.");
+    }
+
+    function syncTestModeButton() {
+      const button = document.querySelector("#test-mode");
+      button.setAttribute("aria-pressed", String(testModeAllOpen));
+      button.textContent = testModeAllOpen ? "TEST: OPEN" : "PREVIEW";
+      button.title = testModeAllOpen
+        ? "Every level is visible and available"
+        : "Main levels are visible; hidden branches wait for requirements";
+    }
+
+    function toggleTestMode() {
+      testModeAllOpen = !testModeAllOpen;
+      syncTestModeButton();
+      renderMap();
+    }
+
+    function handleKeydown(event) {
+      if (event.target.matches("input, select, textarea")) return;
+      const toolKeys = { v: "select", p: "path", l: "level", s: "start", e: "exit", x: "erase" };
+      const tool = toolKeys[event.key.toLowerCase()];
+      if (tool) {
+        event.preventDefault();
+        setTool(tool);
+        return;
+      }
+      if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
+      const level = findLevel(selectedLevelId);
+      if (!level || !Number.isInteger(level.x)) return;
+      const offsets = {
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+      };
+      const [dx, dy] = offsets[event.key];
+      const x = level.x + dx;
+      const y = level.y + dy;
+      if (isInside(x, y)) {
+        event.preventDefault();
+        moveLevel(level.id, x, y);
+      }
+    }
+
+    document.querySelectorAll("[data-tool]").forEach(button => {
+      button.addEventListener("click", () => setTool(button.dataset.tool));
+    });
+    document.querySelector("#resize-map").addEventListener("click", resizeMap);
+    document.querySelector("#reset-map").addEventListener("click", resetMap);
+    document.querySelector("#test-mode").addEventListener("click", toggleTestMode);
+    document.querySelector("#new-level").addEventListener("click", createNewLevel);
+    document.querySelector("#unplace-level").addEventListener("click", unplaceSelectedLevel);
+    document.querySelector("#delete-level").addEventListener("click", deleteSelectedLevel);
+    document.querySelector("#apply-data").addEventListener("click", applyData);
+    document.querySelector("#copy-data").addEventListener("click", copyData);
+    document.querySelector("#level-tab").addEventListener("click", () => showTab("level"));
+    document.querySelector("#data-tab").addEventListener("click", () => showTab("data"));
+
+    inspector.id.addEventListener("change", updateLevelId);
+    inspector.name.addEventListener("input", () => updateSelectedLevel("name", inspector.name.value));
+    inspector.difficulty.addEventListener("change", () => updateSelectedLevel("difficulty", inspector.difficulty.value));
+    inspector.route.addEventListener("change", () => {
+      const level = findLevel(selectedLevelId);
+      if (!level) return;
+      level.route = inspector.route.value;
+      if (level.route === "main") {
+        level.reveal = "always";
+        if (Number.isInteger(level.x)) state.terrain[level.y][level.x] = true;
+      }
+      syncInspector();
+      renderLevelList();
+      renderMap();
+    });
+    inspector.requires.addEventListener("change", updateRequirements);
+    inspector.links.addEventListener("change", updateLinks);
+    inspector.reveal.addEventListener("change", () => {
+      const level = findLevel(selectedLevelId);
+      if (!level) return;
+      if (!level.requires.length && inspector.reveal.value !== "always") {
+        inspector.reveal.value = "always";
+        return setStatus("A level without requirements must always be visible.", true);
+      }
+      if (level.route === "main" && inspector.reveal.value !== "always") {
+        inspector.reveal.value = "always";
+        return setStatus("Main levels must always be visible.", true);
+      }
+      level.reveal = inspector.reveal.value;
+      if (Number.isInteger(level.x)) state.terrain[level.y][level.x] = level.reveal === "always";
+      renderMap();
+    });
+    inspector.source.addEventListener("input", () => updateSelectedLevel("source", inspector.source.value));
+    inspector.sourceIndex.addEventListener("change", () => updateSelectedLevel("source_index", Math.max(1, Number(inspector.sourceIndex.value) || 1)));
+
+    window.addEventListener("pointerup", () => { paintActive = false; });
+    window.addEventListener("resize", fitMap);
+    window.addEventListener("keydown", handleKeydown);
+
+    createInitialState();
+    syncTestModeButton();
+    syncInspector();
+    renderLevelList();
+    renderMap();
+  </script>
+</body>
+</html>
