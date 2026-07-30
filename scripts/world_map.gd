@@ -3,14 +3,11 @@ extends Node2D
 const VisualStyle = preload("res://scripts/visual_style.gd")
 
 const CELL_SIZE := VisualStyle.PLAYER_CELL_SIZE
-const MAP_SIZE := Vector2i(4, 4)
-const START_CELL := Vector2i(0, 0)
-const EXIT_CELL := Vector2i(0, 3)
-const EXIT_REQUIREMENT := "1-9"
 const MOVE_SECONDS := 0.10
+const AREA_TRANSITION_SECONDS := 0.14
 const COMPLETED_COLOR := Color("#79b995")
 
-const LEVELS := [
+const AREA_01_LEVELS := [
 	{"id": "1-0", "cell": Vector2i(0, 0), "route": "main", "requires": []},
 	{"id": "1-1", "cell": Vector2i(1, 0), "route": "main", "requires": ["1-0"]},
 	{"id": "1-2", "cell": Vector2i(2, 0), "route": "main", "requires": ["1-1"]},
@@ -25,18 +22,52 @@ const LEVELS := [
 	{"id": "1-11", "cell": Vector2i(3, 2), "route": "branch", "requires": ["1-9"]},
 ]
 
+const AREA_02_LEVELS := [
+	{"id": "2-1", "cell": Vector2i(0, 0), "route": "main", "requires": []},
+	{"id": "2-2", "cell": Vector2i(1, 0), "route": "branch", "requires": ["2-1"]},
+	{"id": "2-3", "cell": Vector2i(2, 0), "route": "main", "requires": ["2-1"]},
+	{"id": "2-4", "cell": Vector2i(3, 0), "route": "branch", "requires": ["2-3"]},
+	{"id": "2-5", "cell": Vector2i(0, 1), "route": "main", "requires": ["2-3"]},
+	{"id": "2-6", "cell": Vector2i(1, 1), "route": "branch", "requires": ["2-5"]},
+	{"id": "2-7", "cell": Vector2i(2, 1), "route": "main", "requires": ["2-5"]},
+	{"id": "2-8", "cell": Vector2i(3, 1), "route": "branch", "requires": ["2-7"]},
+	{"id": "2-9", "cell": Vector2i(0, 2), "route": "main", "requires": ["2-7"]},
+	{"id": "2-10", "cell": Vector2i(1, 2), "route": "main", "requires": ["2-9"]},
+	{"id": "2-11", "cell": Vector2i(2, 2), "route": "branch", "requires": ["2-10"]},
+]
+
+const AREAS := {
+	1: {
+		"size": Vector2i(4, 3),
+		"start_cell": Vector2i(0, 0),
+		"exit_requirement": "1-9",
+		"next_area": 2,
+		"levels": AREA_01_LEVELS,
+	},
+	2: {
+		"size": Vector2i(4, 3),
+		"start_cell": Vector2i(0, 0),
+		"exit_requirement": "2-10",
+		"next_area": 0,
+		"levels": AREA_02_LEVELS,
+	},
+}
+
 var palette: Dictionary = VisualStyle.theme(false)
 var completed_levels: Dictionary = {}
-var player_cell := START_CELL
+var current_area := 1
+var player_cell := Vector2i.ZERO
 var player_draw_position := Vector2.ZERO
 var facing := Vector2i.RIGHT
 var input_locked := false
 var status_message := "AREA 01"
 var ui_font: Font
+var transition_tween: Tween
 
 
 func _ready() -> void:
 	ui_font = ThemeDB.fallback_font
+	player_cell = area_start_cell()
 	player_draw_position = cell_center(player_cell)
 	get_viewport().size_changed.connect(queue_redraw)
 	queue_redraw()
@@ -65,6 +96,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func try_move(direction: Vector2i) -> void:
 	facing = direction
+	if direction == Vector2i.DOWN and player_cell.y == area_size().y - 1:
+		try_exit_area()
+		return
+
 	var target := player_cell + direction
 	if not is_walkable(target):
 		status_message = "LOCKED"
@@ -91,7 +126,7 @@ func finish_move() -> void:
 	input_locked = false
 	var level := level_at(player_cell)
 	if level.is_empty():
-		status_message = "AREA 01"
+		status_message = area_name()
 	else:
 		var level_id := String(level["id"])
 		status_message = "%s  %s" % [
@@ -99,6 +134,20 @@ func finish_move() -> void:
 			"COMPLETE" if is_completed(level_id) else "AVAILABLE",
 		]
 	queue_redraw()
+
+
+func try_exit_area() -> void:
+	if not is_completed(area_exit_requirement()):
+		status_message = "EXIT LOCKED"
+		queue_redraw()
+		return
+
+	var next_area := int(area_data()["next_area"])
+	if next_area > 0:
+		transition_to_area(next_area)
+	else:
+		status_message = "ALL AREAS COMPLETE"
+		queue_redraw()
 
 
 func complete_current_level() -> void:
@@ -119,20 +168,56 @@ func complete_current_level() -> void:
 
 
 func reset_progress() -> void:
+	if is_instance_valid(transition_tween):
+		transition_tween.kill()
 	completed_levels.clear()
-	player_cell = START_CELL
+	current_area = 1
+	player_cell = area_start_cell()
 	player_draw_position = cell_center(player_cell)
 	facing = Vector2i.RIGHT
 	input_locked = false
-	status_message = "AREA 01"
+	modulate.a = 1.0
+	status_message = area_name()
+	queue_redraw()
+
+
+func transition_to_area(next_area: int) -> void:
+	input_locked = true
+	transition_tween = create_tween()
+	transition_tween.tween_property(
+		self,
+		"modulate:a",
+		0.0,
+		AREA_TRANSITION_SECONDS
+	)
+	transition_tween.tween_callback(apply_area.bind(next_area))
+	transition_tween.tween_property(
+		self,
+		"modulate:a",
+		1.0,
+		AREA_TRANSITION_SECONDS
+	)
+	transition_tween.tween_callback(finish_area_transition)
+
+
+func apply_area(next_area: int) -> void:
+	current_area = next_area
+	player_cell = area_start_cell()
+	player_draw_position = cell_center(player_cell)
+	facing = Vector2i.RIGHT
+	status_message = area_name()
+	queue_redraw()
+
+
+func finish_area_transition() -> void:
+	input_locked = false
+	transition_tween = null
 	queue_redraw()
 
 
 func is_walkable(cell: Vector2i) -> bool:
-	if cell == START_CELL:
+	if cell == area_start_cell():
 		return true
-	if cell == EXIT_CELL:
-		return is_completed(EXIT_REQUIREMENT)
 	var level := level_at(cell)
 	if level.is_empty():
 		return false
@@ -158,8 +243,41 @@ func is_completed(level_id: String) -> bool:
 	return bool(completed_levels.get(level_id, false))
 
 
+func area_data() -> Dictionary:
+	return AREAS[current_area]
+
+
+func area_levels() -> Array:
+	return area_data()["levels"]
+
+
+func area_size() -> Vector2i:
+	return Vector2i(area_data()["size"])
+
+
+func area_start_cell() -> Vector2i:
+	return Vector2i(area_data()["start_cell"])
+
+
+func area_exit_requirement() -> String:
+	return String(area_data()["exit_requirement"])
+
+
+func area_name() -> String:
+	return "AREA %02d" % current_area
+
+
+func area_completed_count() -> int:
+	var count := 0
+	for level_value in area_levels():
+		var level: Dictionary = level_value
+		if is_completed(String(level["id"])):
+			count += 1
+	return count
+
+
 func level_at(cell: Vector2i) -> Dictionary:
-	for level_value in LEVELS:
+	for level_value in area_levels():
 		var level: Dictionary = level_value
 		if Vector2i(level["cell"]) == cell:
 			return level
@@ -167,7 +285,7 @@ func level_at(cell: Vector2i) -> Dictionary:
 
 
 func level_by_id(level_id: String) -> Dictionary:
-	for level_value in LEVELS:
+	for level_value in area_levels():
 		var level: Dictionary = level_value
 		if String(level["id"]) == level_id:
 			return level
@@ -175,7 +293,7 @@ func level_by_id(level_id: String) -> Dictionary:
 
 
 func map_origin() -> Vector2:
-	var map_pixel_size := Vector2(MAP_SIZE) * CELL_SIZE
+	var map_pixel_size := Vector2(area_size()) * CELL_SIZE
 	var viewport_size := get_viewport_rect().size
 	return (viewport_size - map_pixel_size) * 0.5 + Vector2(0, 24)
 
@@ -192,27 +310,27 @@ func _draw() -> void:
 	draw_rect(get_viewport_rect(), palette["app_bg"])
 	draw_header()
 
-	for level_value in LEVELS:
+	for level_value in area_levels():
 		var level: Dictionary = level_value
 		if is_level_visible(level):
 			draw_level_cell(level)
 
-	draw_exit_cell()
+	draw_exit_arrow()
 	draw_player()
 
 
 func draw_header() -> void:
 	var viewport_width := get_viewport_rect().size.x
-	var completed_count := completed_levels.size()
+	var completed_count := area_completed_count()
 	draw_text_centered(
 		Rect2(0, 22, viewport_width, 28),
-		"DIR / AREA 01",
+		"DIR / %s" % area_name(),
 		18,
 		palette["text_hi"]
 	)
 	draw_text_centered(
 		Rect2(0, 51, viewport_width, 22),
-		"%02d / %02d    %s" % [completed_count, LEVELS.size(), status_message],
+		"%02d / %02d    %s" % [completed_count, area_levels().size(), status_message],
 		13,
 		palette["text_dim"]
 	)
@@ -254,19 +372,26 @@ func draw_level_cell(level: Dictionary) -> void:
 		draw_text_centered(rect, level_id, 16, label_color)
 
 
-func draw_exit_cell() -> void:
-	var unlocked := is_completed(EXIT_REQUIREMENT)
-	var floor_color: Color = palette["floor"]
-	var line_color: Color = palette["player"]
+func draw_exit_arrow() -> void:
+	var unlocked := is_completed(area_exit_requirement())
+	var arrow_color: Color = COMPLETED_COLOR
 	if not unlocked:
-		floor_color.a = 0.20
-		line_color.a = 0.25
-	var rect := Rect2(cell_position(EXIT_CELL), Vector2.ONE * CELL_SIZE)
-	draw_rect(rect, floor_color)
-	draw_rect(rect, palette["grid"], false, 1.0)
-	draw_rect(rect.grow(-CELL_SIZE * 0.25), line_color, false, 2.0)
-	if EXIT_CELL != player_cell:
-		draw_text_centered(rect, "EXIT", 12, line_color)
+		arrow_color = palette["label"]
+		arrow_color.a = 0.28
+
+	var map_width := float(area_size().x) * CELL_SIZE
+	var center := map_origin() + Vector2(
+		map_width * 0.5,
+		float(area_size().y) * CELL_SIZE + CELL_SIZE * 0.42
+	)
+	var forward := Vector2.DOWN
+	var length := CELL_SIZE * 1.30
+	var depth := CELL_SIZE * 0.40
+	var stroke := CELL_SIZE * 0.10
+	draw_colored_polygon(
+		chevron_points(center, forward, length, depth, stroke),
+		arrow_color
+	)
 
 
 func draw_player() -> void:
