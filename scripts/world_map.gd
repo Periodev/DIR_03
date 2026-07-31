@@ -33,7 +33,8 @@ const AREA_02_LEVELS := [
 	{"id": "2-8", "cell": Vector2i(0, 1), "route": "branch", "requires": ["2-7"]},
 	{"id": "2-9", "cell": Vector2i(0, 2), "route": "main", "requires": ["2-7"]},
 	{"id": "2-10", "cell": Vector2i(1, 2), "route": "main", "requires": ["2-9"]},
-	{"id": "2-11", "cell": Vector2i(2, 2), "route": "branch", "requires": ["2-10"]},
+	{"id": "2-11", "cell": Vector2i(2, 2), "route": "main", "requires": ["2-10"]},
+	{"id": "2-12", "cell": Vector2i(3, 2), "route": "branch", "requires": ["2-11"]},
 ]
 
 const AREAS := {
@@ -47,7 +48,7 @@ const AREAS := {
 	2: {
 		"size": Vector2i(4, 3),
 		"start_cell": Vector2i(0, 0),
-		"exit_requirement": "2-10",
+		"exit_requirement": "2-11",
 		"next_area": 0,
 		"levels": AREA_02_LEVELS,
 	},
