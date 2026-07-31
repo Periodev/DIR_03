@@ -32,8 +32,8 @@ const AREA_02_LEVELS := [
 	{"id": "2-7", "cell": Vector2i(1, 1), "route": "main", "requires": ["2-5"]},
 	{"id": "2-8", "cell": Vector2i(0, 1), "route": "branch", "requires": ["2-7"]},
 	{"id": "2-9", "cell": Vector2i(0, 2), "route": "main", "requires": ["2-7"]},
-	{"id": "2-10", "cell": Vector2i(1, 2), "route": "main", "requires": ["2-9"]},
-	{"id": "2-11", "cell": Vector2i(2, 2), "route": "main", "requires": ["2-10"]},
+	{"id": "2-10", "cell": Vector2i(1, 2), "route": "branch", "requires": ["2-9"]},
+	{"id": "2-11", "cell": Vector2i(2, 2), "route": "main", "requires": ["2-9"]},
 	{"id": "2-12", "cell": Vector2i(3, 2), "route": "branch", "requires": ["2-11"]},
 ]
 
@@ -42,6 +42,7 @@ const AREAS := {
 		"size": Vector2i(4, 3),
 		"start_cell": Vector2i(0, 0),
 		"exit_requirement": "1-9",
+		"previous_area": 0,
 		"next_area": 2,
 		"levels": AREA_01_LEVELS,
 	},
@@ -49,6 +50,7 @@ const AREAS := {
 		"size": Vector2i(4, 3),
 		"start_cell": Vector2i(0, 0),
 		"exit_requirement": "2-11",
+		"previous_area": 1,
 		"next_area": 0,
 		"levels": AREA_02_LEVELS,
 	},
@@ -97,8 +99,19 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func try_move(direction: Vector2i) -> void:
 	facing = direction
-	if direction == Vector2i.DOWN and player_cell.y == area_size().y - 1:
-		try_exit_area()
+	if (
+		direction == Vector2i.UP
+		and player_cell.y == 0
+		and area_previous() > 0
+	):
+		try_previous_area()
+		return
+	if (
+		direction == Vector2i.DOWN
+		and player_cell.y == area_size().y - 1
+		and area_next() > 0
+	):
+		try_next_area()
 		return
 
 	var target := player_cell + direction
@@ -137,18 +150,19 @@ func finish_move() -> void:
 	queue_redraw()
 
 
-func try_exit_area() -> void:
+func try_next_area() -> void:
 	if not is_completed(area_exit_requirement()):
 		status_message = "EXIT LOCKED"
 		queue_redraw()
 		return
 
-	var next_area := int(area_data()["next_area"])
-	if next_area > 0:
-		transition_to_area(next_area)
-	else:
-		status_message = "ALL AREAS COMPLETE"
-		queue_redraw()
+	var next_area := area_next()
+	transition_to_area(next_area, area_start_cell_for(next_area))
+
+
+func try_previous_area() -> void:
+	var previous_area := area_previous()
+	transition_to_area(previous_area, area_exit_cell_for(previous_area))
 
 
 func complete_current_level() -> void:
@@ -182,7 +196,7 @@ func reset_progress() -> void:
 	queue_redraw()
 
 
-func transition_to_area(next_area: int) -> void:
+func transition_to_area(target_area: int, destination_cell: Vector2i) -> void:
 	input_locked = true
 	transition_tween = create_tween()
 	transition_tween.tween_property(
@@ -191,7 +205,7 @@ func transition_to_area(next_area: int) -> void:
 		0.0,
 		AREA_TRANSITION_SECONDS
 	)
-	transition_tween.tween_callback(apply_area.bind(next_area))
+	transition_tween.tween_callback(apply_area.bind(target_area, destination_cell))
 	transition_tween.tween_property(
 		self,
 		"modulate:a",
@@ -201,9 +215,9 @@ func transition_to_area(next_area: int) -> void:
 	transition_tween.tween_callback(finish_area_transition)
 
 
-func apply_area(next_area: int) -> void:
-	current_area = next_area
-	player_cell = area_start_cell()
+func apply_area(target_area: int, destination_cell: Vector2i) -> void:
+	current_area = target_area
+	player_cell = destination_cell
 	player_draw_position = cell_center(player_cell)
 	facing = Vector2i.RIGHT
 	status_message = area_name()
@@ -260,8 +274,32 @@ func area_start_cell() -> Vector2i:
 	return Vector2i(area_data()["start_cell"])
 
 
+func area_start_cell_for(area_id: int) -> Vector2i:
+	var data: Dictionary = AREAS[area_id]
+	return Vector2i(data["start_cell"])
+
+
+func area_exit_cell_for(area_id: int) -> Vector2i:
+	var data: Dictionary = AREAS[area_id]
+	var exit_requirement := String(data["exit_requirement"])
+	var levels: Array = data["levels"]
+	for level_value in levels:
+		var level: Dictionary = level_value
+		if String(level["id"]) == exit_requirement:
+			return Vector2i(level["cell"])
+	return Vector2i(data["start_cell"])
+
+
 func area_exit_requirement() -> String:
 	return String(area_data()["exit_requirement"])
+
+
+func area_previous() -> int:
+	return int(area_data()["previous_area"])
+
+
+func area_next() -> int:
+	return int(area_data()["next_area"])
 
 
 func area_name() -> String:
@@ -316,7 +354,7 @@ func _draw() -> void:
 		if is_level_visible(level):
 			draw_level_cell(level)
 
-	draw_exit_arrow()
+	draw_area_navigation_arrows()
 	draw_player()
 
 
@@ -373,19 +411,29 @@ func draw_level_cell(level: Dictionary) -> void:
 		draw_text_centered(rect, level_id, 16, label_color)
 
 
-func draw_exit_arrow() -> void:
-	var unlocked := is_completed(area_exit_requirement())
+func draw_area_navigation_arrows() -> void:
+	if area_previous() > 0:
+		draw_area_navigation_arrow(Vector2i.UP, true)
+	if area_next() > 0:
+		draw_area_navigation_arrow(
+			Vector2i.DOWN,
+			is_completed(area_exit_requirement())
+		)
+
+
+func draw_area_navigation_arrow(direction: Vector2i, unlocked: bool) -> void:
 	var arrow_color: Color = COMPLETED_COLOR
 	if not unlocked:
 		arrow_color = palette["label"]
 		arrow_color.a = 0.28
 
 	var map_width := float(area_size().x) * CELL_SIZE
-	var center := map_origin() + Vector2(
-		map_width * 0.5,
-		float(area_size().y) * CELL_SIZE + CELL_SIZE * 0.42
-	)
-	var forward := Vector2.DOWN
+	var map_height := float(area_size().y) * CELL_SIZE
+	var center_y := map_height + CELL_SIZE * 0.42
+	if direction == Vector2i.UP:
+		center_y = -CELL_SIZE * 0.42
+	var center := map_origin() + Vector2(map_width * 0.5, center_y)
+	var forward := Vector2(direction)
 	var length := CELL_SIZE * 1.30
 	var depth := CELL_SIZE * 0.40
 	var stroke := CELL_SIZE * 0.10
