@@ -37,6 +37,17 @@ const AREA_02_LEVELS := [
 	{"id": "2-12", "cell": Vector2i(3, 2), "route": "branch", "requires": ["2-11"]},
 ]
 
+const AREA_03_LEVELS := [
+	{"id": "3-1", "cell": Vector2i(0, 0), "route": "main", "requires": []},
+	{"id": "3-2", "cell": Vector2i(1, 0), "route": "main", "requires": ["3-1"]},
+	{"id": "3-3", "cell": Vector2i(2, 0), "route": "main", "requires": ["3-2"]},
+	{"id": "3-4", "cell": Vector2i(2, 1), "route": "main", "requires": ["3-3"]},
+	{"id": "3-5", "cell": Vector2i(1, 1), "route": "main", "requires": ["3-4"]},
+	{"id": "3-6", "cell": Vector2i(0, 1), "route": "main", "requires": ["3-5"]},
+	{"id": "3-7", "cell": Vector2i(0, 2), "route": "main", "requires": ["3-6"]},
+	{"id": "3-8", "cell": Vector2i(1, 2), "route": "main", "requires": ["3-7"]},
+]
+
 const AREAS := {
 	1: {
 		"size": Vector2i(4, 3),
@@ -51,8 +62,16 @@ const AREAS := {
 		"start_cell": Vector2i(0, 0),
 		"exit_requirement": "2-11",
 		"previous_area": 1,
-		"next_area": 0,
+		"next_area": 3,
 		"levels": AREA_02_LEVELS,
+	},
+	3: {
+		"size": Vector2i(3, 3),
+		"start_cell": Vector2i(0, 0),
+		"exit_requirement": "3-8",
+		"previous_area": 2,
+		"next_area": 0,
+		"levels": AREA_03_LEVELS,
 	},
 }
 
