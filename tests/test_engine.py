@@ -64,7 +64,7 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(triggered.blocks[1], BlockState((3, 0)))
         self.assertFalse(triggered.install_order)
 
-    def test_failed_trigger_keeps_vector_and_install_order(self) -> None:
+    def test_blocked_collision_trigger_consumes_vector(self) -> None:
         level = parse_level("@AB#")
         installed = replace(
             level.initial_state,
@@ -75,7 +75,37 @@ class EngineTests(unittest.TestCase):
             install_order=(1,),
         )
 
-        self.assertEqual(step(level, installed, Command.TRIGGER), installed)
+        triggered = step(level, installed, Command.TRIGGER)
+
+        self.assertEqual(triggered.blocks[0], BlockState((1, 0)))
+        self.assertEqual(triggered.blocks[1], BlockState((2, 0)))
+        self.assertFalse(triggered.install_order)
+
+    def test_wall_blocked_trigger_consumes_vector(self) -> None:
+        level = parse_level("@A")
+        installed = replace(
+            level.initial_state,
+            blocks=(BlockState((1, 0), Direction.RIGHT),),
+            install_order=(1,),
+        )
+
+        triggered = step(level, installed, Command.TRIGGER)
+
+        self.assertEqual(triggered.blocks[0], BlockState((1, 0)))
+        self.assertFalse(triggered.install_order)
+
+    def test_player_blocked_trigger_consumes_vector(self) -> None:
+        level = parse_level("A@")
+        installed = replace(
+            level.initial_state,
+            blocks=(BlockState((0, 0), Direction.RIGHT),),
+            install_order=(1,),
+        )
+
+        triggered = step(level, installed, Command.TRIGGER)
+
+        self.assertEqual(triggered.blocks[0], BlockState((0, 0)))
+        self.assertFalse(triggered.install_order)
 
     def test_empty_handed_player_retrieves_only_from_recovery_block(self) -> None:
         level = parse_level("@R.")
@@ -113,7 +143,9 @@ class EngineTests(unittest.TestCase):
             blocks=(BlockState((1, 0), Direction.DOWN),),
             install_order=(1,),
         )
-        self.assertEqual(step(level, installed, Command.TRIGGER), installed)
+        triggered = step(level, installed, Command.TRIGGER)
+        self.assertEqual(triggered.blocks[0], BlockState((1, 0)))
+        self.assertFalse(triggered.install_order)
 
     def test_known_player_sequence_solves_fixed_regression_level(self) -> None:
         level = load_level(KNOWN_LEVEL_PATH)

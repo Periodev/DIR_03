@@ -127,9 +127,9 @@ def _trigger(level: Level, state: State) -> State:
 
     target = _add(carrier.position, carrier.vector.delta)
     if not _block_path_is_open(level, carrier.position, target):
-        return state
+        return _consume_carrier_vector(state, carrier_index)
     if target == state.player:
-        return state
+        return _consume_carrier_vector(state, carrier_index)
 
     front_block_index = _find_block_at(state, target)
     blocks = list(state.blocks)
@@ -138,13 +138,23 @@ def _trigger(level: Level, state: State) -> State:
     else:
         pushed_target = _add(target, carrier.vector.delta)
         if not _block_can_move_to(level, state, target, pushed_target):
-            return state
+            return _consume_carrier_vector(state, carrier_index)
         blocks[front_block_index] = replace(
             blocks[front_block_index],
             position=pushed_target,
         )
         blocks[carrier_index] = replace(carrier, vector=None)
 
+    return replace(
+        state,
+        blocks=tuple(blocks),
+        install_order=state.install_order[1:],
+    )
+
+
+def _consume_carrier_vector(state: State, carrier_index: int) -> State:
+    blocks = list(state.blocks)
+    blocks[carrier_index] = replace(blocks[carrier_index], vector=None)
     return replace(
         state,
         blocks=tuple(blocks),

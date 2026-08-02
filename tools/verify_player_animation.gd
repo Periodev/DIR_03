@@ -1,4 +1,4 @@
-extends SceneTree
+extends Node
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const VisualStyle = preload("res://scripts/visual_style.gd")
@@ -6,20 +6,21 @@ const VisualStyle = preload("res://scripts/visual_style.gd")
 var failures := 0
 
 
-func _initialize() -> void:
+func _ready() -> void:
 	call_deferred("run_checks")
 
 
 func run_checks() -> void:
 	var game: Node = MAIN_SCENE.instantiate()
-	root.add_child(game)
-	await process_frame
+	get_tree().root.add_child(game)
+	await get_tree().process_frame
 	await create_timer(0.25).timeout
 
 	await check_player_displacement(game)
 	await check_push_displacement(game)
 	await check_install_reveal(game)
 	await check_free_trigger_sequence(game)
+	await check_blocked_trigger_sequence(game)
 	await check_collision_trigger_sequence(game)
 	await check_reset_cancels_animation(game)
 
@@ -29,6 +30,14 @@ func run_checks() -> void:
 	else:
 		push_error("%s player animation check(s) failed." % failures)
 		quit(1)
+
+
+func create_timer(seconds: float) -> SceneTreeTimer:
+	return get_tree().create_timer(seconds)
+
+
+func quit(exit_code: int) -> void:
+	get_tree().quit(exit_code)
 
 
 func check_player_displacement(game: Node) -> void:
@@ -196,6 +205,49 @@ func check_free_trigger_sequence(game: Node) -> void:
 		"free trigger should move its carrier"
 	)
 	require(not bool(game.input_locked), "free trigger should unlock after animation")
+
+
+func check_blocked_trigger_sequence(game: Node) -> void:
+	require_level(game, "@A")
+	install_test_vector(game, 1, "Right")
+	var started: bool = bool(game.execute_command("T"))
+	require(started, "blocked trigger command should be accepted")
+	require(bool(game.input_locked), "blocked trigger should lock input")
+	require(game.install_order.is_empty(), "blocked trigger should consume install order")
+	var block_index: int = int(game.find_block_index_by_id(1))
+	var block: Dictionary = game.blocks[block_index]
+	require(String(block["vector"]) == "", "blocked trigger should consume vector")
+	require(
+		Vector2i(block["cell"]) == Vector2i(1, 0),
+		"blocked trigger should not move its carrier"
+	)
+	await create_timer(
+		VisualStyle.TRIGGER_FLASH_IN_SECONDS
+		+ VisualStyle.TRIGGER_FLASH_HOLD_SECONDS / 2.0
+	).timeout
+	var view: Node = game.board_view
+	require(
+		float(view.trigger_flash_mix) > 0.9,
+		"blocked trigger direction should reach its white flash"
+	)
+	require(
+		Vector2i(view.displacement_from) == Vector2i(view.displacement_to),
+		"blocked trigger animation should remain stationary"
+	)
+	await create_timer(
+		VisualStyle.TRIGGER_FLASH_HOLD_SECONDS / 2.0
+		+ VisualStyle.DISPLACEMENT_SECONDS / 2.0
+	).timeout
+	require(
+		float(view.trigger_flash_alpha) < 0.9,
+		"blocked trigger direction should fade after flashing"
+	)
+	await create_timer(VisualStyle.DISPLACEMENT_SECONDS + 0.05).timeout
+	require(not bool(game.input_locked), "blocked trigger should unlock after animation")
+	require(
+		int(view.trigger_flash_block_id) == -1,
+		"blocked trigger flash should clear after animation"
+	)
 
 
 func check_collision_trigger_sequence(game: Node) -> void:

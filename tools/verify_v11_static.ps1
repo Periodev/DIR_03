@@ -71,6 +71,10 @@ $checks = @(
 		Pass = $main -match "func\s+trigger_vector\(\)"
 	},
 	@{
+		Name = "blocked triggers consume the installed vector"
+		Pass = ([regex]::Matches($gameBoard, 'consume_blocked_trigger\(')).Count -eq 5 -and $gameBoard -match 'func\s+consume_blocked_trigger\([\s\S]*consume_carrier_vector\(carrier_index,\s*carrier\)[\s\S]*render_all\(\)[\s\S]*end_atomic_input\(\)'
+	},
+	@{
 		Name = "main.gd has debug log panel support"
 		Pass = $main -match "debug_log_label" -and $main -match "append_debug_log"
 	},
@@ -335,8 +339,8 @@ $checks = @(
 		Pass = $gameBoard -match "start_player_displacement\(player_from,\s*target\)" -and $gameBoard -match "start_block_displacement\([\s\S]*pushed_block_id,[\s\S]*block_from,[\s\S]*block_target" -and $gameBoard -match 'has_method\("play_player_displacement"\)' -and $gameBoard -match 'has_method\("play_block_displacement"\)' -and $playerBoardView -match "func\s+play_player_displacement\(" -and $playerBoardView -match "func\s+play_block_displacement\([\s\S]*player_queue_reveal_pending\s*=\s*true[\s\S]*PUSH_DISPLACEMENT_DELAY_SECONDS[\s\S]*tween_callback\(reveal_player_queue\)[\s\S]*set_displacement_progress" -and $playerBoardView -match "func\s+draw_player_stored_vector\(\)[\s\S]*player_queue_reveal_pending" -and $playerBoardView -match "func\s+animated_cell_position\(\)[\s\S]*\.lerp\(" -and $visualStyle -match "PUSH_DISPLACEMENT_DELAY_SECONDS\s*:=\s*0\.\d+" -and $visualStyle -match "DISPLACEMENT_SECONDS\s*:=\s*0\.\d+"
 	},
 	@{
-		Name = "successful triggers fade while displacement runs"
-		Pass = ([regex]::Matches($gameBoard, "start_trigger_displacement\(\s*[\r\n]+\s*carrier_id,\s*[\r\n]+\s*vector_name,")).Count -eq 2 -and $gameBoard -match 'has_method\("play_trigger_displacement"\)' -and $playerBoardView -match "func\s+play_trigger_displacement\(" -and $playerBoardView -match "TRIGGER_FLASH_IN_SECONDS[\s\S]*TRIGGER_FLASH_HOLD_SECONDS[\s\S]*set_displacement_progress[\s\S]*parallel\(\)\.tween_method\(\s*[\r\n]+\s*set_trigger_flash_alpha[\s\S]*TRIGGER_FLASH_OUT_SECONDS" -and $playerBoardView -match "func\s+draw_trigger_flash\(\)[\s\S]*var\s+block_index:\s*int\s*=\s*int\([\s\S]*find_block_index_by_id\(trigger_flash_block_id\)[\s\S]*var\s+block_cell:\s*Vector2i\s*=\s*block\[`"cell`"\][\s\S]*draw_direction_triangle\(" -and $playerBoardView -match 'palette\["direction_fill"\]\.lerp\([\s\S]*palette\["trigger_flash"\]' -and $visualStyle -match "TRIGGER_FLASH_OUT_SECONDS\s*:=\s*DISPLACEMENT_SECONDS" -and $visualStyle -match '"trigger_flash": Color\("#dedede"\)' -and $visualStyle -match '"trigger_flash": Color\("#30302f"\)'
+		Name = "trigger vectors fade while their action runs"
+		Pass = ([regex]::Matches($gameBoard, "start_trigger_displacement\(\s*[\r\n]+\s*carrier_id,\s*[\r\n]+\s*vector_name,")).Count -eq 3 -and $gameBoard -match 'has_method\("play_trigger_displacement"\)' -and $playerBoardView -match "func\s+play_trigger_displacement\(" -and $playerBoardView -match "TRIGGER_FLASH_IN_SECONDS[\s\S]*TRIGGER_FLASH_HOLD_SECONDS[\s\S]*set_displacement_progress[\s\S]*parallel\(\)\.tween_method\(\s*[\r\n]+\s*set_trigger_flash_alpha[\s\S]*TRIGGER_FLASH_OUT_SECONDS" -and $playerBoardView -match "func\s+draw_trigger_flash\(\)[\s\S]*var\s+block_index:\s*int\s*=\s*int\([\s\S]*find_block_index_by_id\(trigger_flash_block_id\)[\s\S]*var\s+block_cell:\s*Vector2i\s*=\s*block\[`"cell`"\][\s\S]*draw_direction_triangle\(" -and $playerBoardView -match 'palette\["direction_fill"\]\.lerp\([\s\S]*palette\["trigger_flash"\]' -and $visualStyle -match "TRIGGER_FLASH_OUT_SECONDS\s*:=\s*DISPLACEMENT_SECONDS" -and $visualStyle -match '"trigger_flash": Color\("#dedede"\)' -and $visualStyle -match '"trigger_flash": Color\("#30302f"\)'
 	},
 	@{
 		Name = "collision source approaches holds and returns around target movement"
@@ -348,7 +352,7 @@ $checks = @(
 	},
 	@{
 		Name = "graphics runtime animation check covers movement trigger and reset"
-		Pass = $playerAnimationCheck -match "check_player_displacement" -and $playerAnimationCheck -match "check_push_displacement" -and $playerAnimationCheck -match "check_install_reveal" -and $playerAnimationCheck -match "check_free_trigger_sequence" -and $playerAnimationCheck -match "check_collision_trigger_sequence" -and $playerAnimationCheck -match "check_reset_cancels_animation"
+		Pass = $playerAnimationCheck -match "check_player_displacement" -and $playerAnimationCheck -match "check_push_displacement" -and $playerAnimationCheck -match "check_install_reveal" -and $playerAnimationCheck -match "check_free_trigger_sequence" -and $playerAnimationCheck -match "check_blocked_trigger_sequence" -and $playerAnimationCheck -match "check_collision_trigger_sequence" -and $playerAnimationCheck -match "check_reset_cancels_animation"
 	},
 	@{
 		Name = "player goals use dashed empty markers and replace the block edge when completed"

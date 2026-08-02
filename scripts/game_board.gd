@@ -263,20 +263,29 @@ func trigger_vector() -> void:
 	var target: Vector2i = carrier["cell"] + direction
 
 	if not is_inside_board(target) or is_wall(target):
-		set_message("Trigger failed. Vector points into wall or edge.")
-		append_debug_log("Trigger %s failed: block %s faces wall/edge." % [vector_name, block_label(carrier_id)])
-		end_atomic_input()
+		consume_blocked_trigger(
+			carrier_index,
+			carrier,
+			"Vector dissipated against wall or edge.",
+			"Trigger %s consumed: block %s faces wall/edge." % [vector_name, block_label(carrier_id)]
+		)
 		return
 	if is_fence_between(carrier["cell"], target):
-		set_message("Trigger failed. Fence blocks the vector.")
-		append_debug_log("Trigger %s failed: fence blocks block %s." % [vector_name, block_label(carrier_id)])
-		end_atomic_input()
+		consume_blocked_trigger(
+			carrier_index,
+			carrier,
+			"Vector dissipated against a fence.",
+			"Trigger %s consumed: fence blocks block %s." % [vector_name, block_label(carrier_id)]
+		)
 		return
 
 	if target == player_cell:
-		set_message("Trigger failed. Player blocks the path.")
-		append_debug_log("Trigger %s failed: player blocks block %s." % [vector_name, block_label(carrier_id)])
-		end_atomic_input()
+		consume_blocked_trigger(
+			carrier_index,
+			carrier,
+			"Vector dissipated against the player.",
+			"Trigger %s consumed: player blocks block %s." % [vector_name, block_label(carrier_id)]
+		)
 		return
 
 	var front_block_index := find_block_index_at(target)
@@ -303,13 +312,16 @@ func trigger_vector() -> void:
 
 	var pushed_target := target + direction
 	if not can_block_move_to(target, pushed_target):
-		set_message("Trigger failed. Anchor-push target is blocked.")
-		append_debug_log("Trigger %s failed: block %s cannot push block %s." % [
-			vector_name,
-			block_label(carrier_id),
-			block_label(blocks[front_block_index]["id"]),
-		])
-		end_atomic_input()
+		consume_blocked_trigger(
+			carrier_index,
+			carrier,
+			"Vector dissipated against a blocked target.",
+			"Trigger %s consumed: block %s cannot push block %s." % [
+				vector_name,
+				block_label(carrier_id),
+				block_label(blocks[front_block_index]["id"]),
+			]
+		)
 		return
 
 	var pushed_block: Dictionary = blocks[front_block_index]
@@ -498,6 +510,30 @@ func consume_carrier_vector(carrier_index: int, carrier: Dictionary) -> void:
 	carrier["vector"] = ""
 	blocks[carrier_index] = carrier
 	install_order.remove_at(0)
+
+
+func consume_blocked_trigger(
+	carrier_index: int,
+	carrier: Dictionary,
+	message: String,
+	log_line: String
+) -> void:
+	var carrier_id: int = int(carrier["id"])
+	var vector_name: String = String(carrier["vector"])
+	var carrier_cell: Vector2i = carrier["cell"]
+	consume_carrier_vector(carrier_index, carrier)
+	set_message(message)
+	append_debug_log(log_line)
+	if start_trigger_displacement(
+		carrier_id,
+		vector_name,
+		carrier_id,
+		carrier_cell,
+		carrier_cell
+	):
+		return
+	render_all()
+	end_atomic_input()
 
 
 func retrieve_recovery_vector(block_index: int, block: Dictionary) -> void:
