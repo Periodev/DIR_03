@@ -570,13 +570,27 @@ func is_level_solved() -> bool:
 func check_level_completion() -> bool:
 	if level_completed or not is_level_solved():
 		return false
+	return finish_level_completion(
+		"Complete: all %s goals contain blocks." % goal_cells.size()
+	)
 
+
+func complete_level_for_testing() -> bool:
+	if level_completed:
+		return false
+	begin_atomic_input()
+	var completed := finish_level_completion("Complete (F4): marked for testing.")
+	end_atomic_input()
+	return completed
+
+
+func finish_level_completion(completion_log: String) -> bool:
 	level_completed = true
 	if Campaign.has_active_level():
 		Campaign.complete_active_level()
 	var input_result := command_history_text()
 	set_message("Level complete. Press F5 to reset.")
-	append_debug_log("Complete: all %s goals contain blocks." % goal_cells.size())
+	append_debug_log(completion_log)
 	append_debug_log("Input result (%s): %s" % [
 		command_history.size(),
 		"(empty)" if input_result == "" else input_result,

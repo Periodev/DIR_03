@@ -358,7 +358,7 @@ $checks = @(
 	},
 	@{
 		Name = "graphics runtime animation check covers movement trigger and reset"
-		Pass = $playerAnimationCheck -match "check_player_displacement" -and $playerAnimationCheck -match "check_push_displacement" -and $playerAnimationCheck -match "check_install_reveal" -and $playerAnimationCheck -match "check_free_trigger_sequence" -and $playerAnimationCheck -match "check_blocked_trigger_sequence" -and $playerAnimationCheck -match "check_collision_trigger_sequence" -and $playerAnimationCheck -match "check_reset_cancels_animation"
+		Pass = $playerAnimationCheck -match "check_player_displacement" -and $playerAnimationCheck -match "check_grid_line_toggle" -and $playerAnimationCheck -match "is_goal_visually_occupied" -and $playerAnimationCheck -match "stored_vector_center" -and $playerAnimationCheck -match "check_push_displacement" -and $playerAnimationCheck -match "check_install_reveal" -and $playerAnimationCheck -match "check_free_trigger_sequence" -and $playerAnimationCheck -match "check_blocked_trigger_sequence" -and $playerAnimationCheck -match "check_collision_trigger_sequence" -and $playerAnimationCheck -match "check_reset_cancels_animation"
 	},
 	@{
 		Name = "player goals use dashed empty markers and replace the block edge when completed"
@@ -387,6 +387,22 @@ $checks = @(
 	@{
 		Name = "classic level selector F4 records selected level completion"
 		Pass = $classicLevelSelect -match 'func\s+complete_selected_level\(\)[\s\S]*Campaign\.complete_level\(String\(entry\["id"\]\)\)[\s\S]*advance_after_completion\(\)' -and $classicLevelSelect -match 'key_event\.keycode\s*==\s*KEY_F4'
+	},
+	@{
+		Name = "player grid lines expose a visual toggle"
+		Pass = $visualStyle -match 'SHOW_GRID_LINES\s*:=\s*true' -and $playerBoardView -match 'var\s+grid_lines_visible\s*:=\s*VisualStyle\.SHOW_GRID_LINES' -and $playerBoardView -match 'func\s+set_grid_lines_visible\(visible:\s*bool\)' -and $playerBoardView -match 'if\s+grid_lines_visible:\s*\r?\n\s*draw_rect\(cell_rect,\s*grid_color'
+	},
+	@{
+		Name = "moving blocks reveal goals continuously beneath displacement"
+		Pass = $playerBoardView -match 'func\s+is_goal_visually_occupied\(goal_cell:\s*Vector2i\)[\s\S]*displacement_subject\s*==\s*DISPLACEMENT_BLOCK[\s\S]*block_id\s*==\s*displacement_block_id[\s\S]*continue'
+	},
+	@{
+		Name = "stored direction glyphs offset toward their direction"
+		Pass = $visualStyle -match 'STORED_VECTOR_OFFSET_RATIO\s*:=\s*0\.07' -and ([regex]::Matches($playerBoardView, 'stored_vector_center\(')).Count -ge 4 -and $playerBoardView -match 'direction_vector\(direction_name\)[\s\S]*VisualStyle\.STORED_VECTOR_OFFSET_RATIO'
+	},
+	@{
+		Name = "player F4 quick completion uses the normal completion infrastructure"
+		Pass = $mainEntry -match 'is_quick_complete_key\(event\)[\s\S]*complete_level_for_testing\(\)' -and $mainEntry -match 'key_event\.keycode\s*==\s*KEY_F4' -and $gameBoard -match 'func\s+complete_level_for_testing\(\)[\s\S]*begin_atomic_input\(\)[\s\S]*finish_level_completion\(' -and $gameBoard -match 'func\s+finish_level_completion\(completion_log:\s*String\)[\s\S]*Campaign\.complete_active_level\(\)' -and $gameBoard -notmatch 'command_history\.append\("F4"\)'
 	},
 	@{
 		Name = "classic selector advances exactly once after real completion"

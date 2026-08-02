@@ -47,6 +47,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		clear_held_movement()
 		reset_level()
 		return
+	if is_quick_complete_key(event):
+		clear_held_movement()
+		complete_level_for_testing()
+		return
 	if Campaign.has_active_level() and (
 		(level_completed and is_confirm_key(event)) or is_cancel_key(event)
 	):
@@ -120,6 +124,13 @@ func is_cancel_key(event: InputEvent) -> bool:
 		return false
 	var key_event: InputEventKey = event
 	return key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE
+
+
+func is_quick_complete_key(event: InputEvent) -> bool:
+	if not event is InputEventKey:
+		return false
+	var key_event: InputEventKey = event
+	return key_event.pressed and not key_event.echo and key_event.keycode == KEY_F4
 
 
 func return_to_world_map() -> void:

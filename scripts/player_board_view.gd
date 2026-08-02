@@ -10,6 +10,7 @@ const DISPLACEMENT_BLOCK := 2
 var game_board
 var cell_size := float(VisualStyle.PLAYER_CELL_SIZE)
 var light_theme := false
+var grid_lines_visible := VisualStyle.SHOW_GRID_LINES
 var palette: Dictionary = {}
 var fallback_font: Font
 var facing_action_offset_ratio := 0.0
@@ -89,6 +90,11 @@ func play_facing_action() -> void:
 
 func set_facing_action_offset_ratio(value: float) -> void:
 	facing_action_offset_ratio = value
+	queue_redraw()
+
+
+func set_grid_lines_visible(visible: bool) -> void:
+	grid_lines_visible = visible
 	queue_redraw()
 
 
@@ -390,7 +396,8 @@ func draw_ground() -> void:
 				Vector2(cell_size, cell_size)
 			)
 			draw_rect(cell_rect, floor_color)
-			draw_rect(cell_rect, grid_color, false, 1.0)
+			if grid_lines_visible:
+				draw_rect(cell_rect, grid_color, false, 1.0)
 
 
 func draw_wall_shadows() -> void:
@@ -679,7 +686,10 @@ func draw_block_at(
 		)
 	if vector_name != "" and block_id != install_reveal_block_id:
 		draw_direction_triangle(
-			block_position + Vector2.ONE * cell_size / 2.0,
+			stored_vector_center(
+				block_position + Vector2.ONE * cell_size / 2.0,
+				vector_name
+			),
 			vector_name,
 			palette["direction_fill"]
 		)
@@ -688,12 +698,12 @@ func draw_block_at(
 func is_goal_visually_occupied(goal_cell: Vector2i) -> bool:
 	for block in game_board.blocks:
 		var block_id: int = int(block["id"])
-		var block_cell: Vector2i = block["cell"]
 		if (
 			displacement_subject == DISPLACEMENT_BLOCK
 			and block_id == displacement_block_id
 		):
-			block_cell = displacement_from
+			continue
+		var block_cell: Vector2i = block["cell"]
 		if block_cell == goal_cell:
 			return true
 	return false
@@ -723,6 +733,7 @@ func draw_trigger_flash() -> void:
 		and trigger_flash_block_id == displacement_block_id
 	):
 		flash_center = animated_cell_position() + Vector2.ONE * cell_size / 2.0
+	flash_center = stored_vector_center(flash_center, trigger_flash_direction)
 	var color: Color = palette["direction_fill"].lerp(
 		palette["trigger_flash"],
 		trigger_flash_mix
@@ -763,7 +774,7 @@ func draw_player_stored_vector() -> void:
 		return
 
 	draw_direction_triangle(
-		player_draw_center(),
+		stored_vector_center(player_draw_center(), game_board.player_queue),
 		game_board.player_queue,
 		palette["direction_fill"]
 	)
@@ -958,6 +969,15 @@ func animated_cell_position() -> Vector2:
 	return cell_to_position(displacement_from).lerp(
 		cell_to_position(displacement_to),
 		displacement_progress
+	)
+
+
+func stored_vector_center(center: Vector2, direction_name: String) -> Vector2:
+	return (
+		center
+		+ direction_vector(direction_name)
+		* cell_size
+		* VisualStyle.STORED_VECTOR_OFFSET_RATIO
 	)
 
 

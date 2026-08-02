@@ -17,6 +17,7 @@ func run_checks() -> void:
 	await create_timer(0.25).timeout
 
 	await check_player_displacement(game)
+	check_grid_line_toggle(game)
 	await check_push_displacement(game)
 	await check_install_reveal(game)
 	await check_free_trigger_sequence(game)
@@ -53,15 +54,35 @@ func check_player_displacement(game: Node) -> void:
 	)
 
 
+func check_grid_line_toggle(game: Node) -> void:
+	var view: Node = game.board_view
+	view.set_grid_lines_visible(false)
+	require(not bool(view.grid_lines_visible), "grid lines should support being hidden")
+	view.set_grid_lines_visible(true)
+	require(bool(view.grid_lines_visible), "grid lines should support being restored")
+
+
 func check_push_displacement(game: Node) -> void:
 	require_level(game, "@A.*")
+	game.goal_cells.clear()
+	game.goal_cells.append(Vector2i(1, 0))
+	game.goal_cells.append(Vector2i(3, 0))
+	game.render_all()
+	var view: Node = game.board_view
+	require(
+		bool(view.is_goal_visually_occupied(Vector2i(1, 0))),
+		"a stationary block should hide its occupied goal marker"
+	)
 	var started: bool = bool(game.execute_command("R"))
 	require(started, "push command should be accepted")
 	require(bool(game.input_locked), "push should lock input")
+	require(
+		not bool(view.is_goal_visually_occupied(Vector2i(1, 0))),
+		"a moving block should reveal its source goal beneath the animation"
+	)
 	await create_timer(
 		VisualStyle.FACING_ACTION_RETREAT_SECONDS / 2.0
 	).timeout
-	var view: Node = game.board_view
 	require(
 		bool(view.player_queue_reveal_pending),
 		"pushed direction should remain hidden before movement starts"
@@ -118,6 +139,12 @@ func check_install_reveal(game: Node) -> void:
 	require(started, "install command should be accepted")
 	require(bool(game.input_locked), "install reveal should lock input")
 	var view: Node = game.board_view
+	var block_center: Vector2 = view.cell_center(Vector2i(1, 0))
+	var stored_center: Vector2 = view.stored_vector_center(block_center, "Right")
+	require(
+		stored_center.x > block_center.x and is_equal_approx(stored_center.y, block_center.y),
+		"stored direction glyph should offset toward its direction"
+	)
 	require(
 		int(view.install_reveal_block_id) == 1,
 		"installed direction should remain hidden during the reveal delay"
