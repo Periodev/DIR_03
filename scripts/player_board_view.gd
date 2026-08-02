@@ -6,6 +6,9 @@ const VisualStyle = preload("res://scripts/visual_style.gd")
 const DISPLACEMENT_NONE := 0
 const DISPLACEMENT_PLAYER := 1
 const DISPLACEMENT_BLOCK := 2
+const ERROR_FLASH_NONE := 0
+const ERROR_FLASH_PLAYER := 1
+const ERROR_FLASH_BLOCK := 2
 
 var game_board
 var cell_size := float(VisualStyle.PLAYER_CELL_SIZE)
@@ -34,9 +37,12 @@ var blocked_release_direction := ""
 var blocked_release_offset_ratio := 0.0
 var install_reveal_block_id := -1
 var player_queue_reveal_pending := false
+var error_flash_subject := ERROR_FLASH_NONE
 var error_flash_cell := Vector2i(-1, -1)
 var error_flash_alpha := 0.0
 var error_flash_tween: Tween
+var error_flash_color_key := "error_flash"
+var error_flash_max_alpha := VisualStyle.ERROR_FLASH_MAX_ALPHA
 
 
 func initialize(board) -> void:
@@ -105,29 +111,71 @@ func set_grid_lines_visible(lines_visible: bool) -> void:
 
 
 func play_player_error_flash(cell: Vector2i) -> void:
+	play_error_flash(
+		ERROR_FLASH_PLAYER,
+		cell,
+		"error_flash",
+		VisualStyle.ERROR_FLASH_MAX_ALPHA,
+		VisualStyle.ERROR_FLASH_SECONDS
+	)
+
+
+func play_block_error_flash(cell: Vector2i) -> void:
+	play_error_flash(
+		ERROR_FLASH_BLOCK,
+		cell,
+		"error_flash",
+		VisualStyle.ERROR_FLASH_MAX_ALPHA,
+		VisualStyle.ERROR_FLASH_SECONDS
+	)
+
+
+func play_block_hint_flash(cell: Vector2i) -> void:
+	play_error_flash(
+		ERROR_FLASH_BLOCK,
+		cell,
+		"hint_flash",
+		VisualStyle.HINT_FLASH_MAX_ALPHA,
+		VisualStyle.HINT_FLASH_SECONDS
+	)
+
+
+func play_error_flash(
+	subject: int,
+	cell: Vector2i,
+	color_key: String,
+	max_alpha: float,
+	duration: float
+) -> void:
 	cancel_error_cell_flash()
+	error_flash_subject = subject
 	error_flash_cell = cell
-	error_flash_alpha = VisualStyle.ERROR_FLASH_MAX_ALPHA
+	error_flash_color_key = color_key
+	error_flash_max_alpha = max_alpha
+	error_flash_alpha = max_alpha
 	error_flash_tween = create_tween()
 	error_flash_tween.tween_method(
 		set_error_flash_alpha,
-		VisualStyle.ERROR_FLASH_MAX_ALPHA,
+		max_alpha,
 		0.0,
-		VisualStyle.ERROR_FLASH_SECONDS
+		duration
 	).set_trans(Tween.TRANS_LINEAR).set_ease(Tween.EASE_IN)
 	error_flash_tween.tween_callback(clear_error_cell_flash)
 	queue_redraw()
 
 
 func set_error_flash_alpha(value: float) -> void:
-	error_flash_alpha = clampf(value, 0.0, VisualStyle.ERROR_FLASH_MAX_ALPHA)
+	error_flash_alpha = clampf(value, 0.0, error_flash_max_alpha)
 	queue_redraw()
 
 
 func clear_error_cell_flash() -> void:
 	error_flash_tween = null
+	error_flash_subject = ERROR_FLASH_NONE
 	error_flash_cell = Vector2i(-1, -1)
 	error_flash_alpha = 0.0
+	error_flash_color_key = "error_flash"
+	error_flash_max_alpha = VisualStyle.ERROR_FLASH_MAX_ALPHA
 	queue_redraw()
 
 
@@ -453,6 +501,7 @@ func _draw() -> void:
 	draw_goals()
 	draw_blocks()
 	draw_trigger_flash()
+	draw_block_error_flash()
 	draw_fences()
 	draw_player_body()
 	draw_player_error_flash()
@@ -835,12 +884,27 @@ func draw_player_body() -> void:
 
 
 func draw_player_error_flash() -> void:
-	if error_flash_cell.x < 0 or error_flash_cell.y < 0 or error_flash_alpha <= 0.0:
+	if error_flash_subject != ERROR_FLASH_PLAYER or error_flash_alpha <= 0.0:
 		return
-	var color: Color = palette["error_flash"]
+	var color: Color = palette[error_flash_color_key]
 	color.a = error_flash_alpha
 	draw_colored_polygon(
 		player_body_points(cell_center(error_flash_cell)),
+		color
+	)
+
+
+func draw_block_error_flash() -> void:
+	if error_flash_subject != ERROR_FLASH_BLOCK or error_flash_alpha <= 0.0:
+		return
+	var block_gap := roundi(cell_size * VisualStyle.BLOCK_INSET_RATIO)
+	var color: Color = palette[error_flash_color_key]
+	color.a = error_flash_alpha
+	draw_rect(
+		Rect2(
+			cell_to_position(error_flash_cell) + Vector2.ONE * block_gap,
+			Vector2.ONE * (cell_size - block_gap * 2)
+		),
 		color
 	)
 

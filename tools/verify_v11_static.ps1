@@ -362,11 +362,19 @@ $checks = @(
 	},
 	@{
 		Name = "empty release flashes the player as an input error"
-		Pass = $gameBoard -match 'install_order\.is_empty\(\)[\s\S]*Nothing installed to release\.[\s\S]*start_player_error_feedback\(\)' -and $playerBoardView -match 'func\s+play_player_error_flash\(cell:\s*Vector2i\)[\s\S]*ERROR_FLASH_MAX_ALPHA[\s\S]*ERROR_FLASH_SECONDS' -and $playerBoardView -match 'draw_player_body\(\)[\s\S]*draw_player_error_flash\(\)[\s\S]*draw_player_stored_vector\(\)' -and $playerBoardView -match 'func\s+draw_player_error_flash\(\)[\s\S]*palette\["error_flash"\][\s\S]*draw_colored_polygon\([\s\S]*player_body_points' -and $visualStyle -match 'ERROR_FLASH_MAX_ALPHA\s*:=\s*180\.0\s*/\s*255\.0' -and $visualStyle -match '"error_flash":\s*Color\("#ff3232"\)' -and $playerAnimationCheck -match 'check_empty_release_error\(game\)'
+		Pass = $gameBoard -match 'install_order\.is_empty\(\)[\s\S]*Nothing installed to release\.[\s\S]*start_player_error_feedback\(\)' -and $playerBoardView -match 'func\s+play_player_error_flash\(cell:\s*Vector2i\)[\s\S]*ERROR_FLASH_PLAYER[\s\S]*"error_flash"[\s\S]*ERROR_FLASH_MAX_ALPHA[\s\S]*ERROR_FLASH_SECONDS' -and $playerBoardView -match 'draw_player_body\(\)[\s\S]*draw_player_error_flash\(\)[\s\S]*draw_player_stored_vector\(\)' -and $playerBoardView -match 'func\s+draw_player_error_flash\(\)[\s\S]*ERROR_FLASH_PLAYER[\s\S]*palette\[error_flash_color_key\][\s\S]*draw_colored_polygon\([\s\S]*player_body_points' -and $visualStyle -match 'ERROR_FLASH_MAX_ALPHA\s*:=\s*180\.0\s*/\s*255\.0' -and $visualStyle -match '"error_flash":\s*Color\("#ff3232"\)' -and $playerAnimationCheck -match 'check_empty_release_error\(game\)'
 	},
 	@{
 		Name = "blocked releases shake without becoming errors"
 		Pass = $playerBoardView -match 'is_blocked_release\s*:=\s*\([\s\S]*carrier_id\s*==\s*moving_block_id[\s\S]*from_cell\s*==\s*to_cell' -and $playerBoardView -match 'set_blocked_release_shake_progress[\s\S]*BLOCKED_RELEASE_SHAKE_SECONDS' -and $playerBoardView -match 'sin\(progress\s*\*\s*TAU\s*\*\s*VisualStyle\.BLOCKED_RELEASE_SHAKE_CYCLES\)' -and $playerBoardView -match 'animated_cell_position\(\)[\s\S]*blocked_release_offset_ratio' -and $visualStyle -match 'BLOCKED_RELEASE_SHAKE_RATIO\s*:=\s*0\.050' -and $playerAnimationCheck -match 'blocked trigger should shake its carrier along the release axis'
+	},
+	@{
+		Name = "loaded blocks reject installs with a fitted red flash"
+		Pass = $gameBoard -match 'block\["vector"\]\s*!=\s*""[\s\S]*Block already has a vector\.[\s\S]*start_block_error_feedback\(block\["cell"\]\)' -and $playerBoardView -match 'func\s+play_block_error_flash\(cell:\s*Vector2i\)[\s\S]*ERROR_FLASH_BLOCK' -and $playerBoardView -match 'func\s+draw_block_error_flash\(\)[\s\S]*BLOCK_INSET_RATIO[\s\S]*draw_rect\(' -and $playerAnimationCheck -match 'check_loaded_block_rejects_install\(game\)'
+	},
+	@{
+		Name = "all empty-hand block interactions use a weak neutral hint"
+		Pass = $gameBoard -match 'if\s+player_queue\s*==\s*"":\s*\r?\n\s*start_block_hint_feedback\(block\["cell"\]\)' -and $playerBoardView -match 'func\s+play_block_hint_flash\(cell:\s*Vector2i\)[\s\S]*"hint_flash"[\s\S]*HINT_FLASH_MAX_ALPHA[\s\S]*HINT_FLASH_SECONDS' -and $visualStyle -match 'HINT_FLASH_MAX_ALPHA\s*:=\s*0\.20' -and $playerAnimationCheck -match 'empty-hand retrieval rejection should use the neutral hint' -and $playerAnimationCheck -match 'successful empty-hand recovery should use the neutral hint'
 	},
 	@{
 		Name = "same-direction pushes hold the stored vector without flicker"

@@ -188,14 +188,15 @@ func install_vector() -> void:
 
 	var block: Dictionary = blocks[block_index]
 	if player_queue == "":
+		start_block_hint_feedback(block["cell"])
 		if is_recovery_block(block) and block["vector"] != "":
 			retrieve_recovery_vector(block_index, block)
 			end_atomic_input()
 			return
 
 		if block["vector"] == "":
-			set_message("Install failed. Player queue is empty.")
-			append_debug_log("Install failed: queue empty.")
+			set_message("Nothing held to install.")
+			append_debug_log("Install unchanged: player and block are empty.")
 		else:
 			set_message("Retrieve failed. Only recovery blocks return installed vectors.")
 			append_debug_log("Retrieve failed: block %s is not a recovery block." % block_label(block["id"]))
@@ -209,6 +210,7 @@ func install_vector() -> void:
 			block_label(block["id"]),
 			block["vector"],
 		])
+		start_block_error_feedback(block["cell"])
 		end_atomic_input()
 		return
 
@@ -742,6 +744,18 @@ func start_player_error_feedback() -> void:
 	if board_view == null or not board_view.has_method("play_player_error_flash"):
 		return
 	board_view.play_player_error_flash(player_cell)
+
+
+func start_block_error_feedback(block_cell: Vector2i) -> void:
+	if board_view == null or not board_view.has_method("play_block_error_flash"):
+		return
+	board_view.play_block_error_flash(block_cell)
+
+
+func start_block_hint_feedback(block_cell: Vector2i) -> void:
+	if board_view == null or not board_view.has_method("play_block_hint_flash"):
+		return
+	board_view.play_block_hint_flash(block_cell)
 
 
 func finish_displacement_action(check_completion: bool) -> void:

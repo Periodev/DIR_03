@@ -19,6 +19,8 @@ func run_checks() -> void:
 	await check_player_displacement(game)
 	check_grid_line_toggle(game)
 	await check_empty_release_error(game)
+	await check_empty_install_hint(game)
+	await check_loaded_block_rejects_install(game)
 	await check_push_displacement(game)
 	await check_same_direction_push_holds_queue(game)
 	await check_install_reveal(game)
@@ -86,6 +88,83 @@ func check_empty_release_error(game: Node) -> void:
 	await create_timer(VisualStyle.ERROR_FLASH_SECONDS + 0.05).timeout
 	require(float(view.error_flash_alpha) < 0.01, "error overlay should fade out")
 	require(Vector2i(view.error_flash_cell) == Vector2i(-1, -1), "error cell should clear")
+
+
+func check_loaded_block_rejects_install(game: Node) -> void:
+	require_level(game, "@A.")
+	install_test_vector(game, 1, "Right")
+	game.player_queue = "Left"
+	game.render_all()
+	var view: Node = game.board_view
+	var started: bool = bool(game.execute_command("X"))
+	require(started, "install rejection command should be accepted")
+	require(not bool(game.input_locked), "install rejection feedback should not lock input")
+	require(String(game.player_queue) == "Left", "rejected install should keep player vector")
+	var block_index: int = int(game.find_block_index_by_id(1))
+	var block: Dictionary = game.blocks[block_index]
+	require(String(block["vector"]) == "Right", "rejected install should keep block vector")
+	require(
+		int(view.error_flash_subject) == int(view.ERROR_FLASH_BLOCK),
+		"rejected install should flash the target block"
+	)
+	require(
+		Vector2i(view.error_flash_cell) == Vector2i(1, 0),
+		"install rejection should target the occupied block cell"
+	)
+	require(float(view.error_flash_alpha) > 0.65, "target block flash should be visible")
+	await create_timer(VisualStyle.ERROR_FLASH_SECONDS + 0.05).timeout
+	require(int(view.error_flash_subject) == int(view.ERROR_FLASH_NONE), "block error should clear")
+
+
+func check_empty_install_hint(game: Node) -> void:
+	require_level(game, "@A.")
+	var view: Node = game.board_view
+	var started: bool = bool(game.execute_command("X"))
+	require(started, "empty install command should be accepted")
+	require(not bool(game.input_locked), "empty install hint should not lock input")
+	require(String(game.player_queue) == "", "empty install should keep player empty")
+	var block_index: int = int(game.find_block_index_by_id(1))
+	var block: Dictionary = game.blocks[block_index]
+	require(String(block["vector"]) == "", "empty install should keep block empty")
+	require(
+		int(view.error_flash_subject) == int(view.ERROR_FLASH_BLOCK),
+		"empty install should hint on the target block"
+	)
+	require(String(view.error_flash_color_key) == "hint_flash", "empty install should use neutral hint color")
+	require(
+		is_equal_approx(float(view.error_flash_alpha), VisualStyle.HINT_FLASH_MAX_ALPHA),
+		"empty install hint should stay low intensity"
+	)
+	await create_timer(VisualStyle.HINT_FLASH_SECONDS + 0.05).timeout
+	require(int(view.error_flash_subject) == int(view.ERROR_FLASH_NONE), "empty install hint should clear")
+
+	require_level(game, "@A.")
+	install_test_vector(game, 1, "Right")
+	started = bool(game.execute_command("X"))
+	require(started, "empty-hand retrieval rejection should be accepted")
+	require(String(game.player_queue) == "", "normal block should not return its vector")
+	block_index = int(game.find_block_index_by_id(1))
+	block = game.blocks[block_index]
+	require(String(block["vector"]) == "Right", "normal block should keep its vector")
+	require(
+		String(view.error_flash_color_key) == "hint_flash",
+		"empty-hand retrieval rejection should use the neutral hint"
+	)
+	await create_timer(VisualStyle.HINT_FLASH_SECONDS + 0.05).timeout
+
+	require_level(game, "@R.")
+	install_test_vector(game, 1, "Right")
+	started = bool(game.execute_command("X"))
+	require(started, "recovery interaction should be accepted")
+	require(String(game.player_queue) == "Right", "recovery block should return its vector")
+	block_index = int(game.find_block_index_by_id(1))
+	block = game.blocks[block_index]
+	require(String(block["vector"]) == "", "recovery block should become empty")
+	require(
+		String(view.error_flash_color_key) == "hint_flash",
+		"successful empty-hand recovery should use the neutral hint"
+	)
+	await create_timer(VisualStyle.HINT_FLASH_SECONDS + 0.05).timeout
 
 
 func check_push_displacement(game: Node) -> void:

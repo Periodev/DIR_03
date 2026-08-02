@@ -46,6 +46,8 @@ const TRIGGER_FLASH_HOLD_SECONDS := 0.05
 const TRIGGER_FLASH_OUT_SECONDS := DISPLACEMENT_SECONDS
 const ERROR_FLASH_SECONDS := 0.30
 const ERROR_FLASH_MAX_ALPHA := 180.0 / 255.0
+const HINT_FLASH_SECONDS := 0.18
+const HINT_FLASH_MAX_ALPHA := 0.20
 const BLOCKED_RELEASE_SHAKE_RATIO := 0.050
 const BLOCKED_RELEASE_SHAKE_SECONDS := 0.12
 const BLOCKED_RELEASE_SHAKE_CYCLES := 2.0
@@ -99,6 +101,7 @@ const MONO_DARK := {
 	"direction_fill": Color("#141414"),
 	"player": Color("#b8bec4"),
 	"error_flash": Color("#ff3232"),
+	"hint_flash": Color("#dedede"),
 	"trigger_flash": Color("#dedede"),
 	"hair": Color("#282828"),
 	"stroke": Color("#3a3a3a"),
@@ -134,6 +137,7 @@ const MONO_LIGHT := {
 	"direction_fill": Color("#f4f3f1"),
 	"player": Color("#484746"),
 	"error_flash": Color("#ff3232"),
+	"hint_flash": Color("#30302f"),
 	"trigger_flash": Color("#30302f"),
 	"hair": Color("#cbc9c4"),
 	"stroke": Color("#b9b7b2"),
