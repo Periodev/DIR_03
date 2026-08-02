@@ -10,7 +10,7 @@ const COMPLETED_COLOR := Color("#79b995")
 var palette: Dictionary = VisualStyle.theme(false)
 var current_area := 1
 var player_cell := Vector2i.ZERO
-var player_draw_position := Vector2.ZERO
+var player_draw_cell := Vector2.ZERO
 var facing := Vector2i.RIGHT
 var input_locked := false
 var status_message := "AREA 01"
@@ -25,7 +25,7 @@ func _ready() -> void:
 		return
 	current_area = Campaign.return_area
 	player_cell = Campaign.return_cell
-	player_draw_position = cell_center(player_cell)
+	player_draw_cell = Vector2(player_cell)
 	get_viewport().size_changed.connect(queue_redraw)
 	queue_redraw()
 
@@ -81,19 +81,19 @@ func try_move(direction: Vector2i) -> void:
 		queue_redraw()
 		return
 
-	var from := player_draw_position
+	var from := player_draw_cell
 	player_cell = target
-	var destination := cell_center(player_cell)
+	var destination := Vector2(player_cell)
 	input_locked = true
 	var tween := create_tween()
 	tween.set_trans(Tween.TRANS_QUAD)
 	tween.set_ease(Tween.EASE_OUT)
-	tween.tween_method(set_player_draw_position, from, destination, MOVE_SECONDS)
+	tween.tween_method(set_player_draw_cell, from, destination, MOVE_SECONDS)
 	tween.tween_callback(finish_move)
 
 
-func set_player_draw_position(value: Vector2) -> void:
-	player_draw_position = value
+func set_player_draw_cell(value: Vector2) -> void:
+	player_draw_cell = value
 	queue_redraw()
 
 
@@ -148,7 +148,7 @@ func reset_progress() -> void:
 	Campaign.reset_progress()
 	current_area = 1
 	player_cell = area_start_cell()
-	player_draw_position = cell_center(player_cell)
+	player_draw_cell = Vector2(player_cell)
 	facing = Vector2i.RIGHT
 	input_locked = false
 	modulate.a = 1.0
@@ -184,7 +184,7 @@ func transition_to_area(target_area: int, destination_cell: Vector2i) -> void:
 func apply_area(target_area: int, destination_cell: Vector2i) -> void:
 	current_area = target_area
 	player_cell = destination_cell
-	player_draw_position = cell_center(player_cell)
+	player_draw_cell = Vector2(player_cell)
 	facing = Vector2i.RIGHT
 	status_message = area_name()
 	queue_redraw()
@@ -308,8 +308,8 @@ func cell_position(cell: Vector2i) -> Vector2:
 	return map_origin() + Vector2(cell) * CELL_SIZE
 
 
-func cell_center(cell: Vector2i) -> Vector2:
-	return cell_position(cell) + Vector2.ONE * CELL_SIZE * 0.5
+func player_draw_center() -> Vector2:
+	return map_origin() + (player_draw_cell + Vector2.ONE * 0.5) * CELL_SIZE
 
 
 func _draw() -> void:
@@ -411,16 +411,17 @@ func draw_area_navigation_arrow(direction: Vector2i, unlocked: bool) -> void:
 
 
 func draw_player() -> void:
+	var player_center := player_draw_center()
 	var body_size := CELL_SIZE * VisualStyle.PLAYER_BODY_RATIO
 	var chevron_depth := CELL_SIZE * VisualStyle.FACING_CHV_DEPTH_RATIO
 	var gap := maxf(2.0, CELL_SIZE * VisualStyle.FACING_CHV_GAP_RATIO)
 	var radius := minf(body_size * 0.5, CELL_SIZE * 0.5 - chevron_depth * 0.5 - gap)
 	draw_colored_polygon(
 		PackedVector2Array([
-			player_draw_position + Vector2(0, -radius),
-			player_draw_position + Vector2(radius, 0),
-			player_draw_position + Vector2(0, radius),
-			player_draw_position + Vector2(-radius, 0),
+			player_center + Vector2(0, -radius),
+			player_center + Vector2(radius, 0),
+			player_center + Vector2(0, radius),
+			player_center + Vector2(-radius, 0),
 		]),
 		palette["player"]
 	)
@@ -430,7 +431,7 @@ func draw_player() -> void:
 func draw_facing_chevron() -> void:
 	var forward := Vector2(facing)
 	var center := (
-		player_draw_position
+		player_draw_center()
 		+ forward * (
 			CELL_SIZE * 0.5
 			- CELL_SIZE * VisualStyle.FACING_CHV_INSET_RATIO

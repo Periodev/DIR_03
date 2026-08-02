@@ -11,6 +11,7 @@ $debugPanelPath = Join-Path $root "scripts/debug_panel.gd"
 $visualStylePath = Join-Path $root "scripts/visual_style.gd"
 $debugStylePath = Join-Path $root "scripts/debug_style.gd"
 $commandPlayerPath = Join-Path $root "scripts/command_player.gd"
+$worldMapPath = Join-Path $root "scripts/world_map.gd"
 $commandPlayerScenePath = Join-Path $root "scenes/command_player.tscn"
 $asciiMapPath = Join-Path $root "scripts/ascii_map.gd"
 $levelPath = Join-Path $root "levels/level_test.txt"
@@ -31,6 +32,7 @@ $visualStyle = Get-Content -LiteralPath $visualStylePath -Raw
 $debugStyle = Get-Content -LiteralPath $debugStylePath -Raw
 $main = "$mainEntry`n$gameBoard`n$boardView`n$playerBoardView`n$gameHud`n$playerInterface`n$debugPanel`n$visualStyle`n$debugStyle"
 $commandPlayer = Get-Content -LiteralPath $commandPlayerPath -Raw
+$worldMap = Get-Content -LiteralPath $worldMapPath -Raw
 $commandPlayerScene = Get-Content -LiteralPath $commandPlayerScenePath -Raw
 $asciiMap = Get-Content -LiteralPath $asciiMapPath -Raw
 $level = Get-Content -LiteralPath $levelPath -Raw
@@ -365,6 +367,10 @@ $checks = @(
 	@{
 		Name = "normal input routes through execute_command"
 		Pass = $mainEntry -match 'execute_command\(move_command\)' -and $mainEntry -match 'execute_command\("X"\)' -and $mainEntry -match 'execute_command\("T"\)'
+	},
+	@{
+		Name = "world map player position remains anchored during viewport resize"
+		Pass = $worldMap -match 'var\s+player_draw_cell\s*:=\s*Vector2\.ZERO' -and $worldMap -match 'func\s+player_draw_center\(\)\s*->\s*Vector2:[\s\S]*map_origin\(\)\s*\+\s*\(player_draw_cell\s*\+\s*Vector2\.ONE\s*\*\s*0\.5\)\s*\*\s*CELL_SIZE' -and $worldMap -match 'tween_method\(set_player_draw_cell' -and $worldMap -notmatch 'player_draw_position'
 	},
 	@{
 		Name = "player movement accepts held repeats without repeating X or T"
