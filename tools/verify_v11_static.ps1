@@ -322,7 +322,7 @@ $checks = @(
 	},
 	@{
 		Name = "player renderer shares one direction triangle with installed blocks"
-		Pass = $playerBoardView -match "func\s+draw_blocks\(\)[\s\S]*draw_direction_triangle\([\s\S]*palette\[`"direction_fill`"\]" -and $playerBoardView -match "func\s+draw_player_stored_vector\(\)[\s\S]*draw_direction_triangle\([\s\S]*palette\[`"direction_fill`"\]" -and $visualStyle -match "PLAYER_TRI_H_RATIO\s*:=\s*0\.14" -and $visualStyle -match "PLAYER_TRI_W_RATIO\s*:=\s*PLAYER_TRI_H_RATIO\s*\*\s*2\.0" -and $playerBoardView -match 'var\s+width\s*:=\s*height\s*\*\s*2\.0' -and $playerBoardView -match 'func\s+direction_triangle_points\([\s\S]*tip[\s\S]*base_center\s*\+\s*side\s*\*\s*width\s*/\s*2\.0[\s\S]*base_center\s*-\s*side\s*\*\s*width\s*/\s*2\.0'
+		Pass = $playerBoardView -match "func\s+draw_blocks\(\)[\s\S]*draw_direction_triangle\([\s\S]*palette\[`"direction_fill`"\]" -and $playerBoardView -match "func\s+draw_player_stored_vector\(\)[\s\S]*draw_direction_triangle\([\s\S]*palette\[`"direction_fill`"\]" -and $visualStyle -match "PLAYER_TRI_H_RATIO\s*:=\s*0\.20" -and $visualStyle -match "PLAYER_TRI_W_RATIO\s*:=\s*PLAYER_TRI_H_RATIO\s*\*\s*2\.0" -and $playerBoardView -match 'var\s+width\s*:=\s*height\s*\*\s*2\.0' -and $playerBoardView -match 'func\s+direction_triangle_points\([\s\S]*tip[\s\S]*base_center\s*\+\s*side\s*\*\s*width\s*/\s*2\.0[\s\S]*base_center\s*-\s*side\s*\*\s*width\s*/\s*2\.0'
 	},
 	@{
 		Name = "player facing chevron uses player fill thin contrast edge and fence clearance"
@@ -406,7 +406,7 @@ $checks = @(
 	},
 	@{
 		Name = "stored direction glyphs offset toward their direction"
-		Pass = $visualStyle -match 'STORED_VECTOR_OFFSET_RATIO\s*:=\s*0\.07' -and ([regex]::Matches($playerBoardView, 'stored_vector_center\(')).Count -ge 4 -and $playerBoardView -match 'direction_vector\(direction_name\)[\s\S]*VisualStyle\.STORED_VECTOR_OFFSET_RATIO'
+		Pass = $visualStyle -match 'STORED_VECTOR_OFFSET_RATIO\s*:=\s*PLAYER_TRI_H_RATIO\s*/\s*2\.0' -and ([regex]::Matches($playerBoardView, 'stored_vector_center\(')).Count -ge 4 -and $playerBoardView -match 'direction_vector\(direction_name\)[\s\S]*VisualStyle\.STORED_VECTOR_OFFSET_RATIO'
 	},
 	@{
 		Name = "player F4 quick completion uses the normal completion infrastructure"
