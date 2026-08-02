@@ -1,6 +1,5 @@
 extends Node2D
 
-const AsciiMapParser = preload("res://scripts/ascii_map.gd")
 const BoardView = preload("res://scripts/board_view.gd")
 const GameHud = preload("res://scripts/game_hud.gd")
 

@@ -93,8 +93,8 @@ func set_facing_action_offset_ratio(value: float) -> void:
 	queue_redraw()
 
 
-func set_grid_lines_visible(visible: bool) -> void:
-	grid_lines_visible = visible
+func set_grid_lines_visible(lines_visible: bool) -> void:
+	grid_lines_visible = lines_visible
 	queue_redraw()
 
 
@@ -255,14 +255,17 @@ func prepare_displacement(
 	queue_redraw()
 
 
-func start_displacement_tween(transition: Tween.TransitionType, ease: Tween.EaseType) -> void:
+func start_displacement_tween(
+	transition: Tween.TransitionType,
+	ease_type: Tween.EaseType
+) -> void:
 	displacement_tween = create_tween()
 	displacement_tween.tween_method(
 		set_displacement_progress,
 		0.0,
 		1.0,
 		VisualStyle.DISPLACEMENT_SECONDS
-	).set_trans(transition).set_ease(ease)
+	).set_trans(transition).set_ease(ease_type)
 	displacement_tween.tween_callback(finish_displacement)
 
 

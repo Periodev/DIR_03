@@ -45,6 +45,7 @@ const AREA_03_LEVELS := [
 	{"id": "3-7", "cell": Vector2i(0, 2), "route": "main", "requires": ["3-6"]},
 	{"id": "3-8", "cell": Vector2i(1, 2), "route": "main", "requires": ["3-7"]},
 	{"id": "3-9", "cell": Vector2i(2, 2), "route": "main", "requires": ["3-8"]},
+	{"id": "3-10", "cell": Vector2i(3, 2), "route": "main", "requires": ["3-9"]},
 ]
 
 const AREAS := {
@@ -68,9 +69,9 @@ const AREAS := {
 	},
 	3: {
 		"collection_path": "res://levels/area_03.txt",
-		"size": Vector2i(3, 3),
+		"size": Vector2i(4, 3),
 		"start_cell": Vector2i(0, 0),
-		"exit_requirement": "3-9",
+		"exit_requirement": "3-10",
 		"previous_area": 2,
 		"next_area": 0,
 		"levels": AREA_03_LEVELS,

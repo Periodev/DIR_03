@@ -394,7 +394,11 @@ $checks = @(
 	},
 	@{
 		Name = "player grid lines expose a visual toggle"
-		Pass = $visualStyle -match 'SHOW_GRID_LINES\s*:=\s*(?:true|false)' -and $playerBoardView -match 'var\s+grid_lines_visible\s*:=\s*VisualStyle\.SHOW_GRID_LINES' -and $playerBoardView -match 'func\s+set_grid_lines_visible\(visible:\s*bool\)' -and $playerBoardView -match 'if\s+grid_lines_visible:\s*\r?\n\s*draw_rect\(cell_rect,\s*grid_color' -and $playerBoardView -match 'if\s+grid_lines_visible:\s*\r?\n\s*draw_rect\(wall_rect,\s*wall_edge'
+		Pass = $visualStyle -match 'SHOW_GRID_LINES\s*:=\s*(?:true|false)' -and $playerBoardView -match 'var\s+grid_lines_visible\s*:=\s*VisualStyle\.SHOW_GRID_LINES' -and $playerBoardView -match 'func\s+set_grid_lines_visible\(lines_visible:\s*bool\)' -and $playerBoardView -match 'if\s+grid_lines_visible:\s*\r?\n\s*draw_rect\(cell_rect,\s*grid_color' -and $playerBoardView -match 'if\s+grid_lines_visible:\s*\r?\n\s*draw_rect\(wall_rect,\s*wall_edge'
+	},
+	@{
+		Name = "GDScript warning-prone names and integer division stay explicit"
+		Pass = $gameBoard -notmatch 'const\s+AsciiMapParser\s*=' -and $playerBoardView -notmatch 'func\s+set_grid_lines_visible\(visible:' -and $playerBoardView -notmatch 'start_displacement_tween\([^)]*\bease:' -and $classicLevelSelect -notmatch '\b(?:selected_index|index)\s*/\s*GRID_COLUMNS'
 	},
 	@{
 		Name = "moving blocks reveal goals continuously beneath displacement"
@@ -415,6 +419,10 @@ $checks = @(
 	@{
 		Name = "classic level selector scene and return routing are wired"
 		Pass = $classicLevelSelectScene -match 'res://scripts/classic_level_select\.gd' -and $mainEntry -match 'change_scene_to_file\(Campaign\.level_select_scene_path\)' -and $worldMap -match 'Campaign\.WORLD_MAP_SCENE_PATH'
+	},
+	@{
+		Name = "classic selector preserves single-level launch mode"
+		Pass = $project -match 'launch_mode="(?:campaign|single_level)"' -and $project -match 'single_level:\s*res://levels/level_test\.txt' -and $classicLevelSelect -match 'Campaign\.is_single_level_mode\(\)[\s\S]*call_deferred\("open_single_level_test"\)' -and $classicLevelSelect -match 'func\s+open_single_level_test\(\)[\s\S]*change_scene_to_file\("res://scenes/main\.tscn"\)'
 	},
 	@{
 		Name = "classic selector uses restrained white teal and dim state colors"

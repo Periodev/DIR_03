@@ -26,11 +26,18 @@ var ui_font: Font
 func _ready() -> void:
 	Campaign.set_level_select_scene(Campaign.CLASSIC_LEVEL_SELECT_SCENE_PATH)
 	ui_font = ThemeDB.fallback_font
+	if Campaign.is_single_level_mode():
+		call_deferred("open_single_level_test")
+		return
 	build_entries()
 	select_return_level()
 	refresh_status()
 	get_viewport().size_changed.connect(queue_redraw)
 	queue_redraw()
+
+
+func open_single_level_test() -> void:
+	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -103,7 +110,7 @@ func move_selection(direction: Vector2i) -> void:
 	var page: Array = current_page_entries()
 	if page.is_empty():
 		return
-	var row: int = selected_index / GRID_COLUMNS
+	var row: int = floori(float(selected_index) / float(GRID_COLUMNS))
 	var column: int = selected_index % GRID_COLUMNS
 	var target_index: int = selected_index
 
@@ -281,7 +288,7 @@ func grid_origin() -> Vector2:
 
 func entry_rect(index: int) -> Rect2:
 	var size := slot_size()
-	var row := index / GRID_COLUMNS
+	var row: int = floori(float(index) / float(GRID_COLUMNS))
 	var column := index % GRID_COLUMNS
 	var slot_position := grid_origin() + Vector2(column, row) * size
 	return Rect2(
