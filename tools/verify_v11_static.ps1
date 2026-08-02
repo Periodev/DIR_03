@@ -360,7 +360,11 @@ $checks = @(
 	},
 	@{
 		Name = "normal input routes through execute_command"
-		Pass = $mainEntry -match 'execute_command\("U"\)' -and $mainEntry -match 'execute_command\("X"\)' -and $mainEntry -match 'execute_command\("T"\)'
+		Pass = $mainEntry -match 'execute_command\(move_command\)' -and $mainEntry -match 'execute_command\("X"\)' -and $mainEntry -match 'execute_command\("T"\)'
+	},
+	@{
+		Name = "player movement accepts held repeats without repeating X or T"
+		Pass = $mainEntry -match 'HELD_MOVE_INITIAL_DELAY_SECONDS\s*:=\s*0\.30' -and $mainEntry -match 'HELD_MOVE_REPEAT_SECONDS\s*:=\s*0\.20' -and $mainEntry -match 'func\s+_process\(delta:\s*float\)[\s\S]*held_move_time_remaining\s*-=' -and $mainEntry -match 'var\s+move_command:\s*String\s*=\s*String\(held_move_commands\.back\(\)\)' -and $mainEntry -match 'input_locked\s+or\s+level_completed[\s\S]*execute_command\(move_command\)[\s\S]*held_move_time_remaining\s*=\s*HELD_MOVE_REPEAT_SECONDS' -and $mainEntry -match 'event\s+is\s+InputEventKey\s+and\s+event\.echo[\s\S]*return' -and $mainEntry -match 'func\s+update_held_move\([\s\S]*var\s+was_current:\s*bool\s*=' -and $mainEntry -match 'String\(held_move_commands\.back\(\)\)\s*==\s*move_command' -and $mainEntry -match 'is_action_pressed\("install_vector"\)' -and $mainEntry -match 'is_action_pressed\("trigger_vector"\)' -and $mainEntry -notmatch 'is_action_pressed\("(?:install_vector|trigger_vector)",\s*true\)'
 	},
 	@{
 		Name = "standalone command player scene is wired"

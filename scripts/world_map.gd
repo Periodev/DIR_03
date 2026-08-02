@@ -40,6 +40,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("reset_level"):
 		reset_progress()
 		return
+	if is_unlock_all_key(event):
+		unlock_all_levels()
+		return
 	if input_locked:
 		return
 
@@ -109,7 +112,7 @@ func finish_move() -> void:
 
 
 func try_next_area() -> void:
-	if not is_completed(area_exit_requirement()):
+	if not Campaign.all_levels_unlocked and not is_completed(area_exit_requirement()):
 		status_message = "EXIT LOCKED"
 		queue_redraw()
 		return
@@ -150,6 +153,12 @@ func reset_progress() -> void:
 	input_locked = false
 	modulate.a = 1.0
 	status_message = area_name()
+	queue_redraw()
+
+
+func unlock_all_levels() -> void:
+	Campaign.unlock_all_levels()
+	status_message = "ALL LEVELS UNLOCKED"
 	queue_redraw()
 
 
@@ -201,6 +210,8 @@ func is_level_visible(level: Dictionary) -> bool:
 
 
 func is_unlocked(level_id: String) -> bool:
+	if Campaign.all_levels_unlocked:
+		return true
 	var level := level_by_id(level_id)
 	if level.is_empty():
 		return false
@@ -500,3 +511,10 @@ func is_confirm_key(event: InputEvent) -> bool:
 			or key_event.keycode == KEY_SPACE
 		)
 	)
+
+
+func is_unlock_all_key(event: InputEvent) -> bool:
+	if not event is InputEventKey:
+		return false
+	var key_event: InputEventKey = event
+	return key_event.pressed and not key_event.echo and key_event.keycode == KEY_F3

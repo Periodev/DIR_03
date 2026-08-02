@@ -80,6 +80,7 @@ var active_level_id := ""
 var return_area := 1
 var return_cell := Vector2i.ZERO
 var cached_sources: Dictionary = {}
+var all_levels_unlocked := false
 
 
 func is_single_level_mode() -> bool:
@@ -123,6 +124,11 @@ func reset_progress() -> void:
 	active_level_id = ""
 	return_area = 1
 	return_cell = start_cell_for(1)
+	all_levels_unlocked = false
+
+
+func unlock_all_levels() -> void:
+	all_levels_unlocked = true
 
 
 func is_completed(level_id: String) -> bool:

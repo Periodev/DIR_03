@@ -2,6 +2,11 @@ extends "res://scripts/game_board.gd"
 
 const PlayerBoardView = preload("res://scripts/player_board_view.gd")
 const PlayerInterface = preload("res://scripts/player_interface.gd")
+const HELD_MOVE_INITIAL_DELAY_SECONDS := 0.30
+const HELD_MOVE_REPEAT_SECONDS := 0.20
+
+var held_move_commands: Array[String] = []
+var held_move_time_remaining := 0.0
 
 
 func _ready() -> void:
@@ -17,8 +22,29 @@ func create_game_hud():
 	return PlayerInterface.new()
 
 
+func _process(delta: float) -> void:
+	if held_move_commands.is_empty():
+		return
+	held_move_time_remaining -= delta
+	if held_move_time_remaining > 0.0 or input_locked or level_completed:
+		return
+
+	var move_command: String = String(held_move_commands.back())
+	execute_command(move_command)
+	held_move_time_remaining = HELD_MOVE_REPEAT_SECONDS
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.echo:
+		return
+	var move_command := movement_command(event)
+	if not move_command.is_empty():
+		var key_event: InputEventKey = event
+		update_held_move(move_command, key_event.pressed)
+		if not key_event.pressed:
+			return
 	if event.is_action_pressed("reset_level"):
+		clear_held_movement()
 		reset_level()
 		return
 	if Campaign.has_active_level() and (
@@ -34,18 +60,44 @@ func _unhandled_input(event: InputEvent) -> void:
 	if level_completed:
 		return
 
-	if event.is_action_pressed("move_up"):
-		execute_command("U")
-	elif event.is_action_pressed("move_down"):
-		execute_command("D")
-	elif event.is_action_pressed("move_left"):
-		execute_command("L")
-	elif event.is_action_pressed("move_right"):
-		execute_command("R")
+	if not move_command.is_empty():
+		execute_command(move_command)
 	elif event.is_action_pressed("install_vector"):
 		execute_command("X")
 	elif event.is_action_pressed("trigger_vector"):
 		execute_command("T")
+
+
+func movement_command(event: InputEvent) -> String:
+	if not event is InputEventKey:
+		return ""
+	if event.is_action_pressed("move_up") or event.is_action_released("move_up"):
+		return "U"
+	if event.is_action_pressed("move_down") or event.is_action_released("move_down"):
+		return "D"
+	if event.is_action_pressed("move_left") or event.is_action_released("move_left"):
+		return "L"
+	if event.is_action_pressed("move_right") or event.is_action_released("move_right"):
+		return "R"
+	return ""
+
+
+func update_held_move(move_command: String, pressed: bool) -> void:
+	var was_current: bool = (
+		not held_move_commands.is_empty()
+		and String(held_move_commands.back()) == move_command
+	)
+	held_move_commands.erase(move_command)
+	if pressed:
+		held_move_commands.append(move_command)
+		held_move_time_remaining = HELD_MOVE_INITIAL_DELAY_SECONDS
+	elif was_current and not held_move_commands.is_empty():
+		held_move_time_remaining = HELD_MOVE_INITIAL_DELAY_SECONDS
+
+
+func clear_held_movement() -> void:
+	held_move_commands.clear()
+	held_move_time_remaining = 0.0
 
 
 func is_confirm_key(event: InputEvent) -> bool:

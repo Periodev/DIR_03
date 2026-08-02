@@ -30,6 +30,15 @@ func run_verification() -> void:
 				return
 			verified_levels += 1
 
+	campaign.unlock_all_levels()
+	if not campaign.all_levels_unlocked:
+		fail("Unlock-all state was not retained.")
+		return
+	campaign.reset_progress()
+	if campaign.all_levels_unlocked:
+		fail("Reset did not clear unlock-all state.")
+		return
+
 	campaign.begin_level("1-0", 1, Vector2i(0, 0))
 	campaign.complete_active_level()
 	if not campaign.is_completed("1-0"):
