@@ -477,7 +477,8 @@ func draw_wall(cell: Vector2i) -> void:
 			wall_base
 		)
 
-	draw_rect(wall_rect, wall_edge, false, 1.0)
+	if grid_lines_visible:
+		draw_rect(wall_rect, wall_edge, false, 1.0)
 
 
 func draw_wall_hatch(wall_position: Vector2) -> void:
@@ -837,23 +838,30 @@ func draw_direction_triangle(
 	direction_name: String,
 	color: Color
 ) -> void:
+	var points := direction_triangle_points(center, direction_name)
+	if points.is_empty():
+		return
+	draw_colored_polygon(points, color)
+
+
+func direction_triangle_points(
+	center: Vector2,
+	direction_name: String
+) -> PackedVector2Array:
 	var forward := direction_vector(direction_name)
 	if forward == Vector2.ZERO:
-		return
+		return PackedVector2Array()
 
 	var side := Vector2(-forward.y, forward.x)
-	var width := float(roundi(cell_size * VisualStyle.PLAYER_TRI_W_RATIO))
 	var height := float(roundi(cell_size * VisualStyle.PLAYER_TRI_H_RATIO))
+	var width := height * 2.0
 	var tip := center + forward * height / 2.0
 	var base_center := center - forward * height / 2.0
-	draw_colored_polygon(
-		PackedVector2Array([
-			tip,
-			base_center + side * width / 2.0,
-			base_center - side * width / 2.0,
-		]),
-		color
-	)
+	return PackedVector2Array([
+		tip,
+		base_center + side * width / 2.0,
+		base_center - side * width / 2.0,
+	])
 
 
 func chevron_points(

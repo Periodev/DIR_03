@@ -145,6 +145,16 @@ func check_install_reveal(game: Node) -> void:
 		stored_center.x > block_center.x and is_equal_approx(stored_center.y, block_center.y),
 		"stored direction glyph should offset toward its direction"
 	)
+	var triangle: PackedVector2Array = view.direction_triangle_points(
+		stored_center,
+		"Right"
+	)
+	var first_leg: Vector2 = (triangle[1] - triangle[0]).normalized()
+	var second_leg: Vector2 = (triangle[2] - triangle[0]).normalized()
+	require(
+		is_zero_approx(first_leg.dot(second_leg)),
+		"stored direction glyph should have a forward-facing right angle"
+	)
 	require(
 		int(view.install_reveal_block_id) == 1,
 		"installed direction should remain hidden during the reveal delay"

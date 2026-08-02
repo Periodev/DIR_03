@@ -322,7 +322,7 @@ $checks = @(
 	},
 	@{
 		Name = "player renderer shares one direction triangle with installed blocks"
-		Pass = $playerBoardView -match "func\s+draw_blocks\(\)[\s\S]*draw_direction_triangle\([\s\S]*palette\[`"direction_fill`"\]" -and $playerBoardView -match "func\s+draw_player_stored_vector\(\)[\s\S]*draw_direction_triangle\([\s\S]*palette\[`"direction_fill`"\]" -and $visualStyle -match "PLAYER_TRI_W_RATIO\s*:=\s*0\.21" -and $visualStyle -match "PLAYER_TRI_H_RATIO\s*:=\s*0\.18"
+		Pass = $playerBoardView -match "func\s+draw_blocks\(\)[\s\S]*draw_direction_triangle\([\s\S]*palette\[`"direction_fill`"\]" -and $playerBoardView -match "func\s+draw_player_stored_vector\(\)[\s\S]*draw_direction_triangle\([\s\S]*palette\[`"direction_fill`"\]" -and $visualStyle -match "PLAYER_TRI_H_RATIO\s*:=\s*0\.14" -and $visualStyle -match "PLAYER_TRI_W_RATIO\s*:=\s*PLAYER_TRI_H_RATIO\s*\*\s*2\.0" -and $playerBoardView -match 'var\s+width\s*:=\s*height\s*\*\s*2\.0' -and $playerBoardView -match 'func\s+direction_triangle_points\([\s\S]*tip[\s\S]*base_center\s*\+\s*side\s*\*\s*width\s*/\s*2\.0[\s\S]*base_center\s*-\s*side\s*\*\s*width\s*/\s*2\.0'
 	},
 	@{
 		Name = "player facing chevron uses player fill thin contrast edge and fence clearance"
@@ -390,7 +390,7 @@ $checks = @(
 	},
 	@{
 		Name = "player grid lines expose a visual toggle"
-		Pass = $visualStyle -match 'SHOW_GRID_LINES\s*:=\s*true' -and $playerBoardView -match 'var\s+grid_lines_visible\s*:=\s*VisualStyle\.SHOW_GRID_LINES' -and $playerBoardView -match 'func\s+set_grid_lines_visible\(visible:\s*bool\)' -and $playerBoardView -match 'if\s+grid_lines_visible:\s*\r?\n\s*draw_rect\(cell_rect,\s*grid_color'
+		Pass = $visualStyle -match 'SHOW_GRID_LINES\s*:=\s*(?:true|false)' -and $playerBoardView -match 'var\s+grid_lines_visible\s*:=\s*VisualStyle\.SHOW_GRID_LINES' -and $playerBoardView -match 'func\s+set_grid_lines_visible\(visible:\s*bool\)' -and $playerBoardView -match 'if\s+grid_lines_visible:\s*\r?\n\s*draw_rect\(cell_rect,\s*grid_color' -and $playerBoardView -match 'if\s+grid_lines_visible:\s*\r?\n\s*draw_rect\(wall_rect,\s*wall_edge'
 	},
 	@{
 		Name = "moving blocks reveal goals continuously beneath displacement"

@@ -58,9 +58,9 @@ B##
 
 [cells]
 *###
-A***
+A*.*
 @CD#
-.B.#
+.B*#
 
 [horizontal_edges]
 ....
