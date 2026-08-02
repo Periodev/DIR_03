@@ -18,6 +18,7 @@ func run_checks() -> void:
 
 	await check_player_displacement(game)
 	check_grid_line_toggle(game)
+	await check_empty_release_error(game)
 	await check_push_displacement(game)
 	await check_same_direction_push_holds_queue(game)
 	await check_install_reveal(game)
@@ -61,6 +62,30 @@ func check_grid_line_toggle(game: Node) -> void:
 	require(not bool(view.grid_lines_visible), "grid lines should support being hidden")
 	view.set_grid_lines_visible(true)
 	require(bool(view.grid_lines_visible), "grid lines should support being restored")
+
+
+func check_empty_release_error(game: Node) -> void:
+	require_level(game, "@..")
+	var view: Node = game.board_view
+	var command_count_before: int = game.command_history.size()
+	var started: bool = bool(game.execute_command("T"))
+	require(started, "empty release command should be accepted")
+	require(not bool(game.input_locked), "empty release feedback should not lock input")
+	require(
+		game.command_history.size() == command_count_before + 1,
+		"empty release should preserve existing command history behavior"
+	)
+	require(
+		Vector2i(view.error_flash_cell) == Vector2i(game.player_cell),
+		"empty release should target the player's cell"
+	)
+	require(
+		float(view.error_flash_alpha) > 0.65,
+		"empty release should start with a visible red overlay"
+	)
+	await create_timer(VisualStyle.ERROR_FLASH_SECONDS + 0.05).timeout
+	require(float(view.error_flash_alpha) < 0.01, "error overlay should fade out")
+	require(Vector2i(view.error_flash_cell) == Vector2i(-1, -1), "error cell should clear")
 
 
 func check_push_displacement(game: Node) -> void:
@@ -294,21 +319,35 @@ func check_blocked_trigger_sequence(game: Node) -> void:
 	)
 	require(
 		Vector2i(view.displacement_from) == Vector2i(view.displacement_to),
-		"blocked trigger animation should remain stationary"
+		"blocked trigger should preserve its logical cell"
 	)
-	await create_timer(
-		VisualStyle.TRIGGER_FLASH_HOLD_SECONDS / 2.0
-		+ VisualStyle.DISPLACEMENT_SECONDS / 2.0
-	).timeout
+	await create_timer(VisualStyle.TRIGGER_FLASH_HOLD_SECONDS / 2.0).timeout
+	var peak_shake := 0.0
+	var fade_observed := false
+	for _frame in range(8):
+		await get_tree().process_frame
+		peak_shake = maxf(
+			peak_shake,
+			absf(float(view.blocked_release_offset_ratio))
+		)
+		fade_observed = fade_observed or float(view.trigger_flash_alpha) < 0.9
 	require(
-		float(view.trigger_flash_alpha) < 0.9,
+		peak_shake > 0.01,
+		"blocked trigger should shake its carrier along the release axis"
+	)
+	require(
+		fade_observed,
 		"blocked trigger direction should fade after flashing"
 	)
-	await create_timer(VisualStyle.DISPLACEMENT_SECONDS + 0.05).timeout
+	await create_timer(VisualStyle.BLOCKED_RELEASE_SHAKE_SECONDS + 0.05).timeout
 	require(not bool(game.input_locked), "blocked trigger should unlock after animation")
 	require(
 		int(view.trigger_flash_block_id) == -1,
 		"blocked trigger flash should clear after animation"
+	)
+	require(
+		absf(float(view.blocked_release_offset_ratio)) < 0.001,
+		"blocked trigger shake should return to the cell center"
 	)
 
 

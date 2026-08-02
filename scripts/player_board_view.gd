@@ -29,8 +29,14 @@ var trigger_flash_alpha := 0.0
 var collision_carrier_block_id := -1
 var collision_direction := ""
 var collision_source_offset_ratio := 0.0
+var blocked_release_block_id := -1
+var blocked_release_direction := ""
+var blocked_release_offset_ratio := 0.0
 var install_reveal_block_id := -1
 var player_queue_reveal_pending := false
+var error_flash_cell := Vector2i(-1, -1)
+var error_flash_alpha := 0.0
+var error_flash_tween: Tween
 
 
 func initialize(board) -> void:
@@ -96,6 +102,39 @@ func set_facing_action_offset_ratio(value: float) -> void:
 func set_grid_lines_visible(lines_visible: bool) -> void:
 	grid_lines_visible = lines_visible
 	queue_redraw()
+
+
+func play_player_error_flash(cell: Vector2i) -> void:
+	cancel_error_cell_flash()
+	error_flash_cell = cell
+	error_flash_alpha = VisualStyle.ERROR_FLASH_MAX_ALPHA
+	error_flash_tween = create_tween()
+	error_flash_tween.tween_method(
+		set_error_flash_alpha,
+		VisualStyle.ERROR_FLASH_MAX_ALPHA,
+		0.0,
+		VisualStyle.ERROR_FLASH_SECONDS
+	).set_trans(Tween.TRANS_LINEAR).set_ease(Tween.EASE_IN)
+	error_flash_tween.tween_callback(clear_error_cell_flash)
+	queue_redraw()
+
+
+func set_error_flash_alpha(value: float) -> void:
+	error_flash_alpha = clampf(value, 0.0, VisualStyle.ERROR_FLASH_MAX_ALPHA)
+	queue_redraw()
+
+
+func clear_error_cell_flash() -> void:
+	error_flash_tween = null
+	error_flash_cell = Vector2i(-1, -1)
+	error_flash_alpha = 0.0
+	queue_redraw()
+
+
+func cancel_error_cell_flash() -> void:
+	if error_flash_tween != null and error_flash_tween.is_valid():
+		error_flash_tween.kill()
+	clear_error_cell_flash()
 
 
 func play_install_reveal(block_id: int, on_finished: Callable) -> void:
@@ -189,9 +228,16 @@ func play_trigger_displacement(
 	trigger_flash_mix = 0.0
 	trigger_flash_alpha = 1.0
 	var is_collision := carrier_id != moving_block_id
+	var is_blocked_release := (
+		carrier_id == moving_block_id
+		and from_cell == to_cell
+	)
 	collision_carrier_block_id = carrier_id if is_collision else -1
 	collision_direction = direction_name if is_collision else ""
 	collision_source_offset_ratio = 0.0
+	blocked_release_block_id = carrier_id if is_blocked_release else -1
+	blocked_release_direction = direction_name if is_blocked_release else ""
+	blocked_release_offset_ratio = 0.0
 
 	displacement_tween = create_tween()
 	displacement_tween.tween_method(
@@ -222,6 +268,19 @@ func play_trigger_displacement(
 			1.0,
 			VisualStyle.COLLISION_TARGET_FOLLOW_SECONDS
 		)
+	elif is_blocked_release:
+		displacement_tween.tween_method(
+			set_blocked_release_shake_progress,
+			0.0,
+			1.0,
+			VisualStyle.BLOCKED_RELEASE_SHAKE_SECONDS
+		).set_trans(Tween.TRANS_LINEAR).set_ease(Tween.EASE_IN)
+		displacement_tween.parallel().tween_method(
+			set_trigger_flash_alpha,
+			1.0,
+			0.0,
+			VisualStyle.BLOCKED_RELEASE_SHAKE_SECONDS
+		).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	else:
 		displacement_tween.tween_method(
 			set_displacement_progress,
@@ -270,6 +329,7 @@ func start_displacement_tween(
 
 
 func cancel_displacement() -> void:
+	cancel_error_cell_flash()
 	if displacement_tween != null and displacement_tween.is_valid():
 		displacement_tween.kill()
 	clear_displacement_state()
@@ -297,6 +357,9 @@ func clear_displacement_state() -> void:
 	collision_carrier_block_id = -1
 	collision_direction = ""
 	collision_source_offset_ratio = 0.0
+	blocked_release_block_id = -1
+	blocked_release_direction = ""
+	blocked_release_offset_ratio = 0.0
 	install_reveal_block_id = -1
 	player_queue_reveal_pending = false
 	queue_redraw()
@@ -322,6 +385,16 @@ func set_collision_source_offset_ratio(value: float) -> void:
 		value,
 		0.0,
 		VisualStyle.COLLISION_CONTACT_OFFSET_RATIO
+	)
+	queue_redraw()
+
+
+func set_blocked_release_shake_progress(value: float) -> void:
+	var progress := clampf(value, 0.0, 1.0)
+	blocked_release_offset_ratio = (
+		sin(progress * TAU * VisualStyle.BLOCKED_RELEASE_SHAKE_CYCLES)
+		* (1.0 - progress)
+		* VisualStyle.BLOCKED_RELEASE_SHAKE_RATIO
 	)
 	queue_redraw()
 
@@ -382,6 +455,7 @@ func _draw() -> void:
 	draw_trigger_flash()
 	draw_fences()
 	draw_player_body()
+	draw_player_error_flash()
 	draw_player_stored_vector()
 	draw_player_facing()
 
@@ -754,6 +828,24 @@ func draw_trigger_flash() -> void:
 
 func draw_player_body() -> void:
 	var center := player_draw_center()
+	draw_colored_polygon(
+		player_body_points(center),
+		palette["player"]
+	)
+
+
+func draw_player_error_flash() -> void:
+	if error_flash_cell.x < 0 or error_flash_cell.y < 0 or error_flash_alpha <= 0.0:
+		return
+	var color: Color = palette["error_flash"]
+	color.a = error_flash_alpha
+	draw_colored_polygon(
+		player_body_points(cell_center(error_flash_cell)),
+		color
+	)
+
+
+func player_body_points(center: Vector2) -> PackedVector2Array:
 	var body_size := roundi(cell_size * VisualStyle.PLAYER_BODY_RATIO)
 	var chevron_depth := roundi(cell_size * VisualStyle.FACING_CHV_DEPTH_RATIO)
 	var chevron_gap := maxf(
@@ -764,15 +856,12 @@ func draw_player_body() -> void:
 		floorf(body_size / 2.0),
 		cell_size / 2.0 - chevron_depth / 2.0 - chevron_gap
 	)
-	draw_colored_polygon(
-		PackedVector2Array([
-			center + Vector2(0, -radius),
-			center + Vector2(radius, 0),
-			center + Vector2(0, radius),
-			center + Vector2(-radius, 0),
-		]),
-		palette["player"]
-	)
+	return PackedVector2Array([
+		center + Vector2(0, -radius),
+		center + Vector2(radius, 0),
+		center + Vector2(0, radius),
+		center + Vector2(-radius, 0),
+	])
 
 
 func draw_player_stored_vector() -> void:
@@ -979,10 +1068,17 @@ func cell_center(cell: Vector2i) -> Vector2:
 
 
 func animated_cell_position() -> Vector2:
-	return cell_to_position(displacement_from).lerp(
+	var result := cell_to_position(displacement_from).lerp(
 		cell_to_position(displacement_to),
 		displacement_progress
 	)
+	if displacement_block_id == blocked_release_block_id:
+		result += (
+			direction_vector(blocked_release_direction)
+			* cell_size
+			* blocked_release_offset_ratio
+		)
+	return result
 
 
 func stored_vector_center(center: Vector2, direction_name: String) -> Vector2:

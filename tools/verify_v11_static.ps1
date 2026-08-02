@@ -361,6 +361,14 @@ $checks = @(
 		Pass = $playerAnimationCheck -match "check_player_displacement" -and $playerAnimationCheck -match "check_grid_line_toggle" -and $playerAnimationCheck -match "is_goal_visually_occupied" -and $playerAnimationCheck -match "stored_vector_center" -and $playerAnimationCheck -match "check_push_displacement" -and $playerAnimationCheck -match "check_install_reveal" -and $playerAnimationCheck -match "check_free_trigger_sequence" -and $playerAnimationCheck -match "check_blocked_trigger_sequence" -and $playerAnimationCheck -match "check_collision_trigger_sequence" -and $playerAnimationCheck -match "check_reset_cancels_animation"
 	},
 	@{
+		Name = "empty release flashes the player as an input error"
+		Pass = $gameBoard -match 'install_order\.is_empty\(\)[\s\S]*Nothing installed to release\.[\s\S]*start_player_error_feedback\(\)' -and $playerBoardView -match 'func\s+play_player_error_flash\(cell:\s*Vector2i\)[\s\S]*ERROR_FLASH_MAX_ALPHA[\s\S]*ERROR_FLASH_SECONDS' -and $playerBoardView -match 'draw_player_body\(\)[\s\S]*draw_player_error_flash\(\)[\s\S]*draw_player_stored_vector\(\)' -and $playerBoardView -match 'func\s+draw_player_error_flash\(\)[\s\S]*palette\["error_flash"\][\s\S]*draw_colored_polygon\([\s\S]*player_body_points' -and $visualStyle -match 'ERROR_FLASH_MAX_ALPHA\s*:=\s*180\.0\s*/\s*255\.0' -and $visualStyle -match '"error_flash":\s*Color\("#ff3232"\)' -and $playerAnimationCheck -match 'check_empty_release_error\(game\)'
+	},
+	@{
+		Name = "blocked releases shake without becoming errors"
+		Pass = $playerBoardView -match 'is_blocked_release\s*:=\s*\([\s\S]*carrier_id\s*==\s*moving_block_id[\s\S]*from_cell\s*==\s*to_cell' -and $playerBoardView -match 'set_blocked_release_shake_progress[\s\S]*BLOCKED_RELEASE_SHAKE_SECONDS' -and $playerBoardView -match 'sin\(progress\s*\*\s*TAU\s*\*\s*VisualStyle\.BLOCKED_RELEASE_SHAKE_CYCLES\)' -and $playerBoardView -match 'animated_cell_position\(\)[\s\S]*blocked_release_offset_ratio' -and $visualStyle -match 'BLOCKED_RELEASE_SHAKE_RATIO\s*:=\s*0\.050' -and $playerAnimationCheck -match 'blocked trigger should shake its carrier along the release axis'
+	},
+	@{
 		Name = "same-direction pushes hold the stored vector without flicker"
 		Pass = $gameBoard -match 'var\s+player_queue_changed\s*:=\s*player_queue\s*!=\s*direction_name' -and $gameBoard -match 'start_block_displacement\([\s\S]*player_queue_changed' -and $playerBoardView -match 'player_queue_reveal_pending\s*=\s*player_queue_changed' -and $playerBoardView -match 'if\s+player_queue_changed:\s*\r?\n\s*displacement_tween\.tween_callback\(reveal_player_queue\)' -and $playerAnimationCheck -match 'check_same_direction_push_holds_queue'
 	},

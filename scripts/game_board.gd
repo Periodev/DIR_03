@@ -235,8 +235,9 @@ func trigger_vector() -> void:
 	begin_atomic_input()
 
 	if install_order.is_empty():
-		set_message("Trigger failed. Install order is empty.")
-		append_debug_log("Trigger failed: install order empty.")
+		set_message("Nothing installed to release.")
+		append_debug_log("Release unavailable: no installed vectors.")
+		start_player_error_feedback()
 		end_atomic_input()
 		return
 
@@ -735,6 +736,12 @@ func start_trigger_displacement(
 		Callable(self, "finish_displacement_action").bind(true)
 	)
 	return true
+
+
+func start_player_error_feedback() -> void:
+	if board_view == null or not board_view.has_method("play_player_error_flash"):
+		return
+	board_view.play_player_error_flash(player_cell)
 
 
 func finish_displacement_action(check_completion: bool) -> void:
