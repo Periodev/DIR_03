@@ -43,6 +43,8 @@ var error_flash_alpha := 0.0
 var error_flash_tween: Tween
 var error_flash_color_key := "error_flash"
 var error_flash_max_alpha := VisualStyle.ERROR_FLASH_MAX_ALPHA
+var active_vector_pulse_block_id := -1
+var active_vector_pulse_elapsed := 0.0
 
 
 func initialize(board) -> void:
@@ -57,6 +59,10 @@ func initialize(board) -> void:
 func render() -> void:
 	refresh_layout_size()
 	queue_redraw()
+
+
+func _process(delta: float) -> void:
+	update_active_vector_pulse(delta)
 
 
 func set_light_theme(enabled: bool) -> void:
@@ -814,14 +820,99 @@ func draw_block_at(
 			marker_size
 		)
 	if vector_name != "" and block_id != install_reveal_block_id:
+		var vector_center := stored_vector_center(
+			block_position + Vector2.ONE * cell_size / 2.0,
+			vector_name
+		)
 		draw_direction_triangle(
-			stored_vector_center(
-				block_position + Vector2.ONE * cell_size / 2.0,
-				vector_name
-			),
+			vector_center,
 			vector_name,
 			palette["direction_fill"]
 		)
+		if should_draw_active_vector_pulse(block_id):
+			draw_active_vector_outline(vector_center, vector_name)
+
+
+func queued_release_block_id() -> int:
+	if game_board == null or game_board.install_order.is_empty():
+		return -1
+	return int(game_board.install_order[0])
+
+
+func should_draw_active_vector_pulse(block_id: int) -> bool:
+	return (
+		block_id == active_vector_pulse_block_id
+		and block_id != install_reveal_block_id
+		and trigger_flash_block_id == -1
+		and active_vector_pulse_progress() >= 0.0
+	)
+
+
+func update_active_vector_pulse(delta: float) -> void:
+	var queued_block_id: int = queued_release_block_id()
+	var pulse_suppressed := (
+		queued_block_id == -1
+		or queued_block_id == install_reveal_block_id
+		or trigger_flash_block_id != -1
+	)
+	if pulse_suppressed:
+		if active_vector_pulse_block_id != -1:
+			active_vector_pulse_block_id = -1
+			active_vector_pulse_elapsed = 0.0
+			queue_redraw()
+		return
+
+	if active_vector_pulse_block_id != queued_block_id:
+		active_vector_pulse_block_id = queued_block_id
+		active_vector_pulse_elapsed = 0.0
+		queue_redraw()
+		return
+
+	var previous_progress := active_vector_pulse_progress()
+	var cycle_seconds := (
+		VisualStyle.ACTIVE_VECTOR_PULSE_SECONDS
+		+ VisualStyle.ACTIVE_VECTOR_PULSE_PAUSE_SECONDS
+	)
+	active_vector_pulse_elapsed = fmod(
+		active_vector_pulse_elapsed + delta,
+		cycle_seconds
+	)
+	var current_progress := active_vector_pulse_progress()
+	if previous_progress >= 0.0 or current_progress >= 0.0:
+		queue_redraw()
+
+
+func active_vector_pulse_progress() -> float:
+	if active_vector_pulse_block_id == -1:
+		return -1.0
+	if active_vector_pulse_elapsed > VisualStyle.ACTIVE_VECTOR_PULSE_SECONDS:
+		return -1.0
+	return clampf(
+		active_vector_pulse_elapsed / VisualStyle.ACTIVE_VECTOR_PULSE_SECONDS,
+		0.0,
+		1.0
+	)
+
+
+func draw_active_vector_outline(center: Vector2, direction_name: String) -> void:
+	var progress := active_vector_pulse_progress()
+	if progress < 0.0:
+		return
+	var points := direction_triangle_points(center, direction_name)
+	if points.is_empty():
+		return
+	var color: Color = palette["active_vector_outline"]
+	color.a = sin(progress * PI) * VisualStyle.ACTIVE_VECTOR_OUTLINE_ALPHA
+	var stroke_width := maxf(
+		1.0,
+		roundi(cell_size * VisualStyle.ACTIVE_VECTOR_OUTLINE_WIDTH_RATIO)
+	)
+	draw_polyline(
+		PackedVector2Array([points[0], points[1], points[2], points[0]]),
+		color,
+		stroke_width,
+		true
+	)
 
 
 func is_goal_visually_occupied(goal_cell: Vector2i) -> bool:

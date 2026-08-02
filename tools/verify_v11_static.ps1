@@ -381,6 +381,10 @@ $checks = @(
 		Pass = $gameBoard -match 'var\s+player_queue_changed\s*:=\s*player_queue\s*!=\s*direction_name' -and $gameBoard -match 'start_block_displacement\([\s\S]*player_queue_changed' -and $playerBoardView -match 'player_queue_reveal_pending\s*=\s*player_queue_changed' -and $playerBoardView -match 'if\s+player_queue_changed:\s*\r?\n\s*displacement_tween\.tween_callback\(reveal_player_queue\)' -and $playerAnimationCheck -match 'check_same_direction_push_holds_queue'
 	},
 	@{
+		Name = "only the next installed direction carries a fading outline"
+		Pass = $playerBoardView -match 'func\s+queued_release_block_id\(\)\s*->\s*int:[\s\S]*install_order\[0\]' -and $playerBoardView -match 'func\s+update_active_vector_pulse\(delta:\s*float\)[\s\S]*ACTIVE_VECTOR_PULSE_PAUSE_SECONDS' -and $playerBoardView -match 'func\s+draw_active_vector_outline\(center:\s*Vector2,\s*direction_name:\s*String\)[\s\S]*direction_triangle_points[\s\S]*sin\(progress\s*\*\s*PI\)[\s\S]*draw_polyline\(' -and $visualStyle -match 'ACTIVE_VECTOR_PULSE_SECONDS\s*:=\s*0\.60' -and $visualStyle -match 'ACTIVE_VECTOR_OUTLINE_ALPHA\s*:=\s*0\.55' -and $visualStyle -match '"active_vector_outline":\s*Color' -and $playerAnimationCheck -match 'check_active_vector_pulse\(game\)'
+	},
+	@{
 		Name = "player goals use dashed empty markers and replace the block edge when completed"
 		Pass = $visualStyle -match "GOAL_INSET_RATIO\s*:=\s*0\.21" -and $playerBoardView -match "func\s+draw_goals\(\)[\s\S]*is_goal_visually_occupied\(cell\)[\s\S]*continue[\s\S]*GOAL_INSET_RATIO[\s\S]*draw_dashed_shape\(" -and $playerBoardView -match 'palette\["goal_complete"\][\s\S]*if\s+game_board\.goal_cells\.has\(occupied_cell\)[\s\S]*else\s+palette\["block_edge"\]' -and $playerBoardView -notmatch "outline_rect" -and $visualStyle -match '"goal_complete": Color\("#f2f2f2"\)' -and $visualStyle -match '"goal_complete": Color\("#1e1d1c"\)' -and $visualStyle -notmatch "GOAL_DIAMOND_RATIO"
 	},

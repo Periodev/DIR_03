@@ -18,6 +18,7 @@ func run_checks() -> void:
 
 	await check_player_displacement(game)
 	check_grid_line_toggle(game)
+	check_active_vector_pulse(game)
 	await check_empty_release_error(game)
 	await check_empty_install_hint(game)
 	await check_loaded_block_rejects_install(game)
@@ -88,6 +89,37 @@ func check_empty_release_error(game: Node) -> void:
 	await create_timer(VisualStyle.ERROR_FLASH_SECONDS + 0.05).timeout
 	require(float(view.error_flash_alpha) < 0.01, "error overlay should fade out")
 	require(Vector2i(view.error_flash_cell) == Vector2i(-1, -1), "error cell should clear")
+
+
+func check_active_vector_pulse(game: Node) -> void:
+	require_level(game, "@AB.")
+	var first_index: int = int(game.find_block_index_by_id(1))
+	var first_block: Dictionary = game.blocks[first_index]
+	first_block["vector"] = "Right"
+	game.blocks[first_index] = first_block
+	var second_index: int = int(game.find_block_index_by_id(2))
+	var second_block: Dictionary = game.blocks[second_index]
+	second_block["vector"] = "Down"
+	game.blocks[second_index] = second_block
+	game.install_order.assign([1, 2])
+	game.render_all()
+	var view: Node = game.board_view
+	view.update_active_vector_pulse(0.0)
+	require(int(view.queued_release_block_id()) == 1, "first installed block should be queued to release")
+	require(int(view.active_vector_pulse_block_id) == 1, "first installed direction should pulse")
+	view.active_vector_pulse_elapsed = VisualStyle.ACTIVE_VECTOR_PULSE_SECONDS / 2.0
+	require(bool(view.should_draw_active_vector_pulse(1)), "active direction should draw its pulse")
+	require(not bool(view.should_draw_active_vector_pulse(2)), "later direction should remain static")
+	game.install_order.remove_at(0)
+	view.update_active_vector_pulse(0.0)
+	require(int(view.active_vector_pulse_block_id) == 2, "next direction should pulse after release")
+	view.install_reveal_block_id = 2
+	view.update_active_vector_pulse(0.0)
+	require(
+		not bool(view.should_draw_active_vector_pulse(2)),
+		"active pulse should wait for the installed direction reveal"
+	)
+	view.install_reveal_block_id = -1
 
 
 func check_loaded_block_rejects_install(game: Node) -> void:

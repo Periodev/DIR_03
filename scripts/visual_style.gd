@@ -48,6 +48,10 @@ const ERROR_FLASH_SECONDS := 0.30
 const ERROR_FLASH_MAX_ALPHA := 180.0 / 255.0
 const HINT_FLASH_SECONDS := 0.18
 const HINT_FLASH_MAX_ALPHA := 0.20
+const ACTIVE_VECTOR_PULSE_SECONDS := 0.60
+const ACTIVE_VECTOR_PULSE_PAUSE_SECONDS := 1.40
+const ACTIVE_VECTOR_OUTLINE_WIDTH_RATIO := 2.0 / 96.0
+const ACTIVE_VECTOR_OUTLINE_ALPHA := 0.55
 const BLOCKED_RELEASE_SHAKE_RATIO := 0.050
 const BLOCKED_RELEASE_SHAKE_SECONDS := 0.12
 const BLOCKED_RELEASE_SHAKE_CYCLES := 2.0
@@ -99,6 +103,7 @@ const MONO_DARK := {
 	"block_loaded": Color("#b9823d"),
 	"block_glyph": Color("#141414"),
 	"direction_fill": Color("#141414"),
+	"active_vector_outline": Color("#f2f2f2"),
 	"player": Color("#b8bec4"),
 	"error_flash": Color("#ff3232"),
 	"hint_flash": Color("#dedede"),
@@ -135,6 +140,7 @@ const MONO_LIGHT := {
 	"block_loaded": Color("#a66f34"),
 	"block_glyph": Color("#f4f3f1"),
 	"direction_fill": Color("#f4f3f1"),
+	"active_vector_outline": Color("#1e1d1c"),
 	"player": Color("#484746"),
 	"error_flash": Color("#ff3232"),
 	"hint_flash": Color("#30302f"),
