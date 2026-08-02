@@ -7,76 +7,7 @@ const MOVE_SECONDS := 0.10
 const AREA_TRANSITION_SECONDS := 0.14
 const COMPLETED_COLOR := Color("#79b995")
 
-const AREA_01_LEVELS := [
-	{"id": "1-0", "cell": Vector2i(0, 0), "route": "main", "requires": []},
-	{"id": "1-1", "cell": Vector2i(1, 0), "route": "main", "requires": ["1-0"]},
-	{"id": "1-2", "cell": Vector2i(2, 0), "route": "main", "requires": ["1-1"]},
-	{"id": "1-3", "cell": Vector2i(3, 0), "route": "main", "requires": ["1-2"]},
-	{"id": "1-4", "cell": Vector2i(3, 1), "route": "main", "requires": ["1-3"]},
-	{"id": "1-5", "cell": Vector2i(2, 1), "route": "main", "requires": ["1-4"]},
-	{"id": "1-6", "cell": Vector2i(1, 1), "route": "branch", "requires": ["1-5"]},
-	{"id": "1-7", "cell": Vector2i(0, 1), "route": "main", "requires": ["1-5"]},
-	{"id": "1-8", "cell": Vector2i(0, 2), "route": "branch", "requires": ["1-7"]},
-	{"id": "1-9", "cell": Vector2i(1, 2), "route": "main", "requires": ["1-7"]},
-	{"id": "1-10", "cell": Vector2i(2, 2), "route": "branch", "requires": ["1-9"]},
-	{"id": "1-11", "cell": Vector2i(3, 2), "route": "branch", "requires": ["1-9"]},
-]
-
-const AREA_02_LEVELS := [
-	{"id": "2-1", "cell": Vector2i(0, 0), "route": "main", "requires": []},
-	{"id": "2-2", "cell": Vector2i(1, 0), "route": "branch", "requires": ["2-1"]},
-	{"id": "2-3", "cell": Vector2i(2, 0), "route": "main", "requires": ["2-1"]},
-	{"id": "2-4", "cell": Vector2i(3, 0), "route": "branch", "requires": ["2-3"]},
-	{"id": "2-5", "cell": Vector2i(3, 1), "route": "main", "requires": ["2-3"]},
-	{"id": "2-6", "cell": Vector2i(2, 1), "route": "branch", "requires": ["2-5"]},
-	{"id": "2-7", "cell": Vector2i(1, 1), "route": "main", "requires": ["2-5"]},
-	{"id": "2-8", "cell": Vector2i(0, 1), "route": "branch", "requires": ["2-7"]},
-	{"id": "2-9", "cell": Vector2i(0, 2), "route": "main", "requires": ["2-7"]},
-	{"id": "2-10", "cell": Vector2i(1, 2), "route": "branch", "requires": ["2-9"]},
-	{"id": "2-11", "cell": Vector2i(2, 2), "route": "main", "requires": ["2-9"]},
-	{"id": "2-12", "cell": Vector2i(3, 2), "route": "branch", "requires": ["2-11"]},
-]
-
-const AREA_03_LEVELS := [
-	{"id": "3-1", "cell": Vector2i(0, 0), "route": "main", "requires": []},
-	{"id": "3-2", "cell": Vector2i(1, 0), "route": "main", "requires": ["3-1"]},
-	{"id": "3-3", "cell": Vector2i(2, 0), "route": "main", "requires": ["3-2"]},
-	{"id": "3-4", "cell": Vector2i(2, 1), "route": "main", "requires": ["3-3"]},
-	{"id": "3-5", "cell": Vector2i(1, 1), "route": "main", "requires": ["3-4"]},
-	{"id": "3-6", "cell": Vector2i(0, 1), "route": "main", "requires": ["3-5"]},
-	{"id": "3-7", "cell": Vector2i(0, 2), "route": "main", "requires": ["3-6"]},
-	{"id": "3-8", "cell": Vector2i(1, 2), "route": "main", "requires": ["3-7"]},
-]
-
-const AREAS := {
-	1: {
-		"size": Vector2i(4, 3),
-		"start_cell": Vector2i(0, 0),
-		"exit_requirement": "1-9",
-		"previous_area": 0,
-		"next_area": 2,
-		"levels": AREA_01_LEVELS,
-	},
-	2: {
-		"size": Vector2i(4, 3),
-		"start_cell": Vector2i(0, 0),
-		"exit_requirement": "2-11",
-		"previous_area": 1,
-		"next_area": 3,
-		"levels": AREA_02_LEVELS,
-	},
-	3: {
-		"size": Vector2i(3, 3),
-		"start_cell": Vector2i(0, 0),
-		"exit_requirement": "3-8",
-		"previous_area": 2,
-		"next_area": 0,
-		"levels": AREA_03_LEVELS,
-	},
-}
-
 var palette: Dictionary = VisualStyle.theme(false)
-var completed_levels: Dictionary = {}
 var current_area := 1
 var player_cell := Vector2i.ZERO
 var player_draw_position := Vector2.ZERO
@@ -89,10 +20,18 @@ var transition_tween: Tween
 
 func _ready() -> void:
 	ui_font = ThemeDB.fallback_font
-	player_cell = area_start_cell()
+	if Campaign.is_single_level_mode():
+		call_deferred("open_single_level_test")
+		return
+	current_area = Campaign.return_area
+	player_cell = Campaign.return_cell
 	player_draw_position = cell_center(player_cell)
 	get_viewport().size_changed.connect(queue_redraw)
 	queue_redraw()
+
+
+func open_single_level_test() -> void:
+	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -112,8 +51,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		try_move(Vector2i.LEFT)
 	elif event.is_action_pressed("move_right"):
 		try_move(Vector2i.RIGHT)
-	elif event.is_action_pressed("trigger_vector"):
-		complete_current_level()
+	elif is_confirm_key(event):
+		start_current_level()
 
 
 func try_move(direction: Vector2i) -> void:
@@ -184,27 +123,26 @@ func try_previous_area() -> void:
 	transition_to_area(previous_area, area_exit_cell_for(previous_area))
 
 
-func complete_current_level() -> void:
+func start_current_level() -> void:
 	var level := level_at(player_cell)
 	if level.is_empty():
 		return
 	var level_id := String(level["id"])
 	if not is_unlocked(level_id):
-		return
-	if is_completed(level_id):
-		status_message = "%s  COMPLETE" % level_id
+		status_message = "LOCKED"
 		queue_redraw()
 		return
-
-	completed_levels[level_id] = true
-	status_message = "%s  COMPLETE" % level_id
-	queue_redraw()
+	if not Campaign.begin_level(level_id, current_area, player_cell):
+		status_message = "LOAD FAILED"
+		queue_redraw()
+		return
+	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 
 func reset_progress() -> void:
 	if is_instance_valid(transition_tween):
 		transition_tween.kill()
-	completed_levels.clear()
+	Campaign.reset_progress()
 	current_area = 1
 	player_cell = area_start_cell()
 	player_draw_position = cell_center(player_cell)
@@ -274,11 +212,11 @@ func is_unlocked(level_id: String) -> bool:
 
 
 func is_completed(level_id: String) -> bool:
-	return bool(completed_levels.get(level_id, false))
+	return Campaign.is_completed(level_id)
 
 
 func area_data() -> Dictionary:
-	return AREAS[current_area]
+	return Campaign.area_data_for(current_area)
 
 
 func area_levels() -> Array:
@@ -294,12 +232,11 @@ func area_start_cell() -> Vector2i:
 
 
 func area_start_cell_for(area_id: int) -> Vector2i:
-	var data: Dictionary = AREAS[area_id]
-	return Vector2i(data["start_cell"])
+	return Campaign.start_cell_for(area_id)
 
 
 func area_exit_cell_for(area_id: int) -> Vector2i:
-	var data: Dictionary = AREAS[area_id]
+	var data: Dictionary = Campaign.area_data_for(area_id)
 	var exit_requirement := String(data["exit_requirement"])
 	var levels: Array = data["levels"]
 	for level_value in levels:
@@ -547,4 +484,19 @@ func draw_text_centered(
 		rect.size.x,
 		font_size,
 		color
+	)
+
+
+func is_confirm_key(event: InputEvent) -> bool:
+	if not event is InputEventKey:
+		return false
+	var key_event: InputEventKey = event
+	return (
+		key_event.pressed
+		and not key_event.echo
+		and (
+			key_event.keycode == KEY_ENTER
+			or key_event.keycode == KEY_KP_ENTER
+			or key_event.keycode == KEY_SPACE
+		)
 	)

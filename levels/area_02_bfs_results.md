@@ -10,7 +10,7 @@
 | 4 | 封口對位碰撞 | 17 | 2,250 | 1,841 | 428 | `RDRRUXUUURRUUUTDD` |
 | 5 | 轉移碰撞 | 10 | 223 | 175 | 49 | `RRDXDDRXTT` |
 | 6 | 碰撞 + 折返 | 24 | 2,281 | 1,867 | 416 | `DDDXTDDRXRRDDRTUUULXUTLL` |
-| 7 | 無向塊連續碰撞 | 12 | 723 | 519 | 204 | `UUDRXRRUXUTT` |
+| 7 | 無向塊連續碰撞 | 18 | 2,426 | 2,115 | 323 | `UUDRXRRUXURTXTTRUU` |
 | 8 | 連續碰撞 + 拉回 | 20 | 1,122 | 1,057 | 163 | `DDDLDRXRRDXDRTXTTRDD` |
 | 9 | 接力碰撞 | 22 | 1,224 | 1,180 | 118 | `DRRRUXDRRLUXDRRRLUTXTT` |
 | 10 | 折返反轉 + 十字接力 | 45 | 62,010 | 56,537 | 5,669 | `UUULUURDXDDRRXLLDDRRTTXLLLDDRUUULURXRRTTRRDXT` |

@@ -438,6 +438,18 @@ func duplicate_initial_blocks() -> Array[Dictionary]:
 
 
 func load_initial_level() -> bool:
+	if Campaign.has_active_level():
+		var campaign_source := Campaign.active_level_source()
+		if campaign_source == "":
+			push_error("Unable to load campaign level: %s" % Campaign.active_level_id)
+			return false
+
+		var campaign_error := set_level_from_text(campaign_source)
+		if campaign_error != "":
+			push_error("Invalid campaign level %s: %s" % [Campaign.active_level_id, campaign_error])
+			return false
+		return true
+
 	var level_file := FileAccess.open(INITIAL_LEVEL_PATH, FileAccess.READ)
 	if level_file == null:
 		push_error("Unable to open level file: %s" % INITIAL_LEVEL_PATH)
@@ -524,6 +536,8 @@ func check_level_completion() -> bool:
 		return false
 
 	level_completed = true
+	if Campaign.has_active_level():
+		Campaign.complete_active_level()
 	var input_result := command_history_text()
 	set_message("Level complete. Press F5 to reset.")
 	append_debug_log("Complete: all %s goals contain blocks." % goal_cells.size())
@@ -531,7 +545,11 @@ func check_level_completion() -> bool:
 		command_history.size(),
 		"(empty)" if input_result == "" else input_result,
 	])
-	game_hud.show_result("Input result (%s): %s" % [
+	var result_prefix := "Input result"
+	if Campaign.has_active_level():
+		result_prefix = "Level complete. Enter: return to map. Input result"
+	game_hud.show_result("%s (%s): %s" % [
+		result_prefix,
 		command_history.size(),
 		"(empty)" if input_result == "" else input_result,
 	])

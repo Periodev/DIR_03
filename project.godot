@@ -11,8 +11,18 @@ config_version=5
 [application]
 
 config/name="DIR"
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/world_map.tscn"
 config/features=PackedStringArray("4.6")
+
+[autoload]
+
+Campaign="*res://scripts/campaign.gd"
+
+[dir]
+
+; campaign: world map. single_level: res://levels/level_test.txt.
+launch_mode="single_level"
+;launch_mode="campaign"
 
 [display]
 
