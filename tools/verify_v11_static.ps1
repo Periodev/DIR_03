@@ -12,6 +12,8 @@ $visualStylePath = Join-Path $root "scripts/visual_style.gd"
 $debugStylePath = Join-Path $root "scripts/debug_style.gd"
 $commandPlayerPath = Join-Path $root "scripts/command_player.gd"
 $worldMapPath = Join-Path $root "scripts/world_map.gd"
+$classicLevelSelectPath = Join-Path $root "scripts/classic_level_select.gd"
+$classicLevelSelectScenePath = Join-Path $root "scenes/classic_level_select.tscn"
 $commandPlayerScenePath = Join-Path $root "scenes/command_player.tscn"
 $asciiMapPath = Join-Path $root "scripts/ascii_map.gd"
 $levelPath = Join-Path $root "levels/level_test.txt"
@@ -33,6 +35,8 @@ $debugStyle = Get-Content -LiteralPath $debugStylePath -Raw
 $main = "$mainEntry`n$gameBoard`n$boardView`n$playerBoardView`n$gameHud`n$playerInterface`n$debugPanel`n$visualStyle`n$debugStyle"
 $commandPlayer = Get-Content -LiteralPath $commandPlayerPath -Raw
 $worldMap = Get-Content -LiteralPath $worldMapPath -Raw
+$classicLevelSelect = Get-Content -LiteralPath $classicLevelSelectPath -Raw
+$classicLevelSelectScene = Get-Content -LiteralPath $classicLevelSelectScenePath -Raw
 $commandPlayerScene = Get-Content -LiteralPath $commandPlayerScenePath -Raw
 $asciiMap = Get-Content -LiteralPath $asciiMapPath -Raw
 $level = Get-Content -LiteralPath $levelPath -Raw
@@ -371,6 +375,30 @@ $checks = @(
 	@{
 		Name = "world map player position remains anchored during viewport resize"
 		Pass = $worldMap -match 'var\s+player_draw_cell\s*:=\s*Vector2\.ZERO' -and $worldMap -match 'func\s+player_draw_center\(\)\s*->\s*Vector2:[\s\S]*map_origin\(\)\s*\+\s*\(player_draw_cell\s*\+\s*Vector2\.ONE\s*\*\s*0\.5\)\s*\*\s*CELL_SIZE' -and $worldMap -match 'tween_method\(set_player_draw_cell' -and $worldMap -notmatch 'player_draw_position'
+	},
+	@{
+		Name = "classic level selector pages campaign areas in a six-by-two grid"
+		Pass = $classicLevelSelect -match 'GRID_COLUMNS\s*:=\s*6' -and $classicLevelSelect -match 'func\s+grid_rows\(\)\s*->\s*int:\s*\r?\n\s*return\s+2' -and $classicLevelSelect -match 'area_entries\.append\(page_entries\)' -and $classicLevelSelect -match 'target_index\s*\+=\s*GRID_COLUMNS'
+	},
+	@{
+		Name = "classic level selector preserves area exit gates and F3 unlock"
+		Pass = $classicLevelSelect -match 'previous_area\["exit_requirement"\]' -and $classicLevelSelect -match 'Campaign\.all_levels_unlocked' -and $classicLevelSelect -match 'key_event\.keycode\s*==\s*KEY_F3'
+	},
+	@{
+		Name = "classic level selector F4 records selected level completion"
+		Pass = $classicLevelSelect -match 'func\s+complete_selected_level\(\)[\s\S]*Campaign\.complete_level\(String\(entry\["id"\]\)\)' -and $classicLevelSelect -match 'key_event\.keycode\s*==\s*KEY_F4'
+	},
+	@{
+		Name = "classic level selector scene and return routing are wired"
+		Pass = $classicLevelSelectScene -match 'res://scripts/classic_level_select\.gd' -and $mainEntry -match 'change_scene_to_file\(Campaign\.level_select_scene_path\)' -and $worldMap -match 'Campaign\.WORLD_MAP_SCENE_PATH'
+	},
+	@{
+		Name = "classic selector uses restrained white teal and dim state colors"
+		Pass = $classicLevelSelect -match 'COMPLETED_COLOR\s*:=\s*Color\("#49c9a5"\)' -and $classicLevelSelect -match 'LOCKED_ALPHA\s*:=\s*0\.28' -and $classicLevelSelect -match 'border_color\s*=\s*palette\["label"\]'
+	},
+	@{
+		Name = "classic selector keeps large level tiles and labels"
+		Pass = $classicLevelSelect -match 'MAX_SLOT_SIZE\s*:=\s*152\.0' -and $classicLevelSelect -match 'draw_text_centered\(rect,\s*level_id,\s*21,\s*text_color\)'
 	},
 	@{
 		Name = "player movement accepts held repeats without repeating X or T"

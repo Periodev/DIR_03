@@ -2,6 +2,8 @@ extends Node
 
 const LAUNCH_MODE_CAMPAIGN := "campaign"
 const LAUNCH_MODE_SINGLE_LEVEL := "single_level"
+const WORLD_MAP_SCENE_PATH := "res://scenes/world_map.tscn"
+const CLASSIC_LEVEL_SELECT_SCENE_PATH := "res://scenes/classic_level_select.tscn"
 
 const AREA_01_LEVELS := [
 	{"id": "1-0", "cell": Vector2i(0, 0), "route": "main", "requires": []},
@@ -81,6 +83,7 @@ var return_area := 1
 var return_cell := Vector2i.ZERO
 var cached_sources: Dictionary = {}
 var all_levels_unlocked := false
+var level_select_scene_path := WORLD_MAP_SCENE_PATH
 
 
 func is_single_level_mode() -> bool:
@@ -112,7 +115,12 @@ func active_level_source() -> String:
 
 func complete_active_level() -> void:
 	if active_level_id != "":
-		completed_levels[active_level_id] = true
+		complete_level(active_level_id)
+
+
+func complete_level(level_id: String) -> void:
+	if area_id_for_level(level_id) != 0:
+		completed_levels[level_id] = true
 
 
 func leave_active_level() -> void:
@@ -129,6 +137,10 @@ func reset_progress() -> void:
 
 func unlock_all_levels() -> void:
 	all_levels_unlocked = true
+
+
+func set_level_select_scene(scene_path: String) -> void:
+	level_select_scene_path = scene_path
 
 
 func is_completed(level_id: String) -> bool:

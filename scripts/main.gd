@@ -124,4 +124,4 @@ func is_cancel_key(event: InputEvent) -> bool:
 
 func return_to_world_map() -> void:
 	Campaign.leave_active_level()
-	get_tree().change_scene_to_file("res://scenes/world_map.tscn")
+	get_tree().change_scene_to_file(Campaign.level_select_scene_path)
