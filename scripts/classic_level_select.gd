@@ -10,6 +10,8 @@ const BOTTOM_MARGIN := 48.0
 const TILE_GAP := 8.0
 const COMPLETED_COLOR := Color("#49c9a5")
 const LOCKED_ALPHA := 0.28
+const SELECTED_GLOW_ALPHA := 0.11
+const COMPLETED_GLOW_ALPHA := 0.07
 
 var palette: Dictionary = VisualStyle.theme(false)
 var entries: Array[Dictionary] = []
@@ -83,8 +85,11 @@ func select_return_level() -> void:
 		if Vector2i(entry["cell"]) == Campaign.return_cell:
 			selected_index = index
 			area_selection_indices[current_area_index] = index
+			if Campaign.consume_completed_return():
+				advance_after_completion()
 			return
 	selected_index = 0
+	Campaign.consume_completed_return()
 
 
 func current_page_entries() -> Array:
@@ -143,6 +148,21 @@ func switch_area(offset: int) -> void:
 	queue_redraw()
 
 
+func advance_after_completion() -> void:
+	var page: Array = current_page_entries()
+	if selected_index + 1 < page.size():
+		selected_index += 1
+		area_selection_indices[current_area_index] = selected_index
+	elif (
+		current_area_index + 1 < area_entries.size()
+		and is_area_accessible(current_area_index + 1)
+	):
+		current_area_index += 1
+		selected_index = area_selection_indices[current_area_index]
+	refresh_status()
+	queue_redraw()
+
+
 func start_selected_level() -> void:
 	var page: Array = current_page_entries()
 	if page.is_empty():
@@ -179,8 +199,7 @@ func complete_selected_level() -> void:
 		return
 	var entry: Dictionary = page[selected_index]
 	Campaign.complete_level(String(entry["id"]))
-	refresh_status()
-	queue_redraw()
+	advance_after_completion()
 
 
 func refresh_status() -> void:
@@ -325,21 +344,24 @@ func draw_level_entry(index: int) -> void:
 	else:
 		border_color = palette["label"]
 
+	if selected:
+		draw_soft_outline_glow(rect, palette["player"], SELECTED_GLOW_ALPHA)
+	elif completed:
+		draw_soft_outline_glow(rect, COMPLETED_COLOR, COMPLETED_GLOW_ALPHA)
 	draw_rect(rect, floor_color)
 	draw_rect(rect, border_color, false, border_width)
 	if selected:
-		draw_rect(rect.grow(4.0), palette["player"], false, 4.0)
+		draw_rect(rect.grow(4.0), palette["player"], false, 6.0)
 	draw_text_centered(rect, level_id, 21, text_color)
 
-	if String(entry["route"]) == "branch":
-		var marker_size := maxf(6.0, rect.size.x * 0.08)
-		draw_rect(
-			Rect2(
-				rect.end - Vector2.ONE * (marker_size + 8.0),
-				Vector2.ONE * marker_size
-			),
-			border_color
-		)
+
+func draw_soft_outline_glow(rect: Rect2, color: Color, alpha: float) -> void:
+	var outer_color := color
+	outer_color.a = alpha * 0.45
+	draw_rect(rect.grow(6.0), outer_color, false, 5.0)
+	var inner_color := color
+	inner_color.a = alpha
+	draw_rect(rect.grow(3.0), inner_color, false, 3.0)
 
 
 func draw_area_arrows() -> void:

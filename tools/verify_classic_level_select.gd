@@ -80,8 +80,24 @@ func run_verification() -> void:
 	if not Campaign.is_completed("1-0"):
 		fail("F4 completion did not update campaign progress.")
 		return
+	if selector.selected_index != 1:
+		fail("F4 completion did not advance selection to the next level.")
+		return
 	if not selector.is_entry_unlocked(selector.entries[1]):
 		fail("F4 completion did not unlock the next level.")
+		return
+
+	Campaign.reset_progress()
+	Campaign.begin_level("1-0", 1, Vector2i(0, 0))
+	Campaign.complete_active_level()
+	Campaign.leave_active_level()
+	selector.select_return_level()
+	if selector.current_area_index != 0 or selector.selected_index != 1:
+		fail("A completed gameplay return did not select the next level.")
+		return
+	selector.select_return_level()
+	if selector.selected_index != 0:
+		fail("Completed return state was not consumed after one selection advance.")
 		return
 
 	Campaign.reset_progress()

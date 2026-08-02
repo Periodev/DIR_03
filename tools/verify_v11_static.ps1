@@ -386,7 +386,11 @@ $checks = @(
 	},
 	@{
 		Name = "classic level selector F4 records selected level completion"
-		Pass = $classicLevelSelect -match 'func\s+complete_selected_level\(\)[\s\S]*Campaign\.complete_level\(String\(entry\["id"\]\)\)' -and $classicLevelSelect -match 'key_event\.keycode\s*==\s*KEY_F4'
+		Pass = $classicLevelSelect -match 'func\s+complete_selected_level\(\)[\s\S]*Campaign\.complete_level\(String\(entry\["id"\]\)\)[\s\S]*advance_after_completion\(\)' -and $classicLevelSelect -match 'key_event\.keycode\s*==\s*KEY_F4'
+	},
+	@{
+		Name = "classic selector advances exactly once after real completion"
+		Pass = $mainEntry -match 'Campaign\.level_select_scene_path' -and $classicLevelSelect -match 'Campaign\.consume_completed_return\(\)[\s\S]*advance_after_completion\(\)'
 	},
 	@{
 		Name = "classic level selector scene and return routing are wired"
@@ -399,6 +403,14 @@ $checks = @(
 	@{
 		Name = "classic selector keeps large level tiles and labels"
 		Pass = $classicLevelSelect -match 'MAX_SLOT_SIZE\s*:=\s*152\.0' -and $classicLevelSelect -match 'draw_text_centered\(rect,\s*level_id,\s*21,\s*text_color\)'
+	},
+	@{
+		Name = "classic selector limits glow to weak selected or completed outlines"
+		Pass = $classicLevelSelect -match 'SELECTED_GLOW_ALPHA\s*:=\s*0\.11' -and $classicLevelSelect -match 'COMPLETED_GLOW_ALPHA\s*:=\s*0\.07' -and $classicLevelSelect -match 'if\s+selected:\s*\r?\n\s*draw_soft_outline_glow[\s\S]*elif\s+completed:\s*\r?\n\s*draw_soft_outline_glow'
+	},
+	@{
+		Name = "classic selector uses a thick selection frame without branch dots"
+		Pass = $classicLevelSelect -match 'rect\.grow\(4\.0\),\s*palette\["player"\],\s*false,\s*6\.0' -and $classicLevelSelect -notmatch 'marker_size'
 	},
 	@{
 		Name = "player movement accepts held repeats without repeating X or T"

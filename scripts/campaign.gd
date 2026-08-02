@@ -84,6 +84,7 @@ var return_cell := Vector2i.ZERO
 var cached_sources: Dictionary = {}
 var all_levels_unlocked := false
 var level_select_scene_path := WORLD_MAP_SCENE_PATH
+var return_after_completion := false
 
 
 func is_single_level_mode() -> bool:
@@ -100,6 +101,7 @@ func begin_level(level_id: String, area_id: int, cell: Vector2i) -> bool:
 	active_level_id = level_id
 	return_area = area_id
 	return_cell = cell
+	return_after_completion = false
 	return true
 
 
@@ -116,6 +118,7 @@ func active_level_source() -> String:
 func complete_active_level() -> void:
 	if active_level_id != "":
 		complete_level(active_level_id)
+		return_after_completion = true
 
 
 func complete_level(level_id: String) -> void:
@@ -133,6 +136,7 @@ func reset_progress() -> void:
 	return_area = 1
 	return_cell = start_cell_for(1)
 	all_levels_unlocked = false
+	return_after_completion = false
 
 
 func unlock_all_levels() -> void:
@@ -141,6 +145,12 @@ func unlock_all_levels() -> void:
 
 func set_level_select_scene(scene_path: String) -> void:
 	level_select_scene_path = scene_path
+
+
+func consume_completed_return() -> bool:
+	var was_completed_return := return_after_completion
+	return_after_completion = false
+	return was_completed_return
 
 
 func is_completed(level_id: String) -> bool:

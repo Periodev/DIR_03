@@ -21,6 +21,7 @@ var transition_tween: Tween
 func _ready() -> void:
 	ui_font = ThemeDB.fallback_font
 	Campaign.set_level_select_scene(Campaign.WORLD_MAP_SCENE_PATH)
+	Campaign.consume_completed_return()
 	if Campaign.is_single_level_mode():
 		call_deferred("open_single_level_test")
 		return
