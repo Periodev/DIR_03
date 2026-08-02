@@ -19,6 +19,7 @@ func run_checks() -> void:
 	await check_player_displacement(game)
 	check_grid_line_toggle(game)
 	await check_push_displacement(game)
+	await check_same_direction_push_holds_queue(game)
 	await check_install_reveal(game)
 	await check_free_trigger_sequence(game)
 	await check_blocked_trigger_sequence(game)
@@ -129,6 +130,30 @@ func check_push_displacement(game: Node) -> void:
 		"pushed block should finish at the target cell"
 	)
 	require(not bool(game.input_locked), "push should unlock after animation")
+
+
+func check_same_direction_push_holds_queue(game: Node) -> void:
+	require_level(game, "@A.*")
+	game.player_queue = "Right"
+	game.render_all()
+	var started: bool = bool(game.execute_command("R"))
+	require(started, "same-direction push command should be accepted")
+	var view: Node = game.board_view
+	require(
+		not bool(view.player_queue_reveal_pending),
+		"same-direction push should keep the stored vector visible"
+	)
+	await create_timer(VisualStyle.PUSH_DISPLACEMENT_DELAY_SECONDS * 0.6).timeout
+	require(
+		not bool(view.player_queue_reveal_pending),
+		"same-direction stored vector should hold through the push delay"
+	)
+	await create_timer(VisualStyle.DISPLACEMENT_SECONDS + 0.1).timeout
+	require(
+		String(game.player_queue) == "Right",
+		"same-direction push should preserve the queue value"
+	)
+	require(not bool(game.input_locked), "same-direction push should unlock normally")
 
 
 func check_install_reveal(game: Node) -> void:

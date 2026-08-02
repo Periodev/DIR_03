@@ -157,6 +157,7 @@ func try_move(direction: Vector2i, direction_name: String) -> void:
 	pushed_block["cell"] = block_target
 	blocks[block_index] = pushed_block
 
+	var player_queue_changed := player_queue != direction_name
 	enqueue_player_queue(direction_name)
 	set_message("Push succeeded. Player stayed in place. Queue is now %s." % direction_name)
 	append_debug_log("Push %s: block %s -> %s; %s" % [
@@ -169,7 +170,8 @@ func try_move(direction: Vector2i, direction_name: String) -> void:
 	if start_block_displacement(
 		pushed_block_id,
 		block_from,
-		block_target
+		block_target,
+		player_queue_changed
 	):
 		return
 	finish_displacement_action(true)
@@ -699,7 +701,8 @@ func start_player_displacement(
 func start_block_displacement(
 	block_id: int,
 	from_cell: Vector2i,
-	to_cell: Vector2i
+	to_cell: Vector2i,
+	player_queue_changed: bool
 ) -> bool:
 	if board_view == null or not board_view.has_method("play_block_displacement"):
 		return false
@@ -708,6 +711,7 @@ func start_block_displacement(
 		block_id,
 		from_cell,
 		to_cell,
+		player_queue_changed,
 		Callable(self, "finish_displacement_action").bind(true)
 	)
 	return true

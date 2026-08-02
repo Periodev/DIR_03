@@ -138,6 +138,7 @@ func play_block_displacement(
 	block_id: int,
 	from_cell: Vector2i,
 	to_cell: Vector2i,
+	player_queue_changed: bool,
 	on_finished: Callable
 ) -> void:
 	prepare_displacement(
@@ -147,12 +148,13 @@ func play_block_displacement(
 		to_cell,
 		on_finished
 	)
-	player_queue_reveal_pending = true
+	player_queue_reveal_pending = player_queue_changed
 	displacement_tween = create_tween()
 	displacement_tween.tween_interval(
 		VisualStyle.PUSH_DISPLACEMENT_DELAY_SECONDS
 	)
-	displacement_tween.tween_callback(reveal_player_queue)
+	if player_queue_changed:
+		displacement_tween.tween_callback(reveal_player_queue)
 	displacement_tween.tween_method(
 		set_displacement_progress,
 		0.0,

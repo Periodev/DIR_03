@@ -342,7 +342,7 @@ $checks = @(
 	},
 	@{
 		Name = "player mode animates player and block displacement"
-		Pass = $gameBoard -match "start_player_displacement\(player_from,\s*target\)" -and $gameBoard -match "start_block_displacement\([\s\S]*pushed_block_id,[\s\S]*block_from,[\s\S]*block_target" -and $gameBoard -match 'has_method\("play_player_displacement"\)' -and $gameBoard -match 'has_method\("play_block_displacement"\)' -and $playerBoardView -match "func\s+play_player_displacement\(" -and $playerBoardView -match "func\s+play_block_displacement\([\s\S]*player_queue_reveal_pending\s*=\s*true[\s\S]*PUSH_DISPLACEMENT_DELAY_SECONDS[\s\S]*tween_callback\(reveal_player_queue\)[\s\S]*set_displacement_progress" -and $playerBoardView -match "func\s+draw_player_stored_vector\(\)[\s\S]*player_queue_reveal_pending" -and $playerBoardView -match "func\s+animated_cell_position\(\)[\s\S]*\.lerp\(" -and $visualStyle -match "PUSH_DISPLACEMENT_DELAY_SECONDS\s*:=\s*0\.\d+" -and $visualStyle -match "DISPLACEMENT_SECONDS\s*:=\s*0\.\d+"
+		Pass = $gameBoard -match "start_player_displacement\(player_from,\s*target\)" -and $gameBoard -match "start_block_displacement\([\s\S]*pushed_block_id,[\s\S]*block_from,[\s\S]*block_target" -and $gameBoard -match 'has_method\("play_player_displacement"\)' -and $gameBoard -match 'has_method\("play_block_displacement"\)' -and $playerBoardView -match "func\s+play_player_displacement\(" -and $playerBoardView -match "func\s+play_block_displacement\([\s\S]*player_queue_reveal_pending\s*=\s*player_queue_changed[\s\S]*PUSH_DISPLACEMENT_DELAY_SECONDS[\s\S]*tween_callback\(reveal_player_queue\)[\s\S]*set_displacement_progress" -and $playerBoardView -match "func\s+draw_player_stored_vector\(\)[\s\S]*player_queue_reveal_pending" -and $playerBoardView -match "func\s+animated_cell_position\(\)[\s\S]*\.lerp\(" -and $visualStyle -match "PUSH_DISPLACEMENT_DELAY_SECONDS\s*:=\s*0\.\d+" -and $visualStyle -match "DISPLACEMENT_SECONDS\s*:=\s*0\.\d+"
 	},
 	@{
 		Name = "trigger vectors fade while their action runs"
@@ -359,6 +359,10 @@ $checks = @(
 	@{
 		Name = "graphics runtime animation check covers movement trigger and reset"
 		Pass = $playerAnimationCheck -match "check_player_displacement" -and $playerAnimationCheck -match "check_grid_line_toggle" -and $playerAnimationCheck -match "is_goal_visually_occupied" -and $playerAnimationCheck -match "stored_vector_center" -and $playerAnimationCheck -match "check_push_displacement" -and $playerAnimationCheck -match "check_install_reveal" -and $playerAnimationCheck -match "check_free_trigger_sequence" -and $playerAnimationCheck -match "check_blocked_trigger_sequence" -and $playerAnimationCheck -match "check_collision_trigger_sequence" -and $playerAnimationCheck -match "check_reset_cancels_animation"
+	},
+	@{
+		Name = "same-direction pushes hold the stored vector without flicker"
+		Pass = $gameBoard -match 'var\s+player_queue_changed\s*:=\s*player_queue\s*!=\s*direction_name' -and $gameBoard -match 'start_block_displacement\([\s\S]*player_queue_changed' -and $playerBoardView -match 'player_queue_reveal_pending\s*=\s*player_queue_changed' -and $playerBoardView -match 'if\s+player_queue_changed:\s*\r?\n\s*displacement_tween\.tween_callback\(reveal_player_queue\)' -and $playerAnimationCheck -match 'check_same_direction_push_holds_queue'
 	},
 	@{
 		Name = "player goals use dashed empty markers and replace the block edge when completed"
