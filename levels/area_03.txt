@@ -10,16 +10,16 @@
 
 [cells]
 .c.b
-..#.
-..A+
+...@
+..A*
 
 [horizontal_edges]
--...
+-.-.
 ....
 
 [vertical_edges]
 ...
-...
+.|.
 ...
 
 ---------
