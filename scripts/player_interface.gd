@@ -22,11 +22,7 @@ var mono_label_font: Font
 var root_panel: PanelContainer
 var board_host: CenterContainer
 var message_label: Label
-var slot_chip: Label
-var slot_description: Label
 var goals_value: Label
-var steps_value: Label
-var facing_labels := {}
 
 var label_tone_labels: Array[Label] = []
 var text_tone_labels: Array[Label] = []
@@ -98,6 +94,8 @@ func build_header() -> Control:
 	var level_name := make_label("LEVEL TEST", 14, ui_font)
 	text_tone_labels.append(level_name)
 	left_group.add_child(level_name)
+	left_group.add_child(make_vertical_separator(16))
+	left_group.add_child(build_header_goals_group())
 
 	var flexible_space := Control.new()
 	flexible_space.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -190,14 +188,6 @@ func build_status_bar() -> Control:
 	row.add_theme_constant_override("separation", 30)
 	margin.add_child(row)
 
-	row.add_child(build_facing_group())
-	row.add_child(make_vertical_separator(44))
-	row.add_child(build_slot_group())
-	row.add_child(make_vertical_separator(44))
-	row.add_child(build_value_group("GOALS", true))
-	row.add_child(make_vertical_separator(44))
-	row.add_child(build_value_group("STEPS", false))
-
 	var flexible_space := Control.new()
 	flexible_space.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(flexible_space)
@@ -206,71 +196,18 @@ func build_status_bar() -> Control:
 	return status
 
 
-func build_facing_group() -> VBoxContainer:
-	var group := make_status_group("FACING")
-	var grid := GridContainer.new()
-	grid.columns = 3
-	grid.add_theme_constant_override("h_separation", 0)
-	grid.add_theme_constant_override("v_separation", 0)
-	group.add_child(grid)
-
-	add_facing_cell(grid, "", "")
-	add_facing_cell(grid, "Up", "▲")
-	add_facing_cell(grid, "", "")
-	add_facing_cell(grid, "Left", "◀")
-	add_facing_cell(grid, "Down", "▼")
-	add_facing_cell(grid, "Right", "▶")
-	return group
-
-
-func add_facing_cell(grid: GridContainer, direction_name: String, glyph: String) -> void:
-	var label := make_label(glyph, 13, mono_font)
-	label.custom_minimum_size = Vector2(18, 14)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	grid.add_child(label)
-	if direction_name != "":
-		facing_labels[direction_name] = label
-
-
-func build_slot_group() -> VBoxContainer:
-	var group := make_status_group("SLOT")
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	group.add_child(row)
-
-	slot_chip = make_label("·", 13, mono_font)
-	slot_chip.custom_minimum_size = Vector2(26, 26)
-	slot_chip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	slot_chip.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	row.add_child(slot_chip)
-
-	slot_description = make_label("EMPTY", 13, ui_font)
-	dim_tone_labels.append(slot_description)
-	row.add_child(slot_description)
-	return group
-
-
-func build_value_group(title: String, goals: bool) -> VBoxContainer:
-	var group := make_status_group(title)
-	var value := make_label("0", 15, mono_font)
-	high_tone_labels.append(value)
-	group.add_child(value)
-	if goals:
-		goals_value = value
-	else:
-		steps_value = value
-	return group
-
-
-func make_status_group(title: String) -> VBoxContainer:
-	var group := VBoxContainer.new()
+func build_header_goals_group() -> HBoxContainer:
+	var group := HBoxContainer.new()
 	group.add_theme_constant_override("separation", 8)
 	group.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
-	var title_label := make_label(title, 10, mono_label_font)
-	label_tone_labels.append(title_label)
-	group.add_child(title_label)
+	var title := make_label("GOALS", 10, mono_label_font)
+	label_tone_labels.append(title)
+	group.add_child(title)
+
+	goals_value = make_label("0", 12, mono_font)
+	high_tone_labels.append(goals_value)
+	group.add_child(goals_value)
 	return group
 
 
@@ -347,26 +284,11 @@ func refresh() -> void:
 	if game_board == null or goals_value == null:
 		return
 
-	for direction_name in facing_labels:
-		var label: Label = facing_labels[direction_name]
-		label.add_theme_color_override(
-			"font_color",
-			palette["text_hi"] if direction_name == game_board.facing_name else palette["hair"]
-		)
-
-	var queue_name: String = game_board.player_queue
-	var queue_glyph := direction_glyph(queue_name)
-	var has_queue := queue_name != ""
-	slot_chip.text = queue_glyph if has_queue else "·"
-	slot_description.text = "HOLDING %s" % queue_glyph if has_queue else "EMPTY"
-	apply_slot_style(has_queue)
-
 	var filled_goals := 0
 	for goal_cell in game_board.goal_cells:
 		if game_board.find_block_index_at(goal_cell) != -1:
 			filled_goals += 1
 	goals_value.text = "%s / %s" % [filled_goals, game_board.goal_cells.size()]
-	steps_value.text = str(game_board.command_history.size())
 
 
 func set_message(text: String) -> void:
@@ -472,17 +394,6 @@ func apply_keycap_styles() -> void:
 		keycap.add_theme_color_override("font_color", palette["text"])
 
 
-func apply_slot_style(has_queue: bool) -> void:
-	var style := StyleBoxFlat.new()
-	style.bg_color = palette["text_hi"] if has_queue else Color.TRANSPARENT
-	set_style_border(style, palette["text_hi"] if has_queue else palette["stroke"])
-	slot_chip.add_theme_stylebox_override("normal", style)
-	slot_chip.add_theme_color_override(
-		"font_color",
-		palette["app_bg"] if has_queue else palette["label"]
-	)
-
-
 func make_button_style(
 	background: Color,
 	border: Color,
@@ -522,17 +433,3 @@ func make_spaced_font(base_font: Font, spacing: int) -> Font:
 	font.base_font = base_font
 	font.spacing_glyph = spacing
 	return font
-
-
-func direction_glyph(direction_name: String) -> String:
-	match direction_name:
-		"Up":
-			return "▲"
-		"Down":
-			return "▼"
-		"Left":
-			return "◀"
-		"Right":
-			return "▶"
-		_:
-			return ""

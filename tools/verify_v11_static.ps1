@@ -73,6 +73,10 @@ $checks = @(
 		Pass = $main -match "func\s+install_vector\(\)"
 	},
 	@{
+		Name = "campaign level 1-1 provides a delayed contextual install hint"
+		Pass = $gameBoard -match 'INSTALL_TUTORIAL_LEVEL_ID\s*:=\s*"1-1"' -and $gameBoard -match 'func\s+install_tutorial_target_cell\(\)\s*->\s*Vector2i' -and $playerBoardView -match 'func\s+draw_install_tutorial_hint\(\)' -and $visualStyle -match 'INSTALL_TUTORIAL_HINT_DELAY_SECONDS\s*:=\s*0\.40'
+	},
+	@{
 		Name = "main.gd has trigger_vector operation"
 		Pass = $main -match "func\s+trigger_vector\(\)"
 	},
@@ -241,12 +245,12 @@ $checks = @(
 		Pass = $playerInterface -match "MESSAGE_HEIGHT\s*:=\s*20" -and $playerInterface -match "message_label\.clip_text\s*=\s*true"
 	},
 	@{
-		Name = "player interface exposes facing slot goals and steps"
-		Pass = $playerInterface -match "build_facing_group" -and $playerInterface -match "build_slot_group" -and $playerInterface -match 'build_value_group\("GOALS"' -and $playerInterface -match 'build_value_group\("STEPS"'
+		Name = "player header shows goals after the level name and removes redundant status groups"
+		Pass = $playerInterface -match 'left_group\.add_child\(level_name\)[\s\S]*left_group\.add_child\(build_header_goals_group\(\)\)' -and $playerInterface -match "func\s+build_header_goals_group\(\)" -and $playerInterface -notmatch 'make_status_group\("(?:FACING|SLOT|STEPS|GOALS)"' -and $playerInterface -notmatch "slot_chip|slot_description|steps_value|facing_labels"
 	},
 	@{
-		Name = "player interface uses English status and action labels"
-		Pass = $playerInterface -match '"EMPTY"' -and $playerInterface -match '"HOLDING %s"' -and $playerInterface -match '"PUSH"' -and $playerInterface -match '"INSTALL"' -and $playerInterface -match '"TRIGGER"' -and $playerInterface -notmatch '"(\u7a7a|\u6301\u6709|\u63a8|\u5b89\u88dd|\u89f8\u767c)"'
+		Name = "player interface uses English action labels"
+		Pass = $playerInterface -match '"PUSH"' -and $playerInterface -match '"INSTALL"' -and $playerInterface -match '"TRIGGER"' -and $playerInterface -notmatch '"(\u63a8|\u5b89\u88dd|\u89f8\u767c)"'
 	},
 	@{
 		Name = "player interface buttons do not capture gameplay keys"

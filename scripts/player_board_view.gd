@@ -45,6 +45,8 @@ var error_flash_color_key := "error_flash"
 var error_flash_max_alpha := VisualStyle.ERROR_FLASH_MAX_ALPHA
 var active_vector_pulse_block_id := -1
 var active_vector_pulse_elapsed := 0.0
+var install_tutorial_hint_cell := Vector2i(-1, -1)
+var install_tutorial_hint_elapsed := 0.0
 
 
 func initialize(board) -> void:
@@ -63,6 +65,7 @@ func render() -> void:
 
 func _process(delta: float) -> void:
 	update_active_vector_pulse(delta)
+	update_install_tutorial_hint(delta)
 
 
 func set_light_theme(enabled: bool) -> void:
@@ -513,6 +516,7 @@ func _draw() -> void:
 	draw_player_error_flash()
 	draw_player_stored_vector()
 	draw_player_facing()
+	draw_install_tutorial_hint()
 
 
 func draw_ground() -> void:
@@ -1079,6 +1083,101 @@ func draw_player_facing() -> void:
 	draw_colored_polygon(
 		chevron_points(center, forward, length, depth, stroke),
 		palette["player"]
+	)
+
+
+func update_install_tutorial_hint(delta: float) -> void:
+	if game_board == null or not game_board.has_method("install_tutorial_target_cell"):
+		return
+
+	var target: Vector2i = game_board.install_tutorial_target_cell()
+	if target != install_tutorial_hint_cell:
+		install_tutorial_hint_cell = target
+		install_tutorial_hint_elapsed = 0.0
+		queue_redraw()
+		return
+
+	if target == Vector2i(-1, -1):
+		return
+
+	var previous_elapsed := install_tutorial_hint_elapsed
+	install_tutorial_hint_elapsed += delta
+	if (
+		previous_elapsed < VisualStyle.INSTALL_TUTORIAL_HINT_DELAY_SECONDS
+		or install_tutorial_hint_alpha() < 1.0
+	):
+		queue_redraw()
+
+
+func install_tutorial_hint_alpha() -> float:
+	return clampf(
+		(
+			install_tutorial_hint_elapsed
+			- VisualStyle.INSTALL_TUTORIAL_HINT_DELAY_SECONDS
+		) / VisualStyle.INSTALL_TUTORIAL_HINT_FADE_SECONDS,
+		0.0,
+		1.0
+	)
+
+
+func draw_install_tutorial_hint() -> void:
+	if install_tutorial_hint_cell == Vector2i(-1, -1):
+		return
+
+	var alpha := install_tutorial_hint_alpha()
+	if alpha <= 0.0:
+		return
+
+	var hint_text := "[X] Install"
+	var block_gap := roundi(cell_size * VisualStyle.BLOCK_INSET_RATIO)
+	var block_rect := Rect2(
+		cell_to_position(install_tutorial_hint_cell) + Vector2.ONE * block_gap,
+		Vector2.ONE * (cell_size - block_gap * 2)
+	)
+	var horizontal_padding := scaled_px(5.0)
+	var available_width := block_rect.size.x - horizontal_padding * 2.0
+	var font_size := scaled_font_size(14)
+	var text_size := fallback_font.get_string_size(
+		hint_text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		font_size
+	)
+	while text_size.x > available_width and font_size > 8:
+		font_size -= 1
+		text_size = fallback_font.get_string_size(
+			hint_text,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1,
+			font_size
+		)
+	var text_position := Vector2(
+		block_rect.get_center().x - text_size.x / 2.0,
+		block_rect.get_center().y
+		+ fallback_font.get_ascent(font_size) / 2.0
+		- fallback_font.get_descent(font_size) / 2.0
+	)
+	var shadow_color: Color = palette["direction_fill"]
+	shadow_color.a *= alpha
+	var hint_color: Color = palette["tutorial_hint"]
+	hint_color.a *= alpha
+	draw_string(
+		fallback_font,
+		text_position + Vector2(scaled_px(2.0), scaled_px(2.0)),
+		hint_text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		font_size,
+		shadow_color
+	)
+	draw_string(
+		fallback_font,
+		text_position,
+		hint_text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		font_size,
+		hint_color
 	)
 
 

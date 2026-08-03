@@ -9,6 +9,7 @@ const EMPTY := 0
 const WALL := 1
 const INITIAL_LEVEL_PATH := "res://levels/level_test.txt"
 const VALID_COMMANDS := "UDLRXT"
+const INSTALL_TUTORIAL_LEVEL_ID := "1-1"
 
 
 class BoardSnapshot:
@@ -44,6 +45,7 @@ var debug_lines: Array[String] = []
 var level_source_text := ""
 var undo_enabled := false
 var undo_stack: Array[BoardSnapshot] = []
+var install_tutorial_completed := false
 
 var board_view
 var game_hud
@@ -219,6 +221,8 @@ func install_vector() -> void:
 	blocks[block_index] = block
 	install_order.append(block["id"])
 	player_queue = ""
+	if Campaign.active_level_id == INSTALL_TUTORIAL_LEVEL_ID:
+		install_tutorial_completed = true
 
 	set_message("Installed %s on block %s." % [installed_vector, block_label(block["id"])])
 	append_debug_log("Install: %s -> block %s; order %s." % [
@@ -403,6 +407,25 @@ func reset_level() -> void:
 	check_level_completion()
 	render_all()
 	end_atomic_input()
+
+
+func install_tutorial_target_cell() -> Vector2i:
+	if (
+		Campaign.active_level_id != INSTALL_TUTORIAL_LEVEL_ID
+		or install_tutorial_completed
+		or player_queue == ""
+	):
+		return Vector2i(-1, -1)
+
+	var target: Vector2i = player_cell + facing_direction
+	var block_index: int = find_block_index_at(target)
+	if block_index == -1:
+		return Vector2i(-1, -1)
+
+	var block: Dictionary = blocks[block_index]
+	if String(block["vector"]) != "":
+		return Vector2i(-1, -1)
+	return target
 
 
 func capture_board_snapshot() -> BoardSnapshot:

@@ -52,6 +52,8 @@ const ACTIVE_VECTOR_PULSE_SECONDS := 0.60
 const ACTIVE_VECTOR_PULSE_PAUSE_SECONDS := 1.40
 const ACTIVE_VECTOR_OUTLINE_WIDTH_RATIO := 2.0 / 96.0
 const ACTIVE_VECTOR_OUTLINE_ALPHA := 0.55
+const INSTALL_TUTORIAL_HINT_DELAY_SECONDS := 0.40
+const INSTALL_TUTORIAL_HINT_FADE_SECONDS := 0.15
 const BLOCKED_RELEASE_SHAKE_RATIO := 0.050
 const BLOCKED_RELEASE_SHAKE_SECONDS := 0.12
 const BLOCKED_RELEASE_SHAKE_CYCLES := 2.0
@@ -104,6 +106,7 @@ const MONO_DARK := {
 	"block_glyph": Color("#141414"),
 	"direction_fill": Color("#141414"),
 	"active_vector_outline": Color("#f2f2f2"),
+	"tutorial_hint": Color("#f2f2f2"),
 	"player": Color("#b8bec4"),
 	"error_flash": Color("#ff3232"),
 	"hint_flash": Color("#dedede"),
@@ -141,6 +144,7 @@ const MONO_LIGHT := {
 	"block_glyph": Color("#f4f3f1"),
 	"direction_fill": Color("#f4f3f1"),
 	"active_vector_outline": Color("#1e1d1c"),
+	"tutorial_hint": Color("#1e1d1c"),
 	"player": Color("#484746"),
 	"error_flash": Color("#ff3232"),
 	"hint_flash": Color("#30302f"),

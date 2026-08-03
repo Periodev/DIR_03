@@ -19,6 +19,7 @@ func run_checks() -> void:
 	await check_player_displacement(game)
 	check_grid_line_toggle(game)
 	check_active_vector_pulse(game)
+	await check_install_tutorial_hint(game)
 	await check_empty_release_error(game)
 	await check_empty_install_hint(game)
 	await check_loaded_block_rejects_install(game)
@@ -65,6 +66,47 @@ func check_grid_line_toggle(game: Node) -> void:
 	require(not bool(view.grid_lines_visible), "grid lines should support being hidden")
 	view.set_grid_lines_visible(true)
 	require(bool(view.grid_lines_visible), "grid lines should support being restored")
+
+
+func check_install_tutorial_hint(game: Node) -> void:
+	var previous_level_id: String = Campaign.active_level_id
+	require_level(game, "@A.")
+	Campaign.active_level_id = "1-1"
+	game.install_tutorial_completed = false
+	game.player_queue = "Right"
+	game.render_all()
+
+	var view: Node = game.board_view
+	view.update_install_tutorial_hint(0.0)
+	require(
+		Vector2i(view.install_tutorial_hint_cell) == Vector2i(1, 0),
+		"install tutorial should target the faced empty block"
+	)
+	require(
+		float(view.install_tutorial_hint_alpha()) == 0.0,
+		"install tutorial should wait before appearing"
+	)
+	view.update_install_tutorial_hint(
+		VisualStyle.INSTALL_TUTORIAL_HINT_DELAY_SECONDS
+		+ VisualStyle.INSTALL_TUTORIAL_HINT_FADE_SECONDS
+	)
+	require(
+		float(view.install_tutorial_hint_alpha()) >= 0.99,
+		"install tutorial should fade in after the hesitation delay"
+	)
+
+	game.execute_command("X")
+	view.update_install_tutorial_hint(0.0)
+	require(
+		Vector2i(view.install_tutorial_hint_cell) == Vector2i(-1, -1),
+		"install tutorial should disappear after a successful install"
+	)
+	await create_timer(
+		VisualStyle.INSTALL_VECTOR_DELAY_SECONDS
+		+ VisualStyle.FACING_ACTION_SETTLE_SECONDS
+		+ 0.05
+	).timeout
+	Campaign.active_level_id = previous_level_id
 
 
 func check_empty_release_error(game: Node) -> void:
