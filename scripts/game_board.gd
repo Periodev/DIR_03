@@ -10,6 +10,12 @@ const WALL := 1
 const INITIAL_LEVEL_PATH := "res://levels/level_test.txt"
 const VALID_COMMANDS := "UDLRXT"
 const INSTALL_TUTORIAL_LEVEL_ID := "1-1"
+const CARDINAL_DIRECTIONS: Array[Vector2i] = [
+	Vector2i.UP,
+	Vector2i.DOWN,
+	Vector2i.LEFT,
+	Vector2i.RIGHT,
+]
 
 
 class BoardSnapshot:
@@ -31,6 +37,7 @@ var initial_blocks: Array[Dictionary] = []
 var goal_cells: Array[Vector2i] = []
 var horizontal_edges: Array[Array] = []
 var vertical_edges: Array[Array] = []
+var static_dead_cells: Array[Vector2i] = []
 var player_cell := Vector2i.ZERO
 var player_queue := ""
 var facing_direction := Vector2i.RIGHT
@@ -647,9 +654,67 @@ func set_level_from_text(source: String) -> String:
 	goal_cells = level_data["goal_cells"]
 	horizontal_edges = level_data["horizontal_edges"]
 	vertical_edges = level_data["vertical_edges"]
+	static_dead_cells = calculate_static_dead_cells()
 	player_cell = initial_player_cell
 	blocks = duplicate_initial_blocks()
 	return ""
+
+
+func calculate_static_dead_cells() -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for y in range(terrain.size()):
+		for x in range(terrain[y].size()):
+			var cell := Vector2i(x, y)
+			if is_wall(cell):
+				continue
+			var can_be_pushed := false
+			for direction in CARDINAL_DIRECTIONS:
+				var destination: Vector2i = cell + direction
+				var support: Vector2i = cell - direction
+				if (
+					static_cell_is_open(destination)
+					and static_cell_is_open(support)
+					and not is_fence_between(cell, destination)
+					and not is_fence_between(support, cell)
+				):
+					can_be_pushed = true
+					break
+			if not can_be_pushed:
+				result.append(cell)
+	return result
+
+
+func static_cell_is_open(cell: Vector2i) -> bool:
+	return is_inside_board(cell) and not is_wall(cell)
+
+
+func tutorial_undo_deadlock_cell() -> Vector2i:
+	if (
+		Campaign.active_level_id != INSTALL_TUTORIAL_LEVEL_ID
+		or level_completed
+		or not install_order.is_empty()
+	):
+		return Vector2i(-1, -1)
+
+	for block in blocks:
+		if String(block["vector"]) != "":
+			return Vector2i(-1, -1)
+	for block in blocks:
+		var cell: Vector2i = block["cell"]
+		if (
+			not goal_cells.has(cell)
+			and static_dead_cells.has(cell)
+			and not player_queue_can_release_block(cell)
+		):
+			return cell
+	return Vector2i(-1, -1)
+
+
+func player_queue_can_release_block(cell: Vector2i) -> bool:
+	if player_queue == "":
+		return false
+	var direction: Vector2i = direction_from_name(player_queue)
+	return direction != Vector2i.ZERO and can_block_move_to(cell, cell + direction)
 
 
 func enqueue_player_queue(direction_name: String) -> String:

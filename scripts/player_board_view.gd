@@ -521,6 +521,7 @@ func _draw() -> void:
 	draw_player_facing()
 	draw_install_tutorial_hint()
 	draw_release_tutorial_hint()
+	draw_undo_tutorial_prompt()
 
 
 func draw_ground() -> void:
@@ -1232,6 +1233,59 @@ func draw_tutorial_hint(cell: Vector2i, hint_text: String, alpha: float) -> void
 		-1,
 		font_size,
 		hint_color
+	)
+
+
+func should_draw_undo_tutorial_prompt() -> bool:
+	return (
+		displacement_subject == DISPLACEMENT_NONE
+		and game_board != null
+		and game_board.has_method("tutorial_undo_deadlock_cell")
+		and game_board.tutorial_undo_deadlock_cell() != Vector2i(-1, -1)
+	)
+
+
+func draw_undo_tutorial_prompt() -> void:
+	if not should_draw_undo_tutorial_prompt():
+		return
+
+	var prompt := "[Z] UNDO"
+	var font_size := scaled_font_size(28)
+	var text_size := fallback_font.get_string_size(
+		prompt,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		font_size
+	)
+	var wall_rect := Rect2(
+		cell_to_position(Vector2i.ZERO),
+		Vector2(cell_size * 2.0, cell_size)
+	)
+	var baseline := Vector2(
+		wall_rect.get_center().x - text_size.x / 2.0,
+		wall_rect.get_center().y
+		+ fallback_font.get_ascent(font_size) / 2.0
+		- fallback_font.get_descent(font_size) / 2.0
+	)
+	var shadow_color: Color = palette["direction_fill"]
+	var prompt_color: Color = palette["tutorial_hint"]
+	draw_string(
+		fallback_font,
+		baseline + Vector2(scaled_px(2.0), scaled_px(2.0)),
+		prompt,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		font_size,
+		shadow_color
+	)
+	draw_string(
+		fallback_font,
+		baseline,
+		prompt,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		font_size,
+		prompt_color
 	)
 
 

@@ -20,6 +20,7 @@ func run_checks() -> void:
 	check_grid_line_toggle(game)
 	check_active_vector_pulse(game)
 	check_progressive_control_hints(game)
+	check_undo_deadlock_prompt(game)
 	await check_install_tutorial_hint(game)
 	await check_empty_release_error(game)
 	check_air_install_ignored(game)
@@ -123,6 +124,57 @@ func check_progressive_control_hints(game: Node) -> void:
 		hints.get_combined_minimum_size().y <= hud.control_hint_status_height(),
 		"scaled control hints should fit the automatic status bar height"
 	)
+
+
+func check_undo_deadlock_prompt(game: Node) -> void:
+	var previous_level_id: String = Campaign.active_level_id
+	require_level(game, "##.*\n@A..\n#..#")
+	Campaign.active_level_id = "1-1"
+	require(
+		not game.static_dead_cells.has(Vector2i(1, 1)),
+		"the initial tutorial block cell should remain pushable"
+	)
+	require(
+		game.static_dead_cells.has(Vector2i(3, 1)),
+		"the early-release destination should be precomputed as a dead cell"
+	)
+
+	var block_index: int = int(game.find_block_index_by_id(1))
+	var block: Dictionary = game.blocks[block_index]
+	block["cell"] = Vector2i(3, 1)
+	block["vector"] = ""
+	game.blocks[block_index] = block
+	game.player_queue = ""
+	game.install_order.clear()
+	var view: Node = game.board_view
+	require(
+		Vector2i(game.tutorial_undo_deadlock_cell()) == Vector2i(3, 1),
+		"directionless block in the dead cell should request undo"
+	)
+	require(bool(view.should_draw_undo_tutorial_prompt()), "static deadlock should show Z UNDO")
+
+	view.displacement_subject = view.DISPLACEMENT_BLOCK
+	require(not bool(view.should_draw_undo_tutorial_prompt()), "Z UNDO should wait for movement to stop")
+	view.displacement_subject = view.DISPLACEMENT_NONE
+	game.player_queue = "Down"
+	require(
+		bool(view.should_draw_undo_tutorial_prompt()),
+		"a held direction that cannot release the block should keep Z UNDO visible"
+	)
+	game.player_queue = "Up"
+	require(
+		not bool(view.should_draw_undo_tutorial_prompt()),
+		"a held direction that can release the block should suppress Z UNDO"
+	)
+	game.player_queue = ""
+	block["vector"] = "Right"
+	game.blocks[block_index] = block
+	require(not bool(view.should_draw_undo_tutorial_prompt()), "stored block direction should suppress deadlock hint")
+	block["vector"] = ""
+	game.blocks[block_index] = block
+	game.goal_cells.append(Vector2i(3, 1))
+	require(not bool(view.should_draw_undo_tutorial_prompt()), "block on a goal should suppress deadlock hint")
+	Campaign.active_level_id = previous_level_id
 
 
 func check_install_tutorial_hint(game: Node) -> void:

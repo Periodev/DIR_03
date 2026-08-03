@@ -81,6 +81,10 @@ $checks = @(
 		Pass = $gameBoard -match 'func\s+release_tutorial_target_cell\(\)\s*->\s*Vector2i' -and $gameBoard -notmatch 'goal_cells\.has\(release_target\)' -and $playerBoardView -match 'install_reveal_block_id\s*==\s*-1[\s\S]*displacement_subject\s*==\s*DISPLACEMENT_NONE' -and $playerBoardView -match 'func\s+draw_release_tutorial_hint\(\)[\s\S]*"\[SPACE\] Release"' -and $playerBoardView -match 'func\s+draw_tutorial_hint\(cell:\s*Vector2i,\s*hint_text:\s*String,\s*alpha:\s*float\)[\s\S]*block_rect\.position\.y\s*-\s*scaled_px\(6\.0\)'
 	},
 	@{
+		Name = "campaign level 1-1 precomputes static deadlocks for the undo prompt"
+		Pass = $gameBoard -match 'static_dead_cells:\s*Array\[Vector2i\]' -and $gameBoard -match 'static_dead_cells\s*=\s*calculate_static_dead_cells\(\)' -and $gameBoard -match 'func\s+tutorial_undo_deadlock_cell\(\)\s*->\s*Vector2i[\s\S]*install_order\.is_empty\(\)[\s\S]*static_dead_cells\.has\(cell\)[\s\S]*player_queue_can_release_block\(cell\)' -and $gameBoard -match 'func\s+player_queue_can_release_block\(cell:\s*Vector2i\)\s*->\s*bool[\s\S]*can_block_move_to\(cell,\s*cell\s*\+\s*direction\)' -and $playerBoardView -match 'func\s+draw_undo_tutorial_prompt\(\)[\s\S]*"\[Z\] UNDO"' -and $playerBoardView -match 'displacement_subject\s*==\s*DISPLACEMENT_NONE'
+	},
+	@{
 		Name = "main.gd has trigger_vector operation"
 		Pass = $main -match "func\s+trigger_vector\(\)"
 	},
