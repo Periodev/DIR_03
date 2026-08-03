@@ -21,8 +21,8 @@ Campaign="*res://scripts/campaign.gd"
 [dir]
 
 ; campaign: classic level select. single_level: res://levels/level_test.txt.
-launch_mode="single_level"
-;launch_mode="campaign"
+;launch_mode="single_level"
+launch_mode="campaign"
 [display]
 
 window/size/viewport_width=1440
