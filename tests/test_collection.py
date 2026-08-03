@@ -30,13 +30,14 @@ class CollectionTests(unittest.TestCase):
         self.assertEqual(entries[1].name, "毛蟲")
         self.assertEqual(entries[2].name, "對位碰撞")
 
-    def test_loads_long_corridor_at_end_of_third_area(self) -> None:
+    def test_loads_current_third_area_lock_sequence(self) -> None:
         entries = load_level_collection(ROOT / "levels" / "area_03.txt")
 
-        self.assertEqual(len(entries), 9)
+        self.assertEqual(len(entries), 10)
         self.assertEqual(entries[0].name, "解鎖")
-        self.assertEqual(entries[-2].name, "三聯鎖")
-        self.assertEqual(entries[-1].name, "長廊")
+        self.assertEqual(entries[-3].name, "三聯鎖")
+        self.assertEqual(entries[-2].name, "長廊")
+        self.assertEqual(entries[-1].name, "三相鎖")
 
     def test_wraps_level_parse_errors_with_the_level_name(self) -> None:
         with self.assertRaisesRegex(LevelParseError, "Broken"):

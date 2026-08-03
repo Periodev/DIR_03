@@ -29,7 +29,7 @@ func initialize(board) -> void:
 func build_panel() -> void:
 	var background := ColorRect.new()
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	background.color = palette["bg"]
+	background.color = palette["app_bg"]
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
 

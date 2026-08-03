@@ -225,4 +225,4 @@ func momentum_arrow(direction_name: String) -> String:
 
 func clear_children(node: Node) -> void:
 	for child in node.get_children():
-		child.queue_free()
+		child.free()

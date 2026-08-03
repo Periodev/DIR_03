@@ -22,12 +22,19 @@ var block_cell: Vector2i = block["cell"]
 - A fix for a GDScript parser or type-inference failure must add or update a
   focused static regression check when the failure has a stable textual
   signature.
+- A gameplay-rule or level-parser change must update both implementations when
+  applicable: the Godot rule path (`game_board.gd` / `ascii_map.gd`) and the
+  Python rule path (`solver/engine.py` / `solver/parser.py` / `solver/model.py`).
+- Add or update paired regression coverage for those changes in the Godot
+  verification tools and the Python `tests/` suite. Do not treat coverage in
+  only one runtime as sufficient proof of rule parity.
 - Static checks supplement the Godot parser; they do not replace it.
-- After GDScript changes, run both:
+- After gameplay rules, parsers, or level collections change, run:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\verify_v11_static.ps1
 & 'D:\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64.exe' --headless --path 'D:\DIR_03' --editor --quit
+python -m unittest discover -s tests -v
 ```
 
 - Treat a nonzero Godot exit or a parser error as a failed verification.

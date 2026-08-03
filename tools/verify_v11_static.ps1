@@ -258,11 +258,15 @@ $checks = @(
 	},
 	@{
 		Name = "command player owns the separated debug panel"
-		Pass = $commandPlayer -match 'preload\("res://scripts/debug_panel\.gd"\)' -and $commandPlayer -match "debug_panel\s*=\s*DebugPanel\.new\(\)" -and $debugPanel -match "class_name\s+DirDebugPanel"
+		Pass = $commandPlayer -match 'preload\("res://scripts/debug_panel\.gd"\)' -and $commandPlayer -match "debug_panel\s*=\s*DebugPanel\.new\(\)" -and $debugPanel -match "class_name\s+DirDebugPanel" -and $debugPanel -match 'background\.color\s*=\s*palette\["app_bg"\]'
 	},
 	@{
 		Name = "command player keeps the debug board renderer"
 		Pass = $gameBoard -match 'preload\("res://scripts/board_view\.gd"\)' -and $gameBoard -match "func\s+create_board_view\(\)[\s\S]*BoardView\.new\(\)" -and $commandPlayer -notmatch "create_board_view"
+	},
+	@{
+		Name = "debug renderer frees rebuilt nodes synchronously"
+		Pass = $boardView -match 'func\s+clear_children\(node:\s*Node\)[\s\S]*child\.free\(\)' -and $boardView -notmatch 'child\.queue_free\(\)'
 	},
 	@{
 		Name = "player style defines dark and light monochrome themes"
@@ -350,7 +354,7 @@ $checks = @(
 	},
 	@{
 		Name = "collision source approaches holds and returns around target movement"
-		Pass = $playerBoardView -match "is_collision\s*:=\s*carrier_id\s*!=\s*moving_block_id" -and $playerBoardView -match "TRIGGER_FLASH_HOLD_SECONDS[\s\S]*set_collision_source_offset_ratio[\s\S]*COLLISION_APPROACH_SECONDS[\s\S]*COLLISION_HOLD_SECONDS[\s\S]*set_collision_lead_progress[\s\S]*COLLISION_TARGET_LEAD_SECONDS[\s\S]*set_collision_follow_progress" -and $playerBoardView -match "func\s+set_collision_lead_progress\([\s\S]*COLLISION_TARGET_LEAD_RATIO[\s\S]*func\s+set_collision_follow_progress\([\s\S]*collision_source_offset_ratio[\s\S]*update_collision_flash" -and $playerBoardView -match "block_id\s*==\s*collision_carrier_block_id[\s\S]*collision_source_offset_ratio" -and $playerBoardView -notmatch "draw_collision_contact|collision_contact_alpha" -and $visualStyle -match "COLLISION_COMPRESSION_RATIO\s*:=\s*0\.010" -and $visualStyle -match "COLLISION_CONTACT_OFFSET_RATIO\s*:=\s*\([\s\S]*BLOCK_INSET_RATIO\s*\+\s*COLLISION_COMPRESSION_RATIO" -and $visualStyle -match "COLLISION_TARGET_SECONDS\s*:=\s*0\.13" -and $visualStyle -match "COLLISION_TARGET_LEAD_RATIO\s*:=\s*0\.05" -and $visualStyle -match "COLLISION_TARGET_LEAD_SECONDS\s*:=\s*0\.025" -and $visualStyle -match "COLLISION_TARGET_FOLLOW_SECONDS\s*:=\s*\([\s\S]*COLLISION_TARGET_SECONDS\s*-\s*COLLISION_TARGET_LEAD_SECONDS" -and $visualStyle -match "COLLISION_APPROACH_SECONDS\s*:=\s*\([\s\S]*COLLISION_TARGET_SECONDS\s*\*\s*COLLISION_CONTACT_OFFSET_RATIO" -and $visualStyle -match "COLLISION_HOLD_SECONDS\s*:=\s*0\.083" -and $visualStyle -match "COLLISION_RETURN_SECONDS\s*:=\s*0\.07"
+		Pass = $playerBoardView -match "is_collision\s*:=\s*carrier_id\s*!=\s*moving_block_id" -and $playerBoardView -match "TRIGGER_FLASH_HOLD_SECONDS[\s\S]*set_collision_source_offset_ratio[\s\S]*COLLISION_APPROACH_SECONDS[\s\S]*COLLISION_HOLD_SECONDS[\s\S]*set_collision_lead_progress[\s\S]*COLLISION_TARGET_LEAD_SECONDS[\s\S]*set_collision_follow_progress" -and $playerBoardView -match "func\s+set_collision_lead_progress\([\s\S]*COLLISION_TARGET_LEAD_RATIO[\s\S]*func\s+set_collision_follow_progress\([\s\S]*collision_source_offset_ratio[\s\S]*update_collision_flash" -and $playerBoardView -match "block_id\s*==\s*collision_carrier_block_id[\s\S]*collision_source_offset_ratio" -and $playerBoardView -notmatch "draw_collision_contact|collision_contact_alpha" -and $visualStyle -match "COLLISION_COMPRESSION_RATIO\s*:=\s*0\.010" -and $visualStyle -match "COLLISION_CONTACT_OFFSET_RATIO\s*:=\s*\([\s\S]*BLOCK_INSET_RATIO\s*\+\s*COLLISION_COMPRESSION_RATIO" -and $visualStyle -match "COLLISION_TARGET_SECONDS\s*:=\s*0\.13" -and $visualStyle -match "COLLISION_TARGET_LEAD_RATIO\s*:=\s*0\.05" -and $visualStyle -match "COLLISION_TARGET_LEAD_SECONDS\s*:=\s*0\.025" -and $visualStyle -match "COLLISION_TARGET_FOLLOW_SECONDS\s*:=\s*\([\s\S]*COLLISION_TARGET_SECONDS\s*-\s*COLLISION_TARGET_LEAD_SECONDS" -and $visualStyle -match "COLLISION_APPROACH_SECONDS\s*:=\s*\([\s\S]*COLLISION_TARGET_SECONDS\s*\*\s*COLLISION_CONTACT_OFFSET_RATIO" -and $visualStyle -match "COLLISION_HOLD_SECONDS\s*:=\s*0\.050" -and $visualStyle -match "COLLISION_RETURN_SECONDS\s*:=\s*0\.07"
 	},
 	@{
 		Name = "new atomic input cancels stale displacement callbacks"
