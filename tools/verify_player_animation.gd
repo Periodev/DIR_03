@@ -19,8 +19,10 @@ func run_checks() -> void:
 	await check_player_displacement(game)
 	check_grid_line_toggle(game)
 	check_active_vector_pulse(game)
+	check_progressive_control_hints(game)
 	await check_install_tutorial_hint(game)
 	await check_empty_release_error(game)
+	check_air_install_ignored(game)
 	await check_empty_install_hint(game)
 	await check_loaded_block_rejects_install(game)
 	await check_push_displacement(game)
@@ -68,6 +70,61 @@ func check_grid_line_toggle(game: Node) -> void:
 	require(bool(view.grid_lines_visible), "grid lines should support being restored")
 
 
+func check_progressive_control_hints(game: Node) -> void:
+	var previous_level_id: String = Campaign.active_level_id
+	var hud: Node = game.game_hud
+	require_level(game, "@A.")
+	Campaign.active_level_id = "1-0"
+	hud.refresh()
+	require(bool(hud.direction_hint.visible), "level 1-0 should show directions")
+	require(not bool(hud.install_hint.visible), "level 1-0 should hide install")
+	require(not bool(hud.release_hint.visible), "level 1-0 should hide release")
+
+	Campaign.active_level_id = "1-1"
+	hud.tutorial_controls_stage = 0
+	game.player_queue = ""
+	game.install_tutorial_completed = false
+	game.install_order.clear()
+	hud.refresh()
+	require(not bool(hud.install_hint.visible), "level 1-1 should begin with directions only")
+
+	game.player_queue = "Right"
+	game.facing_direction = Vector2i.LEFT
+	game.facing_name = "Left"
+	hud.refresh()
+	require(
+		not bool(hud.install_hint.visible),
+		"holding a direction away from a nearby block should keep install hidden"
+	)
+	game.facing_direction = Vector2i.RIGHT
+	game.facing_name = "Right"
+	hud.refresh()
+	require(bool(hud.install_hint.visible), "holding a direction should reveal install")
+	require(not bool(hud.release_hint.visible), "release should remain hidden before install")
+
+	game.player_queue = ""
+	game.install_tutorial_completed = true
+	hud.refresh()
+	require(bool(hud.release_hint.visible), "successful install should reveal release")
+	game.install_tutorial_completed = false
+	game.reset_level()
+	require(
+		bool(hud.release_hint.visible),
+		"reset should preserve controls already revealed during the level visit"
+	)
+	Campaign.active_level_id = previous_level_id
+	hud.refresh()
+	var hints: Control = hud.direction_hint.get_parent()
+	require(
+		hints.get_combined_minimum_size().x <= 1392.0,
+		"scaled control hints should fit the 1440px viewport margins"
+	)
+	require(
+		hints.get_combined_minimum_size().y <= hud.control_hint_status_height(),
+		"scaled control hints should fit the automatic status bar height"
+	)
+
+
 func check_install_tutorial_hint(game: Node) -> void:
 	var previous_level_id: String = Campaign.active_level_id
 	require_level(game, "@A.")
@@ -84,7 +141,7 @@ func check_install_tutorial_hint(game: Node) -> void:
 	)
 	require(
 		float(view.install_tutorial_hint_alpha()) == 0.0,
-		"install tutorial should wait before appearing"
+		"install tutorial should begin its fade from zero"
 	)
 	view.update_install_tutorial_hint(
 		VisualStyle.INSTALL_TUTORIAL_HINT_DELAY_SECONDS
@@ -92,7 +149,7 @@ func check_install_tutorial_hint(game: Node) -> void:
 	)
 	require(
 		float(view.install_tutorial_hint_alpha()) >= 0.99,
-		"install tutorial should fade in after the hesitation delay"
+		"install tutorial should fade in as soon as interaction is valid"
 	)
 
 	game.execute_command("X")
@@ -106,6 +163,35 @@ func check_install_tutorial_hint(game: Node) -> void:
 		+ VisualStyle.FACING_ACTION_SETTLE_SECONDS
 		+ 0.05
 	).timeout
+	view.update_release_tutorial_hint(VisualStyle.INSTALL_TUTORIAL_HINT_FADE_SECONDS)
+	require(
+		Vector2i(view.release_tutorial_hint_cell) == Vector2i(1, 0),
+		"release tutorial should target a static installed block"
+	)
+	view.displacement_subject = view.DISPLACEMENT_BLOCK
+	view.update_release_tutorial_hint(0.0)
+	require(
+		Vector2i(view.release_tutorial_hint_cell) == Vector2i(-1, -1),
+		"release tutorial should remain hidden while positioning moves"
+	)
+	view.displacement_subject = view.DISPLACEMENT_NONE
+	view.update_release_tutorial_hint(0.0)
+	view.update_release_tutorial_hint(VisualStyle.INSTALL_TUTORIAL_HINT_FADE_SECONDS)
+	require(
+		Vector2i(view.release_tutorial_hint_cell) == Vector2i(1, 0),
+		"release tutorial should return when the installed block stops"
+	)
+	require(
+		float(view.release_tutorial_hint_alpha()) >= 0.99,
+		"release tutorial should fade in after the installed vector appears"
+	)
+	game.execute_command("T")
+	view.update_release_tutorial_hint(0.0)
+	require(
+		Vector2i(view.release_tutorial_hint_cell) == Vector2i(-1, -1),
+		"release tutorial should disappear when the vector is released"
+	)
+	await create_timer(trigger_total_seconds() + 0.05).timeout
 	Campaign.active_level_id = previous_level_id
 
 
@@ -113,12 +199,17 @@ func check_empty_release_error(game: Node) -> void:
 	require_level(game, "@..")
 	var view: Node = game.board_view
 	var command_count_before: int = game.command_history.size()
+	var undo_count_before: int = game.undo_stack.size()
 	var started: bool = bool(game.execute_command("T"))
-	require(started, "empty release command should be accepted")
+	require(not started, "empty release command should be treated as ineffective")
 	require(not bool(game.input_locked), "empty release feedback should not lock input")
 	require(
-		game.command_history.size() == command_count_before + 1,
-		"empty release should preserve existing command history behavior"
+		game.command_history.size() == command_count_before,
+		"empty release should not enter command history"
+	)
+	require(
+		game.undo_stack.size() == undo_count_before,
+		"empty release should not consume an undo step"
 	)
 	require(
 		Vector2i(view.error_flash_cell) == Vector2i(game.player_cell),
@@ -131,6 +222,22 @@ func check_empty_release_error(game: Node) -> void:
 	await create_timer(VisualStyle.ERROR_FLASH_SECONDS + 0.05).timeout
 	require(float(view.error_flash_alpha) < 0.01, "error overlay should fade out")
 	require(Vector2i(view.error_flash_cell) == Vector2i(-1, -1), "error cell should clear")
+
+
+func check_air_install_ignored(game: Node) -> void:
+	require_level(game, "@..")
+	var command_count_before: int = game.command_history.size()
+	var undo_count_before: int = game.undo_stack.size()
+	var started: bool = bool(game.execute_command("X"))
+	require(not started, "install against air should be ineffective")
+	require(
+		game.command_history.size() == command_count_before,
+		"install against air should not enter command history"
+	)
+	require(
+		game.undo_stack.size() == undo_count_before,
+		"install against air should not consume an undo step"
+	)
 
 
 func check_active_vector_pulse(game: Node) -> void:
@@ -171,7 +278,7 @@ func check_loaded_block_rejects_install(game: Node) -> void:
 	game.render_all()
 	var view: Node = game.board_view
 	var started: bool = bool(game.execute_command("X"))
-	require(started, "install rejection command should be accepted")
+	require(not started, "install rejection command should be ineffective")
 	require(not bool(game.input_locked), "install rejection feedback should not lock input")
 	require(String(game.player_queue) == "Left", "rejected install should keep player vector")
 	var block_index: int = int(game.find_block_index_by_id(1))
@@ -193,9 +300,19 @@ func check_loaded_block_rejects_install(game: Node) -> void:
 func check_empty_install_hint(game: Node) -> void:
 	require_level(game, "@A.")
 	var view: Node = game.board_view
+	var command_count_before: int = game.command_history.size()
+	var undo_count_before: int = game.undo_stack.size()
 	var started: bool = bool(game.execute_command("X"))
-	require(started, "empty install command should be accepted")
+	require(not started, "empty install command should be treated as ineffective")
 	require(not bool(game.input_locked), "empty install hint should not lock input")
+	require(
+		game.command_history.size() == command_count_before,
+		"empty install should not enter command history"
+	)
+	require(
+		game.undo_stack.size() == undo_count_before,
+		"empty install should not consume an undo step"
+	)
 	require(String(game.player_queue) == "", "empty install should keep player empty")
 	var block_index: int = int(game.find_block_index_by_id(1))
 	var block: Dictionary = game.blocks[block_index]
@@ -215,7 +332,7 @@ func check_empty_install_hint(game: Node) -> void:
 	require_level(game, "@A.")
 	install_test_vector(game, 1, "Right")
 	started = bool(game.execute_command("X"))
-	require(started, "empty-hand retrieval rejection should be accepted")
+	require(not started, "empty-hand retrieval rejection should be ineffective")
 	require(String(game.player_queue) == "", "normal block should not return its vector")
 	block_index = int(game.find_block_index_by_id(1))
 	block = game.blocks[block_index]

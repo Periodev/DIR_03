@@ -74,7 +74,11 @@ $checks = @(
 	},
 	@{
 		Name = "campaign level 1-1 provides a delayed contextual install hint"
-		Pass = $gameBoard -match 'INSTALL_TUTORIAL_LEVEL_ID\s*:=\s*"1-1"' -and $gameBoard -match 'func\s+install_tutorial_target_cell\(\)\s*->\s*Vector2i' -and $playerBoardView -match 'func\s+draw_install_tutorial_hint\(\)' -and $visualStyle -match 'INSTALL_TUTORIAL_HINT_DELAY_SECONDS\s*:=\s*0\.40'
+		Pass = $gameBoard -match 'INSTALL_TUTORIAL_LEVEL_ID\s*:=\s*"1-1"' -and $gameBoard -match 'func\s+install_tutorial_target_cell\(\)\s*->\s*Vector2i' -and $playerBoardView -match 'func\s+draw_install_tutorial_hint\(\)[\s\S]*"\[X\] Install"' -and $visualStyle -match 'INSTALL_TUTORIAL_HINT_DELAY_SECONDS\s*:=\s*0\.0'
+	},
+	@{
+		Name = "campaign level 1-1 reveals release above the installed block"
+		Pass = $gameBoard -match 'func\s+release_tutorial_target_cell\(\)\s*->\s*Vector2i' -and $gameBoard -notmatch 'goal_cells\.has\(release_target\)' -and $playerBoardView -match 'install_reveal_block_id\s*==\s*-1[\s\S]*displacement_subject\s*==\s*DISPLACEMENT_NONE' -and $playerBoardView -match 'func\s+draw_release_tutorial_hint\(\)[\s\S]*"\[SPACE\] Release"' -and $playerBoardView -match 'func\s+draw_tutorial_hint\(cell:\s*Vector2i,\s*hint_text:\s*String,\s*alpha:\s*float\)[\s\S]*block_rect\.position\.y\s*-\s*scaled_px\(6\.0\)'
 	},
 	@{
 		Name = "main.gd has trigger_vector operation"
@@ -234,7 +238,7 @@ $checks = @(
 	},
 	@{
 		Name = "player interface uses fixed header and status bars"
-		Pass = $playerInterface -match "HEADER_HEIGHT\s*:=\s*60" -and $playerInterface -match "STATUS_HEIGHT\s*:=\s*88" -and $playerInterface -match "STAGE_MIN_HEIGHT\s*:=\s*480"
+		Pass = $playerInterface -match "HEADER_HEIGHT\s*:=\s*60" -and $playerInterface -match "BASE_STATUS_HEIGHT\s*:=\s*88" -and $playerInterface -match "STAGE_MIN_HEIGHT\s*:=\s*480"
 	},
 	@{
 		Name = "player interface centers a locally positioned board"
@@ -249,8 +253,16 @@ $checks = @(
 		Pass = $playerInterface -match 'left_group\.add_child\(level_name\)[\s\S]*left_group\.add_child\(build_header_goals_group\(\)\)' -and $playerInterface -match "func\s+build_header_goals_group\(\)" -and $playerInterface -notmatch 'make_status_group\("(?:FACING|SLOT|STEPS|GOALS)"' -and $playerInterface -notmatch "slot_chip|slot_description|steps_value|facing_labels"
 	},
 	@{
-		Name = "player interface uses English action labels"
-		Pass = $playerInterface -match '"PUSH"' -and $playerInterface -match '"INSTALL"' -and $playerInterface -match '"TRIGGER"' -and $playerInterface -notmatch '"(\u63a8|\u5b89\u88dd|\u89f8\u767c)"'
+		Name = "player interface progressively reveals tutorial controls"
+		Pass = $playerInterface -match 'level_id\s*==\s*"1-0"' -and $playerInterface -match 'level_id\s*==\s*"1-1"' -and $playerInterface -match 'install_tutorial_target_cell\(\)\s*!=\s*Vector2i\(-1,\s*-1\)' -and $playerInterface -match 'tutorial_controls_stage\s*=\s*maxi\(tutorial_controls_stage,\s*1\)' -and $playerInterface -match 'release_hint\.visible\s*=\s*tutorial_controls_stage\s*>=\s*2'
+	},
+	@{
+		Name = "player interface uses English move install and release labels"
+		Pass = $playerInterface -match '"MOVE"' -and $playerInterface -match '"INSTALL"' -and $playerInterface -match '"RELEASE"' -and $playerInterface -notmatch '"(?:TRIGGER|\u5b89\u88dd|\u89f8\u767c)"'
+	},
+	@{
+		Name = "player control hints use one adjustable automatic scale"
+		Pass = $playerInterface -match 'CONTROL_HINT_SCALE\s*:=\s*[0-9]+(?:\.[0-9]+)?' -and $playerInterface -match 'func\s+control_hint_font_size\(base_size:\s*int\)\s*->\s*int' -and $playerInterface -match 'base_size\s*\*\s*CONTROL_HINT_SCALE' -and $playerInterface -match 'func\s+control_hint_status_height\(\)\s*->\s*float' -and $playerInterface -match 'status\.custom_minimum_size\.y\s*=\s*control_hint_status_height\(\)'
 	},
 	@{
 		Name = "player interface buttons do not capture gameplay keys"
@@ -399,6 +411,10 @@ $checks = @(
 	@{
 		Name = "game board dispatches compact UDLRXT commands"
 		Pass = $gameBoard -match 'VALID_COMMANDS\s*:=\s*"UDLRXT"' -and $gameBoard -match 'func\s+execute_command\(command:\s*String\)'
+	},
+	@{
+		Name = "ineffective commands are rejected before history and undo"
+		Pass = $gameBoard -match 'if\s+not\s+command_will_change_state\(normalized_command\):[\s\S]*show_ineffective_command_feedback\(normalized_command\)[\s\S]*return\s+false[\s\S]*undo_stack\.append\(capture_board_snapshot\(\)\)[\s\S]*command_history\.append\(normalized_command\)' -and $gameBoard -match 'func\s+command_will_change_state\(command:\s*String\)\s*->\s*bool' -and $gameBoard -notmatch 'gameplay_state_changed_since'
 	},
 	@{
 		Name = "normal input routes through execute_command"

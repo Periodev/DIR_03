@@ -89,6 +89,10 @@ func execute_command(command: String) -> bool:
 	if normalized_command.length() != 1 or not VALID_COMMANDS.contains(normalized_command):
 		return false
 
+	if not command_will_change_state(normalized_command):
+		show_ineffective_command_feedback(normalized_command)
+		return false
+
 	if undo_enabled:
 		undo_stack.append(capture_board_snapshot())
 	command_history.append(normalized_command)
@@ -106,6 +110,109 @@ func execute_command(command: String) -> bool:
 		"T":
 			trigger_vector()
 	return true
+
+
+func command_will_change_state(command: String) -> bool:
+	match command:
+		"U":
+			return movement_will_change_state(Vector2i.UP)
+		"D":
+			return movement_will_change_state(Vector2i.DOWN)
+		"L":
+			return movement_will_change_state(Vector2i.LEFT)
+		"R":
+			return movement_will_change_state(Vector2i.RIGHT)
+		"X":
+			return install_will_change_state()
+		"T":
+			return not install_order.is_empty()
+	return false
+
+
+func movement_will_change_state(direction: Vector2i) -> bool:
+	if facing_direction != direction:
+		return true
+
+	var target: Vector2i = player_cell + direction
+	var block_index: int = find_block_index_at(target)
+	if block_index == -1:
+		return is_cell_walkable_for_player(player_cell, target)
+	return can_block_move_to(target, target + direction)
+
+
+func install_will_change_state() -> bool:
+	var target: Vector2i = player_cell + facing_direction
+	var block_index: int = find_block_index_at(target)
+	if block_index == -1:
+		return false
+
+	var block: Dictionary = blocks[block_index]
+	if player_queue == "":
+		return is_recovery_block(block) and String(block["vector"]) != ""
+	return String(block["vector"]) == ""
+
+
+func show_ineffective_command_feedback(command: String) -> void:
+	match command:
+		"U":
+			show_ineffective_move_feedback(Vector2i.UP, "Up")
+		"D":
+			show_ineffective_move_feedback(Vector2i.DOWN, "Down")
+		"L":
+			show_ineffective_move_feedback(Vector2i.LEFT, "Left")
+		"R":
+			show_ineffective_move_feedback(Vector2i.RIGHT, "Right")
+		"X":
+			show_ineffective_install_feedback()
+		"T":
+			set_message("Nothing installed to release.")
+			append_debug_log("Release unavailable: no installed vectors.")
+			start_player_error_feedback()
+	update_hud()
+
+
+func show_ineffective_move_feedback(direction: Vector2i, direction_name: String) -> void:
+	var target: Vector2i = player_cell + direction
+	var block_index: int = find_block_index_at(target)
+	if block_index == -1:
+		set_message("Blocked by wall, fence or board edge. Queue unchanged.")
+		append_debug_log("Move %s failed: wall, fence or edge." % direction_name)
+		return
+
+	var block_id: int = int(blocks[block_index]["id"])
+	set_message("Push failed. Queue unchanged.")
+	append_debug_log("Push %s failed: block %s is blocked." % [
+		direction_name,
+		block_label(block_id),
+	])
+
+
+func show_ineffective_install_feedback() -> void:
+	var target: Vector2i = player_cell + facing_direction
+	var block_index: int = find_block_index_at(target)
+	if block_index == -1:
+		set_message("Interact failed. Face a block.")
+		append_debug_log("Interact failed: no block at %s." % cell_text(target))
+		return
+
+	var block: Dictionary = blocks[block_index]
+	if player_queue == "":
+		start_block_hint_feedback(block["cell"])
+		if String(block["vector"]) == "":
+			set_message("Nothing held to install.")
+			append_debug_log("Install unchanged: player and block are empty.")
+		else:
+			set_message("Retrieve failed. Only recovery blocks return installed vectors.")
+			append_debug_log("Retrieve failed: block %s is not a recovery block." % block_label(block["id"]))
+		return
+
+	set_message("Install failed. Block already has a vector.")
+	append_debug_log("Install %s failed: block %s already has %s." % [
+		player_queue,
+		block_label(block["id"]),
+		block["vector"],
+	])
+	start_block_error_feedback(block["cell"])
 
 
 func try_move(direction: Vector2i, direction_name: String) -> void:
@@ -426,6 +533,23 @@ func install_tutorial_target_cell() -> Vector2i:
 	if String(block["vector"]) != "":
 		return Vector2i(-1, -1)
 	return target
+
+
+func release_tutorial_target_cell() -> Vector2i:
+	if (
+		Campaign.active_level_id != INSTALL_TUTORIAL_LEVEL_ID
+		or not install_tutorial_completed
+		or install_order.is_empty()
+	):
+		return Vector2i(-1, -1)
+
+	var block_index: int = find_block_index_by_id(install_order[0])
+	if block_index == -1:
+		return Vector2i(-1, -1)
+	var block: Dictionary = blocks[block_index]
+	if String(block["vector"]) == "":
+		return Vector2i(-1, -1)
+	return Vector2i(block["cell"])
 
 
 func capture_board_snapshot() -> BoardSnapshot:

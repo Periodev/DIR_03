@@ -4,16 +4,21 @@ extends CanvasLayer
 const VisualStyle = preload("res://scripts/visual_style.gd")
 
 const HEADER_HEIGHT := 60
-const STATUS_HEIGHT := 88
+const BASE_STATUS_HEIGHT := 88
 const STAGE_MIN_HEIGHT := 480
 const MESSAGE_HEIGHT := 20
 const MESSAGE_WIDTH := 640
+const CONTROL_HINT_SCALE := 2.0
+const CONTROL_HINT_KEY_FONT_SIZE := 11
+const CONTROL_HINT_ACTION_FONT_SIZE := 12
+const CONTROL_HINT_VERTICAL_PADDING := 48
 
 var game_board
 var board_view
 var light_theme := false
 var palette: Dictionary = {}
 var result_active := false
+var tutorial_controls_stage := 0
 
 var ui_font: Font
 var mono_font: Font
@@ -23,6 +28,9 @@ var root_panel: PanelContainer
 var board_host: CenterContainer
 var message_label: Label
 var goals_value: Label
+var direction_hint: HBoxContainer
+var install_hint: HBoxContainer
+var release_hint: HBoxContainer
 
 var label_tone_labels: Array[Label] = []
 var text_tone_labels: Array[Label] = []
@@ -173,7 +181,7 @@ func build_stage() -> Control:
 func build_status_bar() -> Control:
 	var status := Control.new()
 	status.name = "StatusBar"
-	status.custom_minimum_size.y = STATUS_HEIGHT
+	status.custom_minimum_size.y = control_hint_status_height()
 	status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	status.add_child(make_horizontal_separator(true))
@@ -188,10 +196,13 @@ func build_status_bar() -> Control:
 	row.add_theme_constant_override("separation", 30)
 	margin.add_child(row)
 
-	var flexible_space := Control.new()
-	flexible_space.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(flexible_space)
+	var left_space := Control.new()
+	left_space.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(left_space)
 	row.add_child(build_key_hints())
+	var right_space := Control.new()
+	right_space.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(right_space)
 
 	return status
 
@@ -213,28 +224,54 @@ func build_header_goals_group() -> HBoxContainer:
 
 func build_key_hints() -> HBoxContainer:
 	var hints := HBoxContainer.new()
-	hints.add_theme_constant_override("separation", 16)
+	hints.add_theme_constant_override("separation", 28)
 	hints.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	add_key_hint(hints, "← ↑ ↓ →", "PUSH")
-	add_key_hint(hints, "X", "INSTALL")
-	add_key_hint(hints, "SPACE", "TRIGGER")
+	direction_hint = add_key_hint(hints, "← ↑ ↓ →", "MOVE")
+	install_hint = add_key_hint(hints, "X", "INSTALL")
+	release_hint = add_key_hint(hints, "SPACE", "RELEASE")
 	return hints
 
 
-func add_key_hint(parent: HBoxContainer, key_text: String, action_text: String) -> void:
+func add_key_hint(
+	parent: HBoxContainer,
+	key_text: String,
+	action_text: String
+) -> HBoxContainer:
 	var item := HBoxContainer.new()
 	item.add_theme_constant_override("separation", 7)
 	parent.add_child(item)
 
-	var keycap := make_label(key_text, 11, mono_font)
+	var keycap := make_label(
+		key_text,
+		control_hint_font_size(CONTROL_HINT_KEY_FONT_SIZE),
+		mono_font
+	)
 	keycap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	keycap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	keycap_labels.append(keycap)
 	item.add_child(keycap)
 
-	var action := make_label(action_text, 12, ui_font)
-	label_tone_labels.append(action)
-	item.add_child(action)
+	if action_text != "":
+		var action := make_label(
+			action_text,
+			control_hint_font_size(CONTROL_HINT_ACTION_FONT_SIZE),
+			ui_font
+		)
+		label_tone_labels.append(action)
+		item.add_child(action)
+	return item
+
+
+func control_hint_font_size(base_size: int) -> int:
+	return maxi(8, roundi(base_size * CONTROL_HINT_SCALE))
+
+
+func control_hint_status_height() -> float:
+	return maxf(
+		BASE_STATUS_HEIGHT,
+		control_hint_font_size(CONTROL_HINT_ACTION_FONT_SIZE)
+		+ CONTROL_HINT_VERTICAL_PADDING
+	)
 
 
 func make_label(text: String, font_size: int, font: Font) -> Label:
@@ -283,12 +320,33 @@ func make_horizontal_separator(at_top: bool) -> ColorRect:
 func refresh() -> void:
 	if game_board == null or goals_value == null:
 		return
+	refresh_control_hints()
 
 	var filled_goals := 0
 	for goal_cell in game_board.goal_cells:
 		if game_board.find_block_index_at(goal_cell) != -1:
 			filled_goals += 1
 	goals_value.text = "%s / %s" % [filled_goals, game_board.goal_cells.size()]
+
+
+func refresh_control_hints() -> void:
+	var level_id: String = Campaign.active_level_id
+	if level_id == "1-0":
+		tutorial_controls_stage = 0
+	elif level_id == "1-1":
+		if game_board.install_tutorial_target_cell() != Vector2i(-1, -1):
+			tutorial_controls_stage = maxi(tutorial_controls_stage, 1)
+		if (
+			bool(game_board.install_tutorial_completed)
+			or not game_board.install_order.is_empty()
+		):
+			tutorial_controls_stage = 2
+	else:
+		tutorial_controls_stage = 2
+
+	direction_hint.visible = true
+	install_hint.visible = tutorial_controls_stage >= 1
+	release_hint.visible = tutorial_controls_stage >= 2
 
 
 func set_message(text: String) -> void:

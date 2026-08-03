@@ -47,6 +47,8 @@ var active_vector_pulse_block_id := -1
 var active_vector_pulse_elapsed := 0.0
 var install_tutorial_hint_cell := Vector2i(-1, -1)
 var install_tutorial_hint_elapsed := 0.0
+var release_tutorial_hint_cell := Vector2i(-1, -1)
+var release_tutorial_hint_elapsed := 0.0
 
 
 func initialize(board) -> void:
@@ -66,6 +68,7 @@ func render() -> void:
 func _process(delta: float) -> void:
 	update_active_vector_pulse(delta)
 	update_install_tutorial_hint(delta)
+	update_release_tutorial_hint(delta)
 
 
 func set_light_theme(enabled: bool) -> void:
@@ -517,6 +520,7 @@ func _draw() -> void:
 	draw_player_stored_vector()
 	draw_player_facing()
 	draw_install_tutorial_hint()
+	draw_release_tutorial_hint()
 
 
 func draw_ground() -> void:
@@ -1128,14 +1132,66 @@ func draw_install_tutorial_hint() -> void:
 	if alpha <= 0.0:
 		return
 
-	var hint_text := "[X] Install"
+	draw_tutorial_hint(
+		install_tutorial_hint_cell,
+		"[X] Install",
+		alpha
+	)
+
+
+func update_release_tutorial_hint(delta: float) -> void:
+	if game_board == null or not game_board.has_method("release_tutorial_target_cell"):
+		return
+
+	var target := Vector2i(-1, -1)
+	if (
+		install_reveal_block_id == -1
+		and displacement_subject == DISPLACEMENT_NONE
+	):
+		target = game_board.release_tutorial_target_cell()
+	if target != release_tutorial_hint_cell:
+		release_tutorial_hint_cell = target
+		release_tutorial_hint_elapsed = 0.0
+		queue_redraw()
+		return
+
+	if target == Vector2i(-1, -1):
+		return
+	release_tutorial_hint_elapsed += delta
+	if release_tutorial_hint_alpha() < 1.0:
+		queue_redraw()
+
+
+func release_tutorial_hint_alpha() -> float:
+	return clampf(
+		release_tutorial_hint_elapsed
+		/ VisualStyle.INSTALL_TUTORIAL_HINT_FADE_SECONDS,
+		0.0,
+		1.0
+	)
+
+
+func draw_release_tutorial_hint() -> void:
+	if release_tutorial_hint_cell == Vector2i(-1, -1):
+		return
+	var alpha := release_tutorial_hint_alpha()
+	if alpha <= 0.0:
+		return
+	draw_tutorial_hint(
+		release_tutorial_hint_cell,
+		"[SPACE] Release",
+		alpha
+	)
+
+
+func draw_tutorial_hint(cell: Vector2i, hint_text: String, alpha: float) -> void:
 	var block_gap := roundi(cell_size * VisualStyle.BLOCK_INSET_RATIO)
 	var block_rect := Rect2(
-		cell_to_position(install_tutorial_hint_cell) + Vector2.ONE * block_gap,
+		cell_to_position(cell) + Vector2.ONE * block_gap,
 		Vector2.ONE * (cell_size - block_gap * 2)
 	)
 	var horizontal_padding := scaled_px(5.0)
-	var available_width := block_rect.size.x - horizontal_padding * 2.0
+	var available_width := cell_size * 1.6 - horizontal_padding * 2.0
 	var font_size := scaled_font_size(14)
 	var text_size := fallback_font.get_string_size(
 		hint_text,
@@ -1153,9 +1209,7 @@ func draw_install_tutorial_hint() -> void:
 		)
 	var text_position := Vector2(
 		block_rect.get_center().x - text_size.x / 2.0,
-		block_rect.get_center().y
-		+ fallback_font.get_ascent(font_size) / 2.0
-		- fallback_font.get_descent(font_size) / 2.0
+		block_rect.position.y - scaled_px(6.0)
 	)
 	var shadow_color: Color = palette["direction_fill"]
 	shadow_color.a *= alpha
