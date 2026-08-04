@@ -215,13 +215,14 @@ func refresh_status() -> void:
 		status_message = "NO LEVELS"
 		return
 	var entry: Dictionary = page[selected_index]
-	var level_id := String(entry["id"])
+	var level_id: String = String(entry["id"])
+	var level_label := "%s  %s" % [level_id, String(entry["name"]).to_upper()]
 	if Campaign.is_completed(level_id):
-		status_message = "%s  COMPLETE" % level_id
+		status_message = "%s  COMPLETE" % level_label
 	elif is_entry_unlocked(entry):
-		status_message = "%s  AVAILABLE" % level_id
+		status_message = "%s  AVAILABLE" % level_label
 	else:
-		status_message = "%s  LOCKED" % level_id
+		status_message = "%s  LOCKED" % level_label
 
 
 func is_entry_unlocked(entry: Dictionary) -> bool:

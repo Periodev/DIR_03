@@ -95,11 +95,15 @@ func build_header() -> Control:
 	left_group.add_child(brand)
 	left_group.add_child(make_vertical_separator(16))
 
-	var level_number := make_label("01", 12, mono_font)
+	var active_level_id: String = Campaign.active_level_id
+	var level_number_text := "TEST" if active_level_id == "" else active_level_id
+	var level_number := make_label(level_number_text, 12, mono_font)
 	label_tone_labels.append(level_number)
 	left_group.add_child(level_number)
 
-	var level_name := make_label("LEVEL TEST", 14, ui_font)
+	var active_level_name: String = Campaign.active_level_name()
+	var level_name_text := "LEVEL TEST" if active_level_name == "" else active_level_name.to_upper()
+	var level_name := make_label(level_name_text, 14, ui_font)
 	text_tone_labels.append(level_name)
 	left_group.add_child(level_name)
 	left_group.add_child(make_vertical_separator(16))

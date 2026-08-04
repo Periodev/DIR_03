@@ -13,16 +13,16 @@ func run_verification() -> void:
 	add_child(selector)
 	await get_tree().process_frame
 
-	if selector.entries.size() != 33:
-		fail("Expected 33 classic selector entries, got %s." % selector.entries.size())
+	if selector.entries.size() != 34:
+		fail("Expected 34 classic selector entries, got %s." % selector.entries.size())
 		return
 	if (
 		selector.area_entries.size() != 3
 		or selector.area_entries[0].size() != 12
 		or selector.area_entries[1].size() != 12
-		or selector.area_entries[2].size() != 9
+		or selector.area_entries[2].size() != 10
 	):
-		fail("Classic selector pages do not match the 12/12/9 campaign areas.")
+		fail("Classic selector pages do not match the 12/12/10 campaign areas.")
 		return
 	if Campaign.level_select_scene_path != Campaign.CLASSIC_LEVEL_SELECT_SCENE_PATH:
 		fail("Classic selector did not register itself as the return scene.")
@@ -106,7 +106,7 @@ func run_verification() -> void:
 		fail("F3 unlock state did not make every area available.")
 		return
 
-	print("Classic level select verification passed for 33 levels.")
+	print("Classic level select verification passed for %s levels." % selector.entries.size())
 	get_tree().quit(0)
 
 

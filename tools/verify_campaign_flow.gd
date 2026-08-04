@@ -11,6 +11,7 @@ func _initialize() -> void:
 func run_verification() -> void:
 	var campaign: Node = CampaignScript.new()
 	var verified_levels := 0
+	var verified_ids: Dictionary = {}
 
 	for area_id_value in campaign.AREAS:
 		var area_id: int = int(area_id_value)
@@ -19,6 +20,16 @@ func run_verification() -> void:
 		for level_value in levels:
 			var level: Dictionary = level_value
 			var level_id: String = String(level["id"])
+			if verified_ids.has(level_id):
+				fail("Duplicate campaign level id: %s." % level_id)
+				return
+			verified_ids[level_id] = true
+			if String(level["name"]) == "":
+				fail("Campaign level %s has no name." % level_id)
+				return
+			if not String(level["source"]).begins_with("!cell-edge-v1"):
+				fail("Campaign level %s does not use the unified cell-edge format." % level_id)
+				return
 			var level_cell: Vector2i = level["cell"]
 			if not campaign.begin_level(level_id, area_id, level_cell):
 				fail("Could not start %s." % level_id)
@@ -29,6 +40,13 @@ func run_verification() -> void:
 				fail("Could not parse %s: %s" % [level_id, parsed["error"]])
 				return
 			verified_levels += 1
+
+	if verified_levels != 34:
+		fail("Expected 34 campaign levels; found %s." % verified_levels)
+		return
+	if campaign.level_name_for("1-0") != "Push" or campaign.level_name_for("3-10") != "Phase":
+		fail("Campaign level names are not available through the catalog.")
+		return
 
 	campaign.unlock_all_levels()
 	if not campaign.all_levels_unlocked:

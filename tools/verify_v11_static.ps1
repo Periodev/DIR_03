@@ -13,6 +13,8 @@ $debugStylePath = Join-Path $root "scripts/debug_style.gd"
 $commandPlayerPath = Join-Path $root "scripts/command_player.gd"
 $worldMapPath = Join-Path $root "scripts/world_map.gd"
 $classicLevelSelectPath = Join-Path $root "scripts/classic_level_select.gd"
+$campaignPath = Join-Path $root "scripts/campaign.gd"
+$levelCatalogPath = Join-Path $root "scripts/level_catalog.gd"
 $classicLevelSelectScenePath = Join-Path $root "scenes/classic_level_select.tscn"
 $commandPlayerScenePath = Join-Path $root "scenes/command_player.tscn"
 $asciiMapPath = Join-Path $root "scripts/ascii_map.gd"
@@ -36,6 +38,8 @@ $main = "$mainEntry`n$gameBoard`n$boardView`n$playerBoardView`n$gameHud`n$player
 $commandPlayer = Get-Content -LiteralPath $commandPlayerPath -Raw
 $worldMap = Get-Content -LiteralPath $worldMapPath -Raw
 $classicLevelSelect = Get-Content -LiteralPath $classicLevelSelectPath -Raw
+$campaign = Get-Content -LiteralPath $campaignPath -Raw
+$levelCatalog = Get-Content -LiteralPath $levelCatalogPath -Raw
 $classicLevelSelectScene = Get-Content -LiteralPath $classicLevelSelectScenePath -Raw
 $commandPlayerScene = Get-Content -LiteralPath $commandPlayerScenePath -Raw
 $asciiMap = Get-Content -LiteralPath $asciiMapPath -Raw
@@ -435,6 +439,14 @@ $checks = @(
 	@{
 		Name = "classic level selector preserves area exit gates and F3 unlock"
 		Pass = $classicLevelSelect -match 'previous_area\["exit_requirement"\]' -and $classicLevelSelect -match 'Campaign\.all_levels_unlocked' -and $classicLevelSelect -match 'key_event\.keycode\s*==\s*KEY_F3'
+	},
+	@{
+		Name = "campaign levels use one named cell-edge catalog"
+		Pass = $campaign -match 'preload\("res://scripts/level_catalog\.gd"\)' -and $campaign -match 'const\s+AREAS\s*:=\s*LevelCatalogData\.AREAS' -and $campaign -notmatch 'collection_path|load_collection_sections' -and ([regex]::Matches($levelCatalog, '"id":\s*"')).Count -eq 34 -and ([regex]::Matches($levelCatalog, '"name":\s*"')).Count -eq 34 -and ([regex]::Matches($levelCatalog, '"source":\s*"!cell-edge-v1')).Count -eq 34
+	},
+	@{
+		Name = "campaign level names reach the player and selector UI"
+		Pass = $campaign -match 'func\s+active_level_name\(\)\s*->\s*String' -and $campaign -match 'func\s+level_name_for\(level_id:\s*String\)\s*->\s*String' -and $playerInterface -match 'Campaign\.active_level_name\(\)' -and $classicLevelSelect -match 'String\(entry\["name"\]\)\.to_upper\(\)'
 	},
 	@{
 		Name = "classic level selector F4 records selected level completion"
