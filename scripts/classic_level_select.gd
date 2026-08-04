@@ -14,6 +14,7 @@ const BOTTOM_MARGIN := 48.0
 const TILE_GAP := 8.0
 const LEVEL_NAME_GAP := 12.0
 const LEVEL_NAME_HEIGHT := 24.0
+const LEVEL_NAME_FONT_SIZE := 24
 const LEVEL_NAME_MIN_WIDTH := 208.0
 const LEVEL_NAME_MAX_WIDTH := 320.0
 const COMPLETED_COLOR := Color("#49c9a5")
@@ -372,7 +373,7 @@ func draw_selected_level_name() -> void:
 	draw_text_centered(
 		selected_level_name_rect(),
 		level_name,
-		16,
+		LEVEL_NAME_FONT_SIZE,
 		palette["text_hi"]
 	)
 
@@ -408,7 +409,8 @@ func draw_level_entry(index: int) -> void:
 		entry["thumbnail_data"],
 		rect,
 		palette,
-		1.0 if unlocked else LOCKED_ALPHA
+		1.0 if unlocked else LOCKED_ALPHA,
+		completed
 	)
 	draw_rect(rect, border_color, false, border_width)
 	if selected:

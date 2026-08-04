@@ -5,7 +5,7 @@ const CONTENT_RATIO := 0.80
 const FLOOR_LIGHTEN_AMOUNT := 0.08
 const GOAL_SIZE_RATIO := 0.48
 const BLOCK_SIZE_RATIO := 0.58
-const PLAYER_SIZE_RATIO := 0.62
+const COMPLETED_OUTLINE_SIZE_RATIO := 0.68
 const FENCE_END_INSET_RATIO := 0.20
 
 
@@ -14,7 +14,8 @@ static func draw(
 	level_data: Dictionary,
 	rect: Rect2,
 	palette: Dictionary,
-	alpha: float = 1.0
+	alpha: float = 1.0,
+	completed: bool = false
 ) -> void:
 	if level_data.is_empty():
 		return
@@ -27,9 +28,30 @@ static func draw(
 	var cell_size: float = float(layout["cell_size"])
 	draw_terrain(canvas, terrain, origin, cell_size, palette, alpha)
 	draw_goals(canvas, level_data["goal_cells"], origin, cell_size, palette, alpha)
-	draw_blocks(canvas, level_data["blocks"], origin, cell_size, palette, alpha)
-	draw_player(canvas, level_data["player_cell"], origin, cell_size, palette, alpha)
+	var block_cells: Array[Vector2i] = block_cells_for(level_data, completed)
+	draw_blocks(canvas, block_cells, origin, cell_size, palette, alpha)
+	if completed:
+		draw_completed_outlines(
+			canvas,
+			block_cells,
+			origin,
+			cell_size,
+			palette,
+			alpha
+		)
 	draw_fences(canvas, level_data, origin, cell_size, palette, alpha)
+
+
+static func block_cells_for(level_data: Dictionary, completed: bool) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if completed:
+		for goal_value in level_data["goal_cells"]:
+			result.append(Vector2i(goal_value))
+		return result
+	for block_value in level_data["blocks"]:
+		var block: Dictionary = block_value
+		result.append(Vector2i(block["cell"]))
+	return result
 
 
 static func layout_for(level_data: Dictionary, rect: Rect2) -> Dictionary:
@@ -98,39 +120,42 @@ static func draw_goals(
 
 static func draw_blocks(
 	canvas: CanvasItem,
-	blocks: Array,
+	block_cells: Array[Vector2i],
 	origin: Vector2,
 	cell_size: float,
 	palette: Dictionary,
 	alpha: float
 ) -> void:
 	var color: Color = with_alpha(palette["block"], alpha)
-	for block_value in blocks:
-		var block: Dictionary = block_value
-		var cell: Vector2i = block["cell"]
+	for cell in block_cells:
 		canvas.draw_rect(
 			centered_cell_rect(cell, origin, cell_size, BLOCK_SIZE_RATIO),
 			color
 		)
 
 
-static func draw_player(
+static func draw_completed_outlines(
 	canvas: CanvasItem,
-	player_cell: Vector2i,
+	block_cells: Array[Vector2i],
 	origin: Vector2,
 	cell_size: float,
 	palette: Dictionary,
 	alpha: float
 ) -> void:
-	var center := cell_center(player_cell, origin, cell_size)
-	var radius := cell_size * PLAYER_SIZE_RATIO * 0.5
-	var points := PackedVector2Array([
-		center + Vector2(0.0, -radius),
-		center + Vector2(radius, 0.0),
-		center + Vector2(0.0, radius),
-		center + Vector2(-radius, 0.0),
-	])
-	canvas.draw_colored_polygon(points, with_alpha(palette["player"], alpha))
+	var color: Color = with_alpha(palette["goal_complete"], alpha)
+	var line_width := maxf(1.0, cell_size * 0.06)
+	for cell in block_cells:
+		canvas.draw_rect(
+			centered_cell_rect(
+				cell,
+				origin,
+				cell_size,
+				COMPLETED_OUTLINE_SIZE_RATIO
+			),
+			color,
+			false,
+			line_width
+		)
 
 
 static func draw_fences(

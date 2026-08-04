@@ -1,6 +1,7 @@
 extends Node
 
 const SELECT_SCENE := preload("res://scenes/classic_level_select.tscn")
+const THUMBNAIL_RENDERER := preload("res://scripts/level_thumbnail_renderer.gd")
 
 
 func _ready() -> void:
@@ -32,6 +33,26 @@ func run_verification() -> void:
 		var thumbnail_data: Dictionary = thumbnail_entry["thumbnail_data"]
 		if thumbnail_data.is_empty():
 			fail("Classic selector thumbnail data is missing for %s." % thumbnail_entry["id"])
+			return
+	var redundant_entry: Dictionary = selector.entries[21]
+	var redundant_data: Dictionary = redundant_entry["thumbnail_data"]
+	var initial_block_cells: Array[Vector2i] = THUMBNAIL_RENDERER.block_cells_for(
+		redundant_data,
+		false
+	)
+	var completed_block_cells: Array[Vector2i] = THUMBNAIL_RENDERER.block_cells_for(
+		redundant_data,
+		true
+	)
+	if initial_block_cells.size() <= completed_block_cells.size():
+		fail("Completion thumbnail test level does not contain a redundant free block.")
+		return
+	if completed_block_cells.size() != redundant_data["goal_cells"].size():
+		fail("Completed thumbnail does not project exactly one block per goal.")
+		return
+	for goal_value in redundant_data["goal_cells"]:
+		if not completed_block_cells.has(Vector2i(goal_value)):
+			fail("Completed thumbnail omitted a goal cell.")
 			return
 	if not is_equal_approx(selector.slot_size_for(Vector2(1440, 960)), 216.0):
 		fail("Classic selector did not use 216px slots at 1440x960.")
