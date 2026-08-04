@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none">
+  <!-- ドーナツ弧リング: 中心(64,64), 外R=50, 内R=34, 12時→9時(時計回り270度) -->
+  <path d="M 64 14 A 50 50 0 1 1 14 64 L 30 64 A 34 34 0 1 0 64 30 Z" fill="white"/>
+  <!-- 矢じり: 9時位置(弧の終端)に上向き三角形 -->
+  <polygon points="22,44 6,68 38,68" fill="white"/>
+</svg>

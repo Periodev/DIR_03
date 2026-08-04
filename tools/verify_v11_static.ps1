@@ -108,7 +108,7 @@ $checks = @(
 	},
 	@{
 		Name = "project consistently uses the formal DIR product name"
-		Pass = $project -match 'config/name="DIR"' -and $playerInterface -match 'make_label\("DIR",\s*14,\s*mono_label_font\)' -and $editor -match '<title>DIR Level Editor</title>' -and $pyproject -match 'name\s*=\s*"dir-solver"' -and $pyproject -match 'dir-solve\s*=\s*"solver\.cli:main"' -and $solverCli -match 'prog="dir-solve"' -and "$main`n$project`n$editor`n$pyproject`n$solverCli" -notmatch [regex]::Escape($legacyProductName)
+		Pass = $project -match 'config/name="DIR"' -and $playerInterface -notmatch 'make_label\("DIR"' -and $editor -match '<title>DIR Level Editor</title>' -and $pyproject -match 'name\s*=\s*"dir-solver"' -and $pyproject -match 'dir-solve\s*=\s*"solver\.cli:main"' -and $solverCli -match 'prog="dir-solve"' -and "$main`n$project`n$editor`n$pyproject`n$solverCli" -notmatch [regex]::Escape($legacyProductName)
 	},
 	@{
 		Name = "GDScript global classes use the DIR prefix"
@@ -248,7 +248,7 @@ $checks = @(
 	},
 	@{
 		Name = "player interface uses fixed header and status bars"
-		Pass = $playerInterface -match "HEADER_HEIGHT\s*:=\s*60" -and $playerInterface -match "BASE_STATUS_HEIGHT\s*:=\s*88" -and $playerInterface -match "STAGE_MIN_HEIGHT\s*:=\s*480"
+		Pass = $playerInterface -match "HEADER_HEIGHT\s*:=\s*68" -and $playerInterface -match "BASE_STATUS_HEIGHT\s*:=\s*88" -and $playerInterface -match "STAGE_MIN_HEIGHT\s*:=\s*480"
 	},
 	@{
 		Name = "player interface centers a locally positioned board"
@@ -259,8 +259,12 @@ $checks = @(
 		Pass = $playerInterface -match "MESSAGE_HEIGHT\s*:=\s*20" -and $playerInterface -match "message_label\.clip_text\s*=\s*true"
 	},
 	@{
-		Name = "player header shows goals after the level name and removes redundant status groups"
-		Pass = $playerInterface -match 'left_group\.add_child\(level_name\)[\s\S]*left_group\.add_child\(build_header_goals_group\(\)\)' -and $playerInterface -match "func\s+build_header_goals_group\(\)" -and $playerInterface -notmatch 'make_status_group\("(?:FACING|SLOT|STEPS|GOALS)"' -and $playerInterface -notmatch "slot_chip|slot_description|steps_value|facing_labels"
+		Name = "player header keeps only a larger level name and goal count"
+		Pass = $playerInterface -match 'HEADER_HEIGHT\s*:=\s*68' -and $playerInterface -match 'HEADER_LEVEL_NAME_FONT_SIZE\s*:=\s*20' -and $playerInterface -match 'left_group\.add_child\(level_name\)[\s\S]*left_group\.add_child\(build_header_goals_group\(\)\)' -and $playerInterface -match 'make_label\("GOAL",\s*HEADER_GOAL_LABEL_FONT_SIZE' -and $playerInterface -match 'goals_value\s*=\s*make_label\("0",\s*HEADER_GOAL_VALUE_FONT_SIZE' -and $playerInterface -notmatch 'make_label\("DIR"|level_number|make_status_group\("(?:FACING|SLOT|STEPS|GOALS)"|slot_chip|slot_description|steps_value|facing_labels'
+	},
+	@{
+		Name = "player header exposes one functional level return button"
+		Pass = $playerInterface -match '"LEVEL \[ESC\]"[\s\S]*HEADER_BUTTON_FONT_SIZE' -and $playerInterface -match 'level_button\.pressed\.connect\(return_to_level_select\)' -and $playerInterface -match 'func\s+return_to_level_select\(\)\s*->\s*void:[\s\S]*game_board\.return_to_world_map\(\)' -and $playerInterface -notmatch 'previous_button|next_button|show_navigation_unavailable'
 	},
 	@{
 		Name = "player interface progressively reveals tutorial controls"
@@ -268,11 +272,11 @@ $checks = @(
 	},
 	@{
 		Name = "player interface uses English move install and release labels"
-		Pass = $playerInterface -match '"MOVE"' -and $playerInterface -match '"INSTALL"' -and $playerInterface -match '"RELEASE"' -and $playerInterface -notmatch '"(?:TRIGGER|\u5b89\u88dd|\u89f8\u767c)"'
+		Pass = $playerInterface -match 'MOVE_KEYS_TEXTURE\s*=\s*preload\("res://shapes/ic_input_arrow-keys_01\.svg"\)' -and $playerInterface -match 'INSTALL_KEY_TEXTURE\s*=\s*preload\([\s\S]*keyboard_x_outline\.svg' -and $playerInterface -match 'RELEASE_KEY_TEXTURE\s*=\s*preload\([\s\S]*keyboard_space_outline\.svg' -and $playerInterface -match 'add_icon_key_hint\(hints,\s*MOVE_KEYS_TEXTURE,\s*"MOVE"\)' -and $playerInterface -match 'add_icon_key_hint\(hints,\s*INSTALL_KEY_TEXTURE,\s*"INSTALL",\s*0\.5\)' -and $playerInterface -match 'add_icon_key_hint\(hints,\s*RELEASE_KEY_TEXTURE,\s*"RELEASE"\)' -and $playerInterface -match 'func\s+add_icon_key_hint\([\s\S]*icon_scale:\s*float\s*=\s*1\.0[\s\S]*text_tone_labels\.append\(action\)' -and $playerInterface -notmatch '"(?:TRIGGER|\u5b89\u88dd|\u89f8\u767c)"'
 	},
 	@{
 		Name = "player control hints use one adjustable automatic scale"
-		Pass = $playerInterface -match 'CONTROL_HINT_SCALE\s*:=\s*[0-9]+(?:\.[0-9]+)?' -and $playerInterface -match 'func\s+control_hint_font_size\(base_size:\s*int\)\s*->\s*int' -and $playerInterface -match 'base_size\s*\*\s*CONTROL_HINT_SCALE' -and $playerInterface -match 'func\s+control_hint_status_height\(\)\s*->\s*float' -and $playerInterface -match 'status\.custom_minimum_size\.y\s*=\s*control_hint_status_height\(\)'
+		Pass = $playerInterface -match 'CONTROL_HINT_SCALE\s*:=\s*[0-9]+(?:\.[0-9]+)?' -and $playerInterface -match 'CONTROL_HINT_GROUP_SEPARATION\s*:=\s*44' -and $playerInterface -match 'add_theme_constant_override\("separation",\s*CONTROL_HINT_GROUP_SEPARATION\)' -and $playerInterface -match 'func\s+control_hint_font_size\(base_size:\s*int\)\s*->\s*int' -and $playerInterface -match 'base_size\s*\*\s*CONTROL_HINT_SCALE' -and $playerInterface -match 'func\s+control_hint_icon_size\(\)\s*->\s*float:[\s\S]*CONTROL_HINT_MOVE_ICON_BASE_SIZE\s*\*\s*CONTROL_HINT_SCALE' -and $playerInterface -match 'func\s+control_hint_status_height\(\)\s*->\s*float[\s\S]*control_hint_icon_size\(\)' -and $playerInterface -match 'status\.custom_minimum_size\.y\s*=\s*control_hint_status_height\(\)'
 	},
 	@{
 		Name = "player interface buttons do not capture gameplay keys"

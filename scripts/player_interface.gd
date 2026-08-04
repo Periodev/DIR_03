@@ -2,16 +2,28 @@ class_name DirPlayerInterface
 extends CanvasLayer
 
 const VisualStyle = preload("res://scripts/visual_style.gd")
+const MOVE_KEYS_TEXTURE = preload("res://shapes/ic_input_arrow-keys_01.svg")
+const INSTALL_KEY_TEXTURE = preload(
+	"res://assets/input_prompts/keyboard_x_outline.svg"
+)
+const RELEASE_KEY_TEXTURE = preload(
+	"res://assets/input_prompts/keyboard_space_outline.svg"
+)
 
-const HEADER_HEIGHT := 60
+const HEADER_HEIGHT := 68
+const HEADER_LEVEL_NAME_FONT_SIZE := 20
+const HEADER_GOAL_LABEL_FONT_SIZE := 13
+const HEADER_GOAL_VALUE_FONT_SIZE := 16
+const HEADER_BUTTON_FONT_SIZE := 14
 const BASE_STATUS_HEIGHT := 88
 const STAGE_MIN_HEIGHT := 480
 const MESSAGE_HEIGHT := 20
 const MESSAGE_WIDTH := 640
 const CONTROL_HINT_SCALE := 2.0
-const CONTROL_HINT_KEY_FONT_SIZE := 11
 const CONTROL_HINT_ACTION_FONT_SIZE := 12
 const CONTROL_HINT_VERTICAL_PADDING := 48
+const CONTROL_HINT_MOVE_ICON_BASE_SIZE := 44
+const CONTROL_HINT_GROUP_SEPARATION := 44
 
 var game_board
 var board_view
@@ -38,7 +50,7 @@ var high_tone_labels: Array[Label] = []
 var dim_tone_labels: Array[Label] = []
 var separators: Array[ColorRect] = []
 var buttons: Array[Button] = []
-var keycap_labels: Array[Label] = []
+var keycap_icons: Array[TextureRect] = []
 
 
 func initialize(board, player_board_view) -> void:
@@ -90,23 +102,16 @@ func build_header() -> Control:
 	left_group.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(left_group)
 
-	var brand := make_label("DIR", 14, mono_label_font)
-	high_tone_labels.append(brand)
-	left_group.add_child(brand)
-	left_group.add_child(make_vertical_separator(16))
-
-	var active_level_id: String = Campaign.active_level_id
-	var level_number_text := "TEST" if active_level_id == "" else active_level_id
-	var level_number := make_label(level_number_text, 12, mono_font)
-	label_tone_labels.append(level_number)
-	left_group.add_child(level_number)
-
 	var active_level_name: String = Campaign.active_level_name()
 	var level_name_text := "LEVEL TEST" if active_level_name == "" else active_level_name.to_upper()
-	var level_name := make_label(level_name_text, 14, ui_font)
+	var level_name := make_label(
+		level_name_text,
+		HEADER_LEVEL_NAME_FONT_SIZE,
+		ui_font
+	)
 	text_tone_labels.append(level_name)
 	left_group.add_child(level_name)
-	left_group.add_child(make_vertical_separator(16))
+	left_group.add_child(make_vertical_separator(22))
 	left_group.add_child(build_header_goals_group())
 
 	var flexible_space := Control.new()
@@ -118,23 +123,24 @@ func build_header() -> Control:
 	right_group.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(right_group)
 
-	var previous_button := make_button("‹", 12, 11, 5)
-	previous_button.pressed.connect(show_navigation_unavailable.bind("previous"))
-	right_group.add_child(previous_button)
-
-	var next_button := make_button("›", 12, 11, 5)
-	next_button.pressed.connect(show_navigation_unavailable.bind("next"))
-	right_group.add_child(next_button)
+	var level_button := make_button(
+		"LEVEL [ESC]",
+		HEADER_BUTTON_FONT_SIZE,
+		12,
+		6
+	)
+	level_button.pressed.connect(return_to_level_select)
+	right_group.add_child(level_button)
 
 	var undo_spacer := Control.new()
 	undo_spacer.custom_minimum_size.x = 8
 	right_group.add_child(undo_spacer)
 
-	var undo_button := make_button("UNDO · Z", 12, 12, 6)
+	var undo_button := make_button("UNDO · Z", HEADER_BUTTON_FONT_SIZE, 12, 6)
 	undo_button.pressed.connect(game_board.undo_last_command)
 	right_group.add_child(undo_button)
 
-	var reset_button := make_button("RESET · R", 12, 12, 6)
+	var reset_button := make_button("RESET · R", HEADER_BUTTON_FONT_SIZE, 12, 6)
 	reset_button.pressed.connect(game_board.reset_level)
 	right_group.add_child(reset_button)
 
@@ -216,11 +222,11 @@ func build_header_goals_group() -> HBoxContainer:
 	group.add_theme_constant_override("separation", 8)
 	group.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
-	var title := make_label("GOALS", 10, mono_label_font)
+	var title := make_label("GOAL", HEADER_GOAL_LABEL_FONT_SIZE, mono_label_font)
 	label_tone_labels.append(title)
 	group.add_child(title)
 
-	goals_value = make_label("0", 12, mono_font)
+	goals_value = make_label("0", HEADER_GOAL_VALUE_FONT_SIZE, mono_font)
 	high_tone_labels.append(goals_value)
 	group.add_child(goals_value)
 	return group
@@ -228,53 +234,62 @@ func build_header_goals_group() -> HBoxContainer:
 
 func build_key_hints() -> HBoxContainer:
 	var hints := HBoxContainer.new()
-	hints.add_theme_constant_override("separation", 28)
+	hints.add_theme_constant_override("separation", CONTROL_HINT_GROUP_SEPARATION)
 	hints.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	direction_hint = add_key_hint(hints, "← ↑ ↓ →", "MOVE")
-	install_hint = add_key_hint(hints, "X", "INSTALL")
-	release_hint = add_key_hint(hints, "SPACE", "RELEASE")
+	direction_hint = add_icon_key_hint(hints, MOVE_KEYS_TEXTURE, "MOVE")
+	install_hint = add_icon_key_hint(hints, INSTALL_KEY_TEXTURE, "INSTALL", 0.5)
+	release_hint = add_icon_key_hint(hints, RELEASE_KEY_TEXTURE, "RELEASE")
 	return hints
 
 
-func add_key_hint(
+func add_icon_key_hint(
 	parent: HBoxContainer,
-	key_text: String,
-	action_text: String
+	key_texture: Texture2D,
+	action_text: String,
+	icon_scale: float = 1.0
 ) -> HBoxContainer:
 	var item := HBoxContainer.new()
 	item.add_theme_constant_override("separation", 7)
 	parent.add_child(item)
 
-	var keycap := make_label(
-		key_text,
-		control_hint_font_size(CONTROL_HINT_KEY_FONT_SIZE),
-		mono_font
+	var keycap := TextureRect.new()
+	var icon_size := control_hint_icon_size() * icon_scale
+	keycap.custom_minimum_size = Vector2(
+		icon_size,
+		icon_size
 	)
-	keycap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	keycap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	keycap_labels.append(keycap)
+	keycap.texture = key_texture
+	keycap.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	keycap.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	keycap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	keycap_icons.append(keycap)
 	item.add_child(keycap)
 
-	if action_text != "":
-		var action := make_label(
-			action_text,
-			control_hint_font_size(CONTROL_HINT_ACTION_FONT_SIZE),
-			ui_font
-		)
-		label_tone_labels.append(action)
-		item.add_child(action)
+	var action := make_label(
+		action_text,
+		control_hint_font_size(CONTROL_HINT_ACTION_FONT_SIZE),
+		ui_font
+	)
+	text_tone_labels.append(action)
+	item.add_child(action)
 	return item
-
 
 func control_hint_font_size(base_size: int) -> int:
 	return maxi(8, roundi(base_size * CONTROL_HINT_SCALE))
 
 
+func control_hint_icon_size() -> float:
+	return maxf(32.0, CONTROL_HINT_MOVE_ICON_BASE_SIZE * CONTROL_HINT_SCALE)
+
+
 func control_hint_status_height() -> float:
 	return maxf(
 		BASE_STATUS_HEIGHT,
-		control_hint_font_size(CONTROL_HINT_ACTION_FONT_SIZE)
-		+ CONTROL_HINT_VERTICAL_PADDING
+		maxf(
+			control_hint_font_size(CONTROL_HINT_ACTION_FONT_SIZE)
+			+ CONTROL_HINT_VERTICAL_PADDING,
+			control_hint_icon_size()
+		)
 	)
 
 
@@ -378,8 +393,13 @@ func set_light_theme(enabled: bool) -> void:
 	refresh()
 
 
-func show_navigation_unavailable(direction: String) -> void:
-	set_message("No %s level is loaded." % direction)
+func return_to_level_select() -> void:
+	if not Campaign.has_active_level():
+		return
+	if game_board.has_method("clear_held_movement"):
+		game_board.clear_held_movement()
+	if game_board.has_method("return_to_world_map"):
+		game_board.return_to_world_map()
 
 
 func apply_palette() -> void:
@@ -444,16 +464,8 @@ func apply_button_styles() -> void:
 
 
 func apply_keycap_styles() -> void:
-	for keycap in keycap_labels:
-		var style := StyleBoxFlat.new()
-		style.bg_color = Color.TRANSPARENT
-		set_style_border(style, palette["stroke"])
-		style.content_margin_left = 7
-		style.content_margin_right = 7
-		style.content_margin_top = 3
-		style.content_margin_bottom = 3
-		keycap.add_theme_stylebox_override("normal", style)
-		keycap.add_theme_color_override("font_color", palette["text"])
+	for keycap_icon in keycap_icons:
+		keycap_icon.modulate = palette["text"]
 
 
 func make_button_style(
