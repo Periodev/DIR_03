@@ -3,8 +3,10 @@ extends Node2D
 const VisualStyle = preload("res://scripts/visual_style.gd")
 
 const GRID_COLUMNS := 6
-const MAX_SLOT_SIZE := 152.0
-const SIDE_MARGIN := 72.0
+const MAX_SLOT_SIZE := 216.0
+const MIN_SIDE_MARGIN := 32.0
+const MAX_SIDE_MARGIN := 72.0
+const SIDE_MARGIN_RATIO := 0.05
 const HEADER_BOTTOM := 96.0
 const BOTTOM_MARGIN := 48.0
 const TILE_GAP := 8.0
@@ -262,18 +264,37 @@ func grid_rows() -> int:
 
 
 func slot_size() -> float:
-	var viewport_size := get_viewport_rect().size
+	return slot_size_for(get_viewport_rect().size)
+
+
+func slot_size_for(viewport_size: Vector2) -> float:
 	var rows := maxi(1, grid_rows())
-	var width_limit := (viewport_size.x - SIDE_MARGIN * 2.0) / float(GRID_COLUMNS)
+	var margin := side_margin_for(viewport_size.x)
+	var width_limit := (viewport_size.x - margin * 2.0) / float(GRID_COLUMNS)
 	var height_limit := (
 		viewport_size.y - HEADER_BOTTOM - BOTTOM_MARGIN
 	) / float(rows)
 	return floorf(minf(MAX_SLOT_SIZE, minf(width_limit, height_limit)))
 
 
+func side_margin() -> float:
+	return side_margin_for(get_viewport_rect().size.x)
+
+
+func side_margin_for(viewport_width: float) -> float:
+	return clampf(
+		viewport_width * SIDE_MARGIN_RATIO,
+		MIN_SIDE_MARGIN,
+		MAX_SIDE_MARGIN
+	)
+
+
 func grid_origin() -> Vector2:
-	var viewport_size := get_viewport_rect().size
-	var size := slot_size()
+	return grid_origin_for(get_viewport_rect().size)
+
+
+func grid_origin_for(viewport_size: Vector2) -> Vector2:
+	var size := slot_size_for(viewport_size)
 	var grid_pixel_size := Vector2(
 		float(GRID_COLUMNS) * size,
 		float(grid_rows()) * size
@@ -288,10 +309,14 @@ func grid_origin() -> Vector2:
 
 
 func entry_rect(index: int) -> Rect2:
-	var size := slot_size()
+	return entry_rect_for(index, get_viewport_rect().size)
+
+
+func entry_rect_for(index: int, viewport_size: Vector2) -> Rect2:
+	var size := slot_size_for(viewport_size)
 	var row: int = floori(float(index) / float(GRID_COLUMNS))
 	var column := index % GRID_COLUMNS
-	var slot_position := grid_origin() + Vector2(column, row) * size
+	var slot_position := grid_origin_for(viewport_size) + Vector2(column, row) * size
 	return Rect2(
 		slot_position + Vector2.ONE * TILE_GAP * 0.5,
 		Vector2.ONE * (size - TILE_GAP)
@@ -375,6 +400,7 @@ func draw_soft_outline_glow(rect: Rect2, color: Color, alpha: float) -> void:
 func draw_area_arrows() -> void:
 	var viewport_size := get_viewport_rect().size
 	var center_y := grid_origin().y + slot_size()
+	var margin := side_margin()
 	var left_color: Color = palette["text_dim"]
 	var right_color: Color = palette["text_dim"]
 	if current_area_index == 0:
@@ -384,9 +410,9 @@ func draw_area_arrows() -> void:
 		or not is_area_accessible(current_area_index + 1)
 	):
 		right_color.a = 0.16
-	draw_chevron(Vector2(SIDE_MARGIN * 0.5, center_y), Vector2i.LEFT, left_color)
+	draw_chevron(Vector2(margin * 0.5, center_y), Vector2i.LEFT, left_color)
 	draw_chevron(
-		Vector2(viewport_size.x - SIDE_MARGIN * 0.5, center_y),
+		Vector2(viewport_size.x - margin * 0.5, center_y),
 		Vector2i.RIGHT,
 		right_color
 	)

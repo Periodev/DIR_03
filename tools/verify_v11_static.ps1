@@ -490,7 +490,7 @@ $checks = @(
 	},
 	@{
 		Name = "classic selector keeps large level tiles and labels"
-		Pass = $classicLevelSelect -match 'MAX_SLOT_SIZE\s*:=\s*152\.0' -and $classicLevelSelect -match 'draw_text_centered\(rect,\s*level_id,\s*21,\s*text_color\)'
+		Pass = $classicLevelSelect -match 'MAX_SLOT_SIZE\s*:=\s*216\.0' -and $classicLevelSelect -match 'SIDE_MARGIN_RATIO\s*:=\s*0\.05' -and $classicLevelSelect -match 'func\s+slot_size_for\(viewport_size:\s*Vector2\)\s*->\s*float' -and $classicLevelSelect -match 'func\s+side_margin_for\(viewport_width:\s*float\)\s*->\s*float' -and $classicLevelSelect -match 'draw_text_centered\(rect,\s*level_id,\s*21,\s*text_color\)'
 	},
 	@{
 		Name = "classic selector limits glow to weak selected or completed outlines"

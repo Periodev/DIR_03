@@ -27,6 +27,16 @@ func run_verification() -> void:
 	if Campaign.level_select_scene_path != Campaign.CLASSIC_LEVEL_SELECT_SCENE_PATH:
 		fail("Classic selector did not register itself as the return scene.")
 		return
+	if not is_equal_approx(selector.slot_size_for(Vector2(1440, 960)), 216.0):
+		fail("Classic selector did not use 216px slots at 1440x960.")
+		return
+	var layout_viewport := Vector2(1440, 960)
+	var first_rect: Rect2 = selector.entry_rect_for(0, layout_viewport)
+	var last_rect: Rect2 = selector.entry_rect_for(11, layout_viewport)
+	var viewport_rect := Rect2(Vector2.ZERO, layout_viewport)
+	if not viewport_rect.encloses(first_rect) or not viewport_rect.encloses(last_rect):
+		fail("Adaptive classic selector tiles extend beyond the viewport.")
+		return
 
 	selector.selected_index = 0
 	selector.move_selection(Vector2i.RIGHT)
