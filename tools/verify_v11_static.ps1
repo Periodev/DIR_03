@@ -499,6 +499,10 @@ $checks = @(
 		Pass = $classicLevelSelect -match 'AsciiMapData\.parse\(String\(level\["source"\]\)\)' -and $classicLevelSelect -match 'level\["thumbnail_data"\]\s*=\s*thumbnail_data' -and $classicLevelSelect -match 'ThumbnailRenderer\.draw\(' -and $classicLevelSelect -notmatch 'draw_text_centered\(rect,\s*level_id' -and $levelThumbnailRenderer -match 'CONTENT_RATIO\s*:=\s*0\.80' -and $levelThumbnailRenderer -match 'var\s+first_row:\s*Array\s*=\s*terrain\[0\]' -and $levelThumbnailRenderer -match 'var\s+width:\s*int\s*=\s*first_row\.size\(\)' -and $levelThumbnailRenderer -match 'func\s+draw_terrain\(' -and $levelThumbnailRenderer -match 'func\s+draw_goals\(' -and $levelThumbnailRenderer -match 'func\s+draw_blocks\(' -and $levelThumbnailRenderer -match 'func\s+draw_player\(' -and $levelThumbnailRenderer -match 'func\s+draw_fences\('
 	},
 	@{
+		Name = "classic selector header only names the selected level"
+		Pass = $classicLevelSelect -match 'func\s+selected_level_label\(\)\s*->\s*String' -and $classicLevelSelect -match 'Rect2\(0,\s*51,\s*viewport_width,\s*22\),[\s\r\n]*selected_level_label\(\),' -and $classicLevelSelect -notmatch 'status_message|refresh_status|%s\s+COMPLETE|%s\s+AVAILABLE'
+	},
+	@{
 		Name = "classic selector limits glow to weak selected or completed outlines"
 		Pass = $classicLevelSelect -match 'SELECTED_GLOW_ALPHA\s*:=\s*0\.11' -and $classicLevelSelect -match 'COMPLETED_GLOW_ALPHA\s*:=\s*0\.07' -and $classicLevelSelect -match 'if\s+selected:\s*\r?\n\s*draw_soft_outline_glow[\s\S]*elif\s+completed:\s*\r?\n\s*draw_soft_outline_glow'
 	},

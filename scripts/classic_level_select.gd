@@ -23,7 +23,6 @@ var area_entries: Array = []
 var area_selection_indices: Array[int] = []
 var current_area_index := 0
 var selected_index := 0
-var status_message := "LEVEL SELECT"
 var ui_font: Font
 
 
@@ -35,7 +34,6 @@ func _ready() -> void:
 		return
 	build_entries()
 	select_return_level()
-	refresh_status()
 	get_viewport().size_changed.connect(queue_redraw)
 	queue_redraw()
 
@@ -52,7 +50,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if is_unlock_all_key(event):
 		Campaign.unlock_all_levels()
-		status_message = "ALL LEVELS UNLOCKED"
 		queue_redraw()
 		return
 	if is_complete_selected_key(event):
@@ -149,7 +146,6 @@ func move_selection(direction: Vector2i) -> void:
 		return
 	selected_index = target_index
 	area_selection_indices[current_area_index] = selected_index
-	refresh_status()
 	queue_redraw()
 
 
@@ -158,12 +154,10 @@ func switch_area(offset: int) -> void:
 	if target_area_index < 0 or target_area_index >= area_entries.size():
 		return
 	if not is_area_accessible(target_area_index):
-		status_message = "AREA %s  LOCKED" % (target_area_index + 1)
 		queue_redraw()
 		return
 	current_area_index = target_area_index
 	selected_index = area_selection_indices[current_area_index]
-	refresh_status()
 	queue_redraw()
 
 
@@ -178,7 +172,6 @@ func advance_after_completion() -> void:
 	):
 		current_area_index += 1
 		selected_index = area_selection_indices[current_area_index]
-	refresh_status()
 	queue_redraw()
 
 
@@ -189,7 +182,6 @@ func start_selected_level() -> void:
 	var entry: Dictionary = page[selected_index]
 	var level_id := String(entry["id"])
 	if not is_entry_unlocked(entry):
-		status_message = "%s  LOCKED" % level_id
 		queue_redraw()
 		return
 	if not Campaign.begin_level(
@@ -197,7 +189,6 @@ func start_selected_level() -> void:
 		int(entry["area_id"]),
 		Vector2i(entry["cell"])
 	):
-		status_message = "%s  LOAD FAILED" % level_id
 		queue_redraw()
 		return
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
@@ -208,7 +199,6 @@ func reset_progress() -> void:
 	current_area_index = 0
 	selected_index = 0
 	area_selection_indices.fill(0)
-	refresh_status()
 	queue_redraw()
 
 
@@ -221,20 +211,15 @@ func complete_selected_level() -> void:
 	advance_after_completion()
 
 
-func refresh_status() -> void:
+func selected_level_label() -> String:
 	var page: Array = current_page_entries()
 	if page.is_empty():
-		status_message = "NO LEVELS"
-		return
+		return ""
 	var entry: Dictionary = page[selected_index]
-	var level_id: String = String(entry["id"])
-	var level_label := "%s  %s" % [level_id, String(entry["name"]).to_upper()]
-	if Campaign.is_completed(level_id):
-		status_message = "%s  COMPLETE" % level_label
-	elif is_entry_unlocked(entry):
-		status_message = "%s  AVAILABLE" % level_label
-	else:
-		status_message = "%s  LOCKED" % level_label
+	return "%s  %s" % [
+		String(entry["id"]),
+		String(entry["name"]).to_upper(),
+	]
 
 
 func is_entry_unlocked(entry: Dictionary) -> bool:
@@ -352,12 +337,7 @@ func draw_header() -> void:
 	)
 	draw_text_centered(
 		Rect2(0, 51, viewport_width, 22),
-		"AREA %s    %02d / %02d COMPLETE    %s" % [
-			current_area_index + 1,
-			completed_count(),
-			current_page_entries().size(),
-			status_message,
-		],
+		selected_level_label(),
 		15,
 		palette["text_dim"]
 	)
