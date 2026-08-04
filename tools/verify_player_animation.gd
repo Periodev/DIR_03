@@ -20,6 +20,7 @@ func run_checks() -> void:
 	check_grid_line_toggle(game)
 	check_active_vector_pulse(game)
 	check_progressive_control_hints(game)
+	check_adaptive_board_fit(game)
 	check_undo_deadlock_prompt(game)
 	await check_install_tutorial_hint(game)
 	await check_empty_release_error(game)
@@ -124,6 +125,27 @@ func check_progressive_control_hints(game: Node) -> void:
 		hints.get_combined_minimum_size().y <= hud.control_hint_status_height(),
 		"scaled control hints should fit the automatic status bar height"
 	)
+
+
+func check_adaptive_board_fit(game: Node) -> void:
+	require_level(
+		game,
+		"@.........\n..........\n..........\n..........\n.........."
+	)
+	var hud: Node = game.game_hud
+	hud.fit_board_to_viewport()
+	var view: Control = game.board_view
+	var status: Control = hud.root_panel.find_child("StatusBar", true, false)
+	require(
+		float(view.cell_size) < float(VisualStyle.PLAYER_CELL_SIZE),
+		"large boards should reduce player cell size below the visual maximum"
+	)
+	require(status != null, "player interface should retain its bottom status bar")
+	if status != null:
+		require(
+			status.get_global_rect().end.y <= hud.root_panel.get_global_rect().end.y + 1.0,
+			"adaptive board sizing should keep bottom controls inside the viewport"
+		)
 
 
 func check_undo_deadlock_prompt(game: Node) -> void:

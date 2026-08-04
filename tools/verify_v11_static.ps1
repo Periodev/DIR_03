@@ -247,8 +247,8 @@ $checks = @(
 		Pass = $mainEntry -match 'preload\("res://scripts/player_interface\.gd"\)' -and $mainEntry -match "func\s+create_game_hud\(\)[\s\S]*PlayerInterface\.new\(\)"
 	},
 	@{
-		Name = "player interface uses fixed header and status bars"
-		Pass = $playerInterface -match "HEADER_HEIGHT\s*:=\s*68" -and $playerInterface -match "BASE_STATUS_HEIGHT\s*:=\s*88" -and $playerInterface -match "STAGE_MIN_HEIGHT\s*:=\s*480"
+		Name = "player interface reserves fixed header and status bars around a flexible stage"
+		Pass = $playerInterface -match "HEADER_HEIGHT\s*:=\s*68" -and $playerInterface -match "BASE_STATUS_HEIGHT\s*:=\s*88" -and $playerInterface -notmatch "STAGE_MIN_HEIGHT"
 	},
 	@{
 		Name = "player interface centers a locally positioned board"
@@ -259,12 +259,32 @@ $checks = @(
 		Pass = $playerInterface -match "MESSAGE_HEIGHT\s*:=\s*20" -and $playerInterface -match "message_label\.clip_text\s*=\s*true"
 	},
 	@{
-		Name = "player header keeps only a larger level name and goal count"
-		Pass = $playerInterface -match 'HEADER_HEIGHT\s*:=\s*68' -and $playerInterface -match 'HEADER_LEVEL_NAME_FONT_SIZE\s*:=\s*20' -and $playerInterface -match 'left_group\.add_child\(level_name\)[\s\S]*left_group\.add_child\(build_header_goals_group\(\)\)' -and $playerInterface -match 'make_label\("GOAL",\s*HEADER_GOAL_LABEL_FONT_SIZE' -and $playerInterface -match 'goals_value\s*=\s*make_label\("0",\s*HEADER_GOAL_VALUE_FONT_SIZE' -and $playerInterface -notmatch 'make_label\("DIR"|level_number|make_status_group\("(?:FACING|SLOT|STEPS|GOALS)"|slot_chip|slot_description|steps_value|facing_labels'
+		Name = "player header keeps only a larger level name after the level control"
+		Pass = $playerInterface -match 'HEADER_HEIGHT\s*:=\s*68' -and $playerInterface -match 'HEADER_LEVEL_NAME_FONT_SIZE\s*:=\s*30' -and $playerInterface -match 'left_group\.add_child\(level_button\)[\s\S]*left_group\.add_child\(level_name\)' -and $playerInterface -notmatch 'left_group\.add_child\(build_goal_group\(\)\)|make_label\("DIR"|level_number|make_status_group\("(?:FACING|SLOT|STEPS|GOALS)"|slot_chip|slot_description|steps_value|facing_labels'
 	},
 	@{
 		Name = "player header exposes one functional level return button"
-		Pass = $playerInterface -match '"LEVEL \[ESC\]"[\s\S]*HEADER_BUTTON_FONT_SIZE' -and $playerInterface -match 'level_button\.pressed\.connect\(return_to_level_select\)' -and $playerInterface -match 'func\s+return_to_level_select\(\)\s*->\s*void:[\s\S]*game_board\.return_to_world_map\(\)' -and $playerInterface -notmatch 'previous_button|next_button|show_navigation_unavailable'
+		Pass = $playerInterface -match 'LEVEL_KEY_TEXTURE\s*=\s*preload\([\s\S]*keyboard_escape_outline\.svg' -and $playerInterface -match 'var\s+level_button\s*:=\s*make_button\([\s\S]*"LEVEL"[\s\S]*LEVEL_KEY_TEXTURE' -and $playerInterface -match 'level_button\.pressed\.connect\(return_to_level_select\)' -and $playerInterface -match 'func\s+return_to_level_select\(\)\s*->\s*void:[\s\S]*game_board\.return_to_world_map\(\)' -and $playerInterface -notmatch 'previous_button|next_button|show_navigation_unavailable'
+	},
+	@{
+		Name = "player header uses SVG key prompts for escape undo and reset"
+		Pass = $playerInterface -match 'HEADER_BUTTON_FONT_SIZE\s*:=\s*18' -and $playerInterface -match 'HEADER_KEY_ICON_SIZE\s*:=\s*40' -and $playerInterface -match 'UNDO_KEY_TEXTURE\s*=\s*preload\([\s\S]*keyboard_z_outline\.svg' -and $playerInterface -match 'RESET_KEY_TEXTURE\s*=\s*preload\([\s\S]*keyboard_r_outline\.svg' -and $playerInterface -match 'make_button\([\s\S]*"UNDO"[\s\S]*UNDO_KEY_TEXTURE' -and $playerInterface -match 'make_button\([\s\S]*"RESET"[\s\S]*RESET_KEY_TEXTURE' -and $playerInterface -match 'keycap\.texture\s*=\s*icon' -and $playerInterface -match 'keycap\.stretch_mode\s*=\s*TextureRect\.STRETCH_KEEP_ASPECT_CENTERED' -and $playerInterface -notmatch '\.icon_max_width\s*='
+	},
+	@{
+		Name = "player header controls use borderless text after their keycaps"
+		Pass = $playerInterface -match 'func\s+make_button_style\(padding_x:\s*int,\s*padding_y:\s*int\)[\s\S]*style\.bg_color\s*=\s*Color\.TRANSPARENT' -and $playerInterface -match 'make_button_style\(padding_x,\s*padding_y\)' -and $playerInterface -notmatch 'make_button_style\((?:normal_background|hover_background|Color\.TRANSPARENT)'
+	},
+	@{
+		Name = "player header text and key glyphs share one vertical center"
+		Pass = $playerInterface -match 'func\s+make_header_label\(text:\s*String,\s*font_size:\s*int,\s*font:\s*Font\)\s*->\s*Label:[\s\S]*custom_minimum_size\.y\s*=\s*HEADER_KEY_ICON_SIZE[\s\S]*vertical_alignment\s*=\s*VERTICAL_ALIGNMENT_CENTER' -and $playerInterface -match 'var\s+level_name\s*:=\s*make_header_label\(' -and $playerInterface -match 'make_header_label\([\s\S]*"GOAL"' -and $playerInterface -match 'goals_value\s*=\s*make_header_label\(' -and $playerInterface -match 'keycap\.custom_minimum_size\s*=\s*Vector2\(HEADER_KEY_ICON_SIZE,\s*HEADER_KEY_ICON_SIZE\)' -and $playerInterface -match 'action\.custom_minimum_size\.y\s*=\s*HEADER_KEY_ICON_SIZE' -and $playerInterface -match 'action\.vertical_alignment\s*=\s*VERTICAL_ALIGNMENT_CENTER' -and $playerInterface -match 'HEADER_ACTION_TEXT_OFFSET_Y\s*:=\s*1' -and $playerInterface -match 'action\.offset_top\s*\+=\s*HEADER_ACTION_TEXT_OFFSET_Y' -and $playerInterface -match 'button\.custom_minimum_size\.y\s*=\s*HEADER_KEY_ICON_SIZE'
+	},
+	@{
+		Name = "goal count sits above the board at its left edge"
+		Pass = $playerInterface -match 'HEADER_GOAL_LABEL_FONT_SIZE\s*:=\s*18' -and $playerInterface -match 'HEADER_GOAL_VALUE_FONT_SIZE\s*:=\s*22' -and $playerInterface -match 'func\s+build_goal_group\(\)\s*->\s*HBoxContainer' -and $playerInterface -match 'var\s+board_goals\s*:=\s*build_goal_group\(\)' -and $playerInterface -match 'board_goals\.position\s*=\s*Vector2\([\s\S]*0,[\s\S]*-HEADER_KEY_ICON_SIZE\s*-\s*BOARD_GOAL_GAP[\s\S]*\)' -and $playerInterface -match 'board_view\.add_child\(board_goals\)'
+	},
+	@{
+		Name = "player board cells shrink independently to preserve the bottom controls"
+		Pass = $playerInterface -match 'BOARD_CELL_SIZE_MAX\s*:=\s*float\(VisualStyle\.PLAYER_CELL_SIZE\)' -and $playerInterface -match 'func\s+fit_board_to_viewport\(\)\s*->\s*void:' -and $playerInterface -match 'root_panel\.size\.y[\s\S]*-\s*HEADER_HEIGHT[\s\S]*-\s*control_hint_status_height\(\)[\s\S]*-\s*MESSAGE_HEIGHT' -and $playerInterface -match 'width_limited_size[\s\S]*height_limited_size[\s\S]*board_view\.set_cell_size' -and $playerInterface -match 'get_viewport\(\)\.size_changed\.connect\(fit_board_to_viewport\)' -and $playerInterface -match 'func\s+refresh\(\)\s*->\s*void:[\s\S]*fit_board_to_viewport\(\)'
 	},
 	@{
 		Name = "player interface progressively reveals tutorial controls"

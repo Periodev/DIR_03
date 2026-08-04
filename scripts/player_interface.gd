@@ -9,14 +9,32 @@ const INSTALL_KEY_TEXTURE = preload(
 const RELEASE_KEY_TEXTURE = preload(
 	"res://assets/input_prompts/keyboard_space_outline.svg"
 )
+const LEVEL_KEY_TEXTURE = preload(
+	"res://assets/input_prompts/keyboard_escape_outline.svg"
+)
+const UNDO_KEY_TEXTURE = preload(
+	"res://assets/input_prompts/keyboard_z_outline.svg"
+)
+const RESET_KEY_TEXTURE = preload(
+	"res://assets/input_prompts/keyboard_r_outline.svg"
+)
 
 const HEADER_HEIGHT := 68
-const HEADER_LEVEL_NAME_FONT_SIZE := 20
-const HEADER_GOAL_LABEL_FONT_SIZE := 13
-const HEADER_GOAL_VALUE_FONT_SIZE := 16
-const HEADER_BUTTON_FONT_SIZE := 14
+const HEADER_LEVEL_NAME_FONT_SIZE := 30
+const HEADER_GOAL_LABEL_FONT_SIZE := 18
+const HEADER_GOAL_VALUE_FONT_SIZE := 22
+const HEADER_BUTTON_FONT_SIZE := 18
+const HEADER_KEY_ICON_SIZE := 40
+const HEADER_ACTION_GAP := 8
+const HEADER_ACTION_TEXT_OFFSET_Y := 1
+const BOARD_GOAL_GAP := 4
 const BASE_STATUS_HEIGHT := 88
-const STAGE_MIN_HEIGHT := 480
+const STAGE_HORIZONTAL_MARGIN := 24
+const STAGE_TOP_MARGIN := 52
+const STAGE_BOTTOM_MARGIN := 44
+const STAGE_CONTENT_SEPARATION := 32
+const BOARD_CELL_SIZE_MAX := float(VisualStyle.PLAYER_CELL_SIZE)
+const BOARD_CELL_SIZE_MIN := 16.0
 const MESSAGE_HEIGHT := 20
 const MESSAGE_WIDTH := 640
 const CONTROL_HINT_SCALE := 2.0
@@ -51,6 +69,11 @@ var dim_tone_labels: Array[Label] = []
 var separators: Array[ColorRect] = []
 var buttons: Array[Button] = []
 var keycap_icons: Array[TextureRect] = []
+
+
+func _ready() -> void:
+	get_viewport().size_changed.connect(fit_board_to_viewport)
+	call_deferred("fit_board_to_viewport")
 
 
 func initialize(board, player_board_view) -> void:
@@ -102,45 +125,53 @@ func build_header() -> Control:
 	left_group.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(left_group)
 
+	var level_button := make_button(
+		"LEVEL",
+		HEADER_BUTTON_FONT_SIZE,
+		4,
+		0,
+		LEVEL_KEY_TEXTURE
+	)
+	level_button.pressed.connect(return_to_level_select)
+	left_group.add_child(level_button)
+	left_group.add_child(make_vertical_separator(22))
+
 	var active_level_name: String = Campaign.active_level_name()
 	var level_name_text := "LEVEL TEST" if active_level_name == "" else active_level_name.to_upper()
-	var level_name := make_label(
+	var level_name := make_header_label(
 		level_name_text,
 		HEADER_LEVEL_NAME_FONT_SIZE,
 		ui_font
 	)
 	text_tone_labels.append(level_name)
 	left_group.add_child(level_name)
-	left_group.add_child(make_vertical_separator(22))
-	left_group.add_child(build_header_goals_group())
 
 	var flexible_space := Control.new()
 	flexible_space.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(flexible_space)
 
 	var right_group := HBoxContainer.new()
-	right_group.add_theme_constant_override("separation", 8)
+	right_group.add_theme_constant_override("separation", 16)
 	right_group.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(right_group)
 
-	var level_button := make_button(
-		"LEVEL [ESC]",
+	var undo_button := make_button(
+		"UNDO",
 		HEADER_BUTTON_FONT_SIZE,
-		12,
-		6
+		4,
+		0,
+		UNDO_KEY_TEXTURE
 	)
-	level_button.pressed.connect(return_to_level_select)
-	right_group.add_child(level_button)
-
-	var undo_spacer := Control.new()
-	undo_spacer.custom_minimum_size.x = 8
-	right_group.add_child(undo_spacer)
-
-	var undo_button := make_button("UNDO · Z", HEADER_BUTTON_FONT_SIZE, 12, 6)
 	undo_button.pressed.connect(game_board.undo_last_command)
 	right_group.add_child(undo_button)
 
-	var reset_button := make_button("RESET · R", HEADER_BUTTON_FONT_SIZE, 12, 6)
+	var reset_button := make_button(
+		"RESET",
+		HEADER_BUTTON_FONT_SIZE,
+		4,
+		0,
+		RESET_KEY_TEXTURE
+	)
 	reset_button.pressed.connect(game_board.reset_level)
 	right_group.add_child(reset_button)
 
@@ -151,12 +182,11 @@ func build_header() -> Control:
 func build_stage() -> Control:
 	var stage := MarginContainer.new()
 	stage.name = "Stage"
-	stage.custom_minimum_size.y = STAGE_MIN_HEIGHT
 	stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	stage.add_theme_constant_override("margin_left", 24)
-	stage.add_theme_constant_override("margin_top", 52)
-	stage.add_theme_constant_override("margin_right", 24)
-	stage.add_theme_constant_override("margin_bottom", 44)
+	stage.add_theme_constant_override("margin_left", STAGE_HORIZONTAL_MARGIN)
+	stage.add_theme_constant_override("margin_top", STAGE_TOP_MARGIN)
+	stage.add_theme_constant_override("margin_right", STAGE_HORIZONTAL_MARGIN)
+	stage.add_theme_constant_override("margin_bottom", STAGE_BOTTOM_MARGIN)
 
 	var stage_center := CenterContainer.new()
 	stage_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -164,13 +194,20 @@ func build_stage() -> Control:
 	stage.add_child(stage_center)
 
 	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 32)
+	content.add_theme_constant_override("separation", STAGE_CONTENT_SEPARATION)
 	stage_center.add_child(content)
 
 	board_host = CenterContainer.new()
 	board_host.name = "BoardHost"
 	content.add_child(board_host)
 	board_host.add_child(board_view)
+
+	var board_goals := build_goal_group()
+	board_goals.position = Vector2(
+		0,
+		-HEADER_KEY_ICON_SIZE - BOARD_GOAL_GAP
+	)
+	board_view.add_child(board_goals)
 
 	var message_holder := CenterContainer.new()
 	message_holder.custom_minimum_size.y = MESSAGE_HEIGHT
@@ -217,16 +254,22 @@ func build_status_bar() -> Control:
 	return status
 
 
-func build_header_goals_group() -> HBoxContainer:
+func build_goal_group() -> HBoxContainer:
 	var group := HBoxContainer.new()
 	group.add_theme_constant_override("separation", 8)
+	group.custom_minimum_size.y = HEADER_KEY_ICON_SIZE
 	group.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	group.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	var title := make_label("GOAL", HEADER_GOAL_LABEL_FONT_SIZE, mono_label_font)
+	var title := make_header_label(
+		"GOAL",
+		HEADER_GOAL_LABEL_FONT_SIZE,
+		mono_label_font
+	)
 	label_tone_labels.append(title)
 	group.add_child(title)
 
-	goals_value = make_label("0", HEADER_GOAL_VALUE_FONT_SIZE, mono_font)
+	goals_value = make_header_label("0", HEADER_GOAL_VALUE_FONT_SIZE, mono_font)
 	high_tone_labels.append(goals_value)
 	group.add_child(goals_value)
 	return group
@@ -302,17 +345,82 @@ func make_label(text: String, font_size: int, font: Font) -> Label:
 	return label
 
 
-func make_button(text: String, font_size: int, padding_x: int, padding_y: int) -> Button:
+func make_header_label(text: String, font_size: int, font: Font) -> Label:
+	var label := make_label(text, font_size, font)
+	label.custom_minimum_size.y = HEADER_KEY_ICON_SIZE
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	return label
+
+
+func make_button(
+	text: String,
+	font_size: int,
+	padding_x: int,
+	padding_y: int,
+	icon: Texture2D = null
+) -> Button:
 	var button := Button.new()
-	button.text = text
+	button.text = ""
 	button.focus_mode = Control.FOCUS_NONE
-	button.add_theme_font_override("font", mono_font)
-	button.add_theme_font_size_override("font_size", font_size)
+	button.custom_minimum_size.y = HEADER_KEY_ICON_SIZE
 	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	button.set_meta("padding_x", padding_x)
 	button.set_meta("padding_y", padding_y)
+
+	var content := HBoxContainer.new()
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.add_theme_constant_override("separation", HEADER_ACTION_GAP)
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(content)
+	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	content.offset_left = padding_x
+	content.offset_right = -padding_x
+
+	var keycap := TextureRect.new()
+	keycap.custom_minimum_size = Vector2(HEADER_KEY_ICON_SIZE, HEADER_KEY_ICON_SIZE)
+	keycap.texture = icon
+	keycap.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	keycap.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	keycap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(keycap)
+
+	var text_size: Vector2 = mono_font.get_string_size(
+		text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		font_size
+	)
+	var action_holder := Control.new()
+	action_holder.custom_minimum_size = Vector2(
+		ceilf(text_size.x),
+		HEADER_KEY_ICON_SIZE
+	)
+	action_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(action_holder)
+
+	var action := make_label(text, font_size, mono_font)
+	action.custom_minimum_size.y = HEADER_KEY_ICON_SIZE
+	action.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	action.add_theme_color_override("font_color", Color.WHITE)
+	action.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	action_holder.add_child(action)
+	action.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	action.offset_top += HEADER_ACTION_TEXT_OFFSET_Y
+	action.offset_bottom += HEADER_ACTION_TEXT_OFFSET_Y
+	button.custom_minimum_size.x = (
+		HEADER_KEY_ICON_SIZE
+		+ HEADER_ACTION_GAP
+		+ ceilf(text_size.x)
+		+ padding_x * 2
+	)
+	button.mouse_entered.connect(set_header_button_hovered.bind(button, true))
+	button.mouse_exited.connect(set_header_button_hovered.bind(button, false))
 	buttons.append(button)
 	return button
+
+
+func set_header_button_hovered(button: Button, hovered: bool) -> void:
+	button.modulate = palette["text_hi"] if hovered else palette["text"]
 
 
 func make_vertical_separator(height: int) -> ColorRect:
@@ -339,6 +447,7 @@ func make_horizontal_separator(at_top: bool) -> ColorRect:
 func refresh() -> void:
 	if game_board == null or goals_value == null:
 		return
+	fit_board_to_viewport()
 	refresh_control_hints()
 
 	var filled_goals := 0
@@ -346,6 +455,48 @@ func refresh() -> void:
 		if game_board.find_block_index_at(goal_cell) != -1:
 			filled_goals += 1
 	goals_value.text = "%s / %s" % [filled_goals, game_board.goal_cells.size()]
+
+
+func fit_board_to_viewport() -> void:
+	if (
+		root_panel == null
+		or board_view == null
+		or game_board == null
+		or game_board.terrain.is_empty()
+		or root_panel.size.x <= 0.0
+		or root_panel.size.y <= 0.0
+	):
+		return
+
+	var board_rows: int = int(game_board.terrain.size())
+	var board_columns: int = int(game_board.terrain[0].size())
+	if board_rows <= 0 or board_columns <= 0:
+		return
+
+	var available_width: float = maxf(
+		BOARD_CELL_SIZE_MIN,
+		root_panel.size.x - STAGE_HORIZONTAL_MARGIN * 2.0
+	)
+	var available_height: float = maxf(
+		BOARD_CELL_SIZE_MIN,
+		root_panel.size.y
+		- HEADER_HEIGHT
+		- control_hint_status_height()
+		- STAGE_TOP_MARGIN
+		- STAGE_BOTTOM_MARGIN
+		- STAGE_CONTENT_SEPARATION
+		- MESSAGE_HEIGHT
+	)
+	var width_limited_size: float = available_width / float(board_columns)
+	var height_limited_size: float = (
+		available_height
+		/ (float(board_rows) + VisualStyle.WALL_SHADOW_RATIO)
+	)
+	var fitted_cell_size: float = floorf(minf(
+		BOARD_CELL_SIZE_MAX,
+		minf(width_limited_size, height_limited_size)
+	))
+	board_view.set_cell_size(maxf(BOARD_CELL_SIZE_MIN, fitted_cell_size))
 
 
 func refresh_control_hints() -> void:
@@ -427,40 +578,26 @@ func apply_button_styles() -> void:
 	for button in buttons:
 		var padding_x := int(button.get_meta("padding_x"))
 		var padding_y := int(button.get_meta("padding_y"))
-		var normal_background := Color.TRANSPARENT
-		var normal_border: Color = palette["stroke"]
 		var normal_text: Color = palette["text"]
-		var hover_background: Color = (
-			normal_background
-			if not light_theme
-			else palette["hover_bg"]
-		)
-		var hover_border: Color = (
-			normal_border
-			if light_theme
-			else palette["hover_stroke"]
-		)
 		var hover_text: Color = palette["text_hi"]
 
 		button.add_theme_stylebox_override(
 			"normal",
-			make_button_style(normal_background, normal_border, padding_x, padding_y)
+			make_button_style(padding_x, padding_y)
 		)
 		button.add_theme_stylebox_override(
 			"hover",
-			make_button_style(hover_background, hover_border, padding_x, padding_y)
+			make_button_style(padding_x, padding_y)
 		)
 		button.add_theme_stylebox_override(
 			"pressed",
-			make_button_style(normal_background, palette["text_hi"], padding_x, padding_y)
+			make_button_style(padding_x, padding_y)
 		)
 		button.add_theme_stylebox_override(
 			"focus",
-			make_button_style(Color.TRANSPARENT, Color.TRANSPARENT, padding_x, padding_y)
+			make_button_style(padding_x, padding_y)
 		)
-		button.add_theme_color_override("font_color", normal_text)
-		button.add_theme_color_override("font_hover_color", hover_text)
-		button.add_theme_color_override("font_pressed_color", hover_text)
+		button.modulate = hover_text if button.is_hovered() else normal_text
 
 
 func apply_keycap_styles() -> void:
@@ -468,15 +605,9 @@ func apply_keycap_styles() -> void:
 		keycap_icon.modulate = palette["text"]
 
 
-func make_button_style(
-	background: Color,
-	border: Color,
-	padding_x: int,
-	padding_y: int
-) -> StyleBoxFlat:
+func make_button_style(padding_x: int, padding_y: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = background
-	set_style_border(style, border)
+	style.bg_color = Color.TRANSPARENT
 	style.content_margin_left = padding_x
 	style.content_margin_right = padding_x
 	style.content_margin_top = padding_y
