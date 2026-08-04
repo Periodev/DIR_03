@@ -27,6 +27,12 @@ func run_verification() -> void:
 	if Campaign.level_select_scene_path != Campaign.CLASSIC_LEVEL_SELECT_SCENE_PATH:
 		fail("Classic selector did not register itself as the return scene.")
 		return
+	for entry_value in selector.entries:
+		var thumbnail_entry: Dictionary = entry_value
+		var thumbnail_data: Dictionary = thumbnail_entry["thumbnail_data"]
+		if thumbnail_data.is_empty():
+			fail("Classic selector thumbnail data is missing for %s." % thumbnail_entry["id"])
+			return
 	if not is_equal_approx(selector.slot_size_for(Vector2(1440, 960)), 216.0):
 		fail("Classic selector did not use 216px slots at 1440x960.")
 		return

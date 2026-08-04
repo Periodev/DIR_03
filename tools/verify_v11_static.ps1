@@ -13,6 +13,7 @@ $debugStylePath = Join-Path $root "scripts/debug_style.gd"
 $commandPlayerPath = Join-Path $root "scripts/command_player.gd"
 $worldMapPath = Join-Path $root "scripts/world_map.gd"
 $classicLevelSelectPath = Join-Path $root "scripts/classic_level_select.gd"
+$levelThumbnailRendererPath = Join-Path $root "scripts/level_thumbnail_renderer.gd"
 $campaignPath = Join-Path $root "scripts/campaign.gd"
 $levelCatalogPath = Join-Path $root "scripts/level_catalog.gd"
 $classicLevelSelectScenePath = Join-Path $root "scenes/classic_level_select.tscn"
@@ -38,6 +39,7 @@ $main = "$mainEntry`n$gameBoard`n$boardView`n$playerBoardView`n$gameHud`n$player
 $commandPlayer = Get-Content -LiteralPath $commandPlayerPath -Raw
 $worldMap = Get-Content -LiteralPath $worldMapPath -Raw
 $classicLevelSelect = Get-Content -LiteralPath $classicLevelSelectPath -Raw
+$levelThumbnailRenderer = Get-Content -LiteralPath $levelThumbnailRendererPath -Raw
 $campaign = Get-Content -LiteralPath $campaignPath -Raw
 $levelCatalog = Get-Content -LiteralPath $levelCatalogPath -Raw
 $classicLevelSelectScene = Get-Content -LiteralPath $classicLevelSelectScenePath -Raw
@@ -489,8 +491,12 @@ $checks = @(
 		Pass = $classicLevelSelect -match 'COMPLETED_COLOR\s*:=\s*Color\("#49c9a5"\)' -and $classicLevelSelect -match 'LOCKED_ALPHA\s*:=\s*0\.28' -and $classicLevelSelect -match 'border_color\s*=\s*palette\["label"\]'
 	},
 	@{
-		Name = "classic selector keeps large level tiles and labels"
-		Pass = $classicLevelSelect -match 'MAX_SLOT_SIZE\s*:=\s*216\.0' -and $classicLevelSelect -match 'SIDE_MARGIN_RATIO\s*:=\s*0\.05' -and $classicLevelSelect -match 'func\s+slot_size_for\(viewport_size:\s*Vector2\)\s*->\s*float' -and $classicLevelSelect -match 'func\s+side_margin_for\(viewport_width:\s*float\)\s*->\s*float' -and $classicLevelSelect -match 'draw_text_centered\(rect,\s*level_id,\s*21,\s*text_color\)'
+		Name = "classic selector keeps large responsive level tiles"
+		Pass = $classicLevelSelect -match 'MAX_SLOT_SIZE\s*:=\s*216\.0' -and $classicLevelSelect -match 'SIDE_MARGIN_RATIO\s*:=\s*0\.05' -and $classicLevelSelect -match 'func\s+slot_size_for\(viewport_size:\s*Vector2\)\s*->\s*float' -and $classicLevelSelect -match 'func\s+side_margin_for\(viewport_width:\s*float\)\s*->\s*float'
+	},
+	@{
+		Name = "classic selector renders cached text-free board thumbnails"
+		Pass = $classicLevelSelect -match 'AsciiMapData\.parse\(String\(level\["source"\]\)\)' -and $classicLevelSelect -match 'level\["thumbnail_data"\]\s*=\s*thumbnail_data' -and $classicLevelSelect -match 'ThumbnailRenderer\.draw\(' -and $classicLevelSelect -notmatch 'draw_text_centered\(rect,\s*level_id' -and $levelThumbnailRenderer -match 'CONTENT_RATIO\s*:=\s*0\.80' -and $levelThumbnailRenderer -match 'var\s+first_row:\s*Array\s*=\s*terrain\[0\]' -and $levelThumbnailRenderer -match 'var\s+width:\s*int\s*=\s*first_row\.size\(\)' -and $levelThumbnailRenderer -match 'func\s+draw_terrain\(' -and $levelThumbnailRenderer -match 'func\s+draw_goals\(' -and $levelThumbnailRenderer -match 'func\s+draw_blocks\(' -and $levelThumbnailRenderer -match 'func\s+draw_player\(' -and $levelThumbnailRenderer -match 'func\s+draw_fences\('
 	},
 	@{
 		Name = "classic selector limits glow to weak selected or completed outlines"

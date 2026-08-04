@@ -1,6 +1,8 @@
 extends Node2D
 
 const VisualStyle = preload("res://scripts/visual_style.gd")
+const AsciiMapData = preload("res://scripts/ascii_map.gd")
+const ThumbnailRenderer = preload("res://scripts/level_thumbnail_renderer.gd")
 
 const GRID_COLUMNS := 6
 const MAX_SLOT_SIZE := 216.0
@@ -79,6 +81,14 @@ func build_entries() -> void:
 		var page_entries: Array[Dictionary] = []
 		for level_value in levels:
 			var level: Dictionary = level_value.duplicate()
+			var thumbnail_data: Dictionary = AsciiMapData.parse(String(level["source"]))
+			if thumbnail_data.has("error"):
+				push_error("Unable to build thumbnail for %s: %s" % [
+					level["id"],
+					thumbnail_data["error"],
+				])
+				thumbnail_data = {}
+			level["thumbnail_data"] = thumbnail_data
 			level["area_id"] = area_id
 			entries.append(level)
 			page_entries.append(level)
@@ -363,16 +373,13 @@ func draw_level_entry(index: int) -> void:
 	var rect := entry_rect(index)
 	var floor_color: Color = palette["floor"]
 	var border_color: Color = palette["label"]
-	var text_color: Color = palette["text"]
 	var border_width := 2.0
 
 	if not unlocked:
 		floor_color.a = 0.18
 		border_color.a = LOCKED_ALPHA
-		text_color.a = LOCKED_ALPHA
 	elif completed:
 		border_color = COMPLETED_COLOR
-		text_color = COMPLETED_COLOR
 		border_width = 3.0
 	else:
 		border_color = palette["label"]
@@ -382,10 +389,16 @@ func draw_level_entry(index: int) -> void:
 	elif completed:
 		draw_soft_outline_glow(rect, COMPLETED_COLOR, COMPLETED_GLOW_ALPHA)
 	draw_rect(rect, floor_color)
+	ThumbnailRenderer.draw(
+		self,
+		entry["thumbnail_data"],
+		rect,
+		palette,
+		1.0 if unlocked else LOCKED_ALPHA
+	)
 	draw_rect(rect, border_color, false, border_width)
 	if selected:
 		draw_rect(rect.grow(4.0), palette["player"], false, 6.0)
-	draw_text_centered(rect, level_id, 21, text_color)
 
 
 func draw_soft_outline_glow(rect: Rect2, color: Color, alpha: float) -> void:
