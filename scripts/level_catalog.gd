@@ -190,7 +190,7 @@ const AREA_02_LEVELS := [
 		"cell": Vector2i(2, 2),
 		"route": "main",
 		"requires": ["2-9"],
-		"source": "!cell-edge-v1\n\n[cells]\n##@#\n..A#\n...#\n.B.#\n##.*\n\n[horizontal_edges]\n....\n....\n....\n....\n\n[vertical_edges]\n...\n...\n...\n...\n...",
+		"source": "!cell-edge-v1\n\n[cells]\n##@#\n..A#\n...#\n.B*#\n##.*\n\n[horizontal_edges]\n....\n....\n....\n....\n\n[vertical_edges]\n...\n...\n...\n...\n...",
 	},
 	{
 		"id": "2-12",
