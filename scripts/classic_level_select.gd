@@ -12,6 +12,10 @@ const SIDE_MARGIN_RATIO := 0.05
 const HEADER_BOTTOM := 96.0
 const BOTTOM_MARGIN := 48.0
 const TILE_GAP := 8.0
+const LEVEL_NAME_GAP := 12.0
+const LEVEL_NAME_HEIGHT := 24.0
+const LEVEL_NAME_MIN_WIDTH := 208.0
+const LEVEL_NAME_MAX_WIDTH := 320.0
 const COMPLETED_COLOR := Color("#49c9a5")
 const LOCKED_ALPHA := 0.28
 const SELECTED_GLOW_ALPHA := 0.11
@@ -211,15 +215,38 @@ func complete_selected_level() -> void:
 	advance_after_completion()
 
 
-func selected_level_label() -> String:
+func selected_level_name() -> String:
 	var page: Array = current_page_entries()
 	if page.is_empty():
 		return ""
 	var entry: Dictionary = page[selected_index]
-	return "%s  %s" % [
-		String(entry["id"]),
-		String(entry["name"]).to_upper(),
-	]
+	return String(entry["name"]).to_upper()
+
+
+func selected_level_name_rect() -> Rect2:
+	return selected_level_name_rect_for(selected_index, get_viewport_rect().size)
+
+
+func selected_level_name_rect_for(index: int, viewport_size: Vector2) -> Rect2:
+	var selected_rect := entry_rect_for(index, viewport_size)
+	var margin := side_margin_for(viewport_size.x)
+	var available_width := maxf(1.0, viewport_size.x - margin * 2.0)
+	var label_width := minf(
+		available_width,
+		clampf(selected_rect.size.x, LEVEL_NAME_MIN_WIDTH, LEVEL_NAME_MAX_WIDTH)
+	)
+	var label_x := clampf(
+		selected_rect.get_center().x - label_width * 0.5,
+		margin,
+		viewport_size.x - margin - label_width
+	)
+	var row: int = floori(float(index) / float(GRID_COLUMNS))
+	var label_y := (
+		selected_rect.position.y - LEVEL_NAME_GAP - LEVEL_NAME_HEIGHT
+		if row == 0
+		else selected_rect.end.y + LEVEL_NAME_GAP
+	)
+	return Rect2(label_x, label_y, label_width, LEVEL_NAME_HEIGHT)
 
 
 func is_entry_unlocked(entry: Dictionary) -> bool:
@@ -324,6 +351,7 @@ func _draw() -> void:
 	var page: Array = current_page_entries()
 	for index in range(page.size()):
 		draw_level_entry(index)
+	draw_selected_level_name()
 	draw_area_arrows()
 
 
@@ -335,11 +363,17 @@ func draw_header() -> void:
 		21,
 		palette["text_hi"]
 	)
+
+
+func draw_selected_level_name() -> void:
+	var level_name := selected_level_name()
+	if level_name == "":
+		return
 	draw_text_centered(
-		Rect2(0, 51, viewport_width, 22),
-		selected_level_label(),
-		15,
-		palette["text_dim"]
+		selected_level_name_rect(),
+		level_name,
+		16,
+		palette["text_hi"]
 	)
 
 

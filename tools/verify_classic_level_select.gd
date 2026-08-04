@@ -43,6 +43,17 @@ func run_verification() -> void:
 	if not viewport_rect.encloses(first_rect) or not viewport_rect.encloses(last_rect):
 		fail("Adaptive classic selector tiles extend beyond the viewport.")
 		return
+	var top_name_rect: Rect2 = selector.selected_level_name_rect_for(0, layout_viewport)
+	var bottom_name_rect: Rect2 = selector.selected_level_name_rect_for(7, layout_viewport)
+	if top_name_rect.end.y >= first_rect.position.y:
+		fail("Top-row level name does not stay above the selected tile.")
+		return
+	if bottom_name_rect.position.y <= selector.entry_rect_for(7, layout_viewport).end.y:
+		fail("Bottom-row level name does not stay below the selected tile.")
+		return
+	if not viewport_rect.encloses(top_name_rect) or not viewport_rect.encloses(bottom_name_rect):
+		fail("Selected level name extends beyond the viewport.")
+		return
 
 	selector.selected_index = 0
 	selector.move_selection(Vector2i.RIGHT)
