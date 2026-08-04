@@ -504,15 +504,15 @@ $checks = @(
 	},
 	@{
 		Name = "classic selector floats only the selected level name"
-		Pass = $classicLevelSelect -match 'LEVEL_NAME_FONT_SIZE\s*:=\s*24' -and $classicLevelSelect -match 'func\s+selected_level_name\(\)\s*->\s*String[\s\S]*return\s+String\(entry\["name"\]\)\.to_upper\(\)' -and $classicLevelSelect -match 'func\s+selected_level_name_rect_for\(index:\s*int,\s*viewport_size:\s*Vector2\)\s*->\s*Rect2' -and $classicLevelSelect -match 'if\s+row\s*==\s*0[\s\S]*selected_rect\.end\.y\s*\+\s*LEVEL_NAME_GAP' -and $classicLevelSelect -match 'func\s+draw_selected_level_name\(\)[\s\S]*LEVEL_NAME_FONT_SIZE' -and $classicLevelSelect -notmatch 'status_message|refresh_status|selected_level_label|%s\s+COMPLETE|%s\s+AVAILABLE'
+		Pass = $classicLevelSelect -match 'LEVEL_NAME_GAP\s*:=\s*20\.0' -and $classicLevelSelect -match 'LEVEL_NAME_FONT_SIZE\s*:=\s*24' -and $classicLevelSelect -match 'func\s+selected_level_name\(\)\s*->\s*String[\s\S]*return\s+String\(entry\["name"\]\)\.to_upper\(\)' -and $classicLevelSelect -match 'func\s+selected_level_name_rect_for\(index:\s*int,\s*viewport_size:\s*Vector2\)\s*->\s*Rect2' -and $classicLevelSelect -match 'if\s+row\s*==\s*0[\s\S]*selected_rect\.end\.y\s*\+\s*LEVEL_NAME_GAP' -and $classicLevelSelect -match 'func\s+draw_selected_level_name\(\)[\s\S]*LEVEL_NAME_FONT_SIZE' -and $classicLevelSelect -notmatch 'status_message|refresh_status|selected_level_label|%s\s+COMPLETE|%s\s+AVAILABLE'
 	},
 	@{
-		Name = "classic selector limits glow to weak selected or completed outlines"
-		Pass = $classicLevelSelect -match 'SELECTED_GLOW_ALPHA\s*:=\s*0\.11' -and $classicLevelSelect -match 'COMPLETED_GLOW_ALPHA\s*:=\s*0\.07' -and $classicLevelSelect -match 'if\s+selected:\s*\r?\n\s*draw_soft_outline_glow[\s\S]*elif\s+completed:\s*\r?\n\s*draw_soft_outline_glow'
+		Name = "classic selector limits glow to completed unselected tiles"
+		Pass = $classicLevelSelect -match 'COMPLETED_GLOW_ALPHA\s*:=\s*0\.07' -and $classicLevelSelect -match 'if\s+completed\s+and\s+not\s+selected:\s*\r?\n\s*draw_soft_outline_glow' -and $classicLevelSelect -notmatch 'SELECTED_GLOW_ALPHA'
 	},
 	@{
 		Name = "classic selector uses a thick selection frame without branch dots"
-		Pass = $classicLevelSelect -match 'rect\.grow\(4\.0\),\s*palette\["player"\],\s*false,\s*6\.0' -and $classicLevelSelect -notmatch 'marker_size'
+		Pass = $classicLevelSelect -match 'SELECT_FRAME_GROW\s*:=\s*4\.0' -and $classicLevelSelect -match 'SELECT_FRAME_WIDTH\s*:=\s*6\.0' -and $classicLevelSelect -match 'rect\.grow\(SELECT_FRAME_GROW\)' -and $classicLevelSelect -match 'palette\["player"\],[\s\r\n]*false,[\s\r\n]*SELECT_FRAME_WIDTH' -and $classicLevelSelect -notmatch 'SELECT_BREATH|selection_breath|SELECTED_GLOW_ALPHA|marker_size'
 	},
 	@{
 		Name = "player movement accepts held repeats without repeating X or T"

@@ -12,15 +12,16 @@ const SIDE_MARGIN_RATIO := 0.05
 const HEADER_BOTTOM := 96.0
 const BOTTOM_MARGIN := 48.0
 const TILE_GAP := 8.0
-const LEVEL_NAME_GAP := 12.0
+const LEVEL_NAME_GAP := 20.0
 const LEVEL_NAME_HEIGHT := 24.0
 const LEVEL_NAME_FONT_SIZE := 24
 const LEVEL_NAME_MIN_WIDTH := 208.0
 const LEVEL_NAME_MAX_WIDTH := 320.0
 const COMPLETED_COLOR := Color("#49c9a5")
 const LOCKED_ALPHA := 0.28
-const SELECTED_GLOW_ALPHA := 0.11
 const COMPLETED_GLOW_ALPHA := 0.07
+const SELECT_FRAME_GROW := 4.0
+const SELECT_FRAME_WIDTH := 6.0
 
 var palette: Dictionary = VisualStyle.theme(false)
 var entries: Array[Dictionary] = []
@@ -399,9 +400,7 @@ func draw_level_entry(index: int) -> void:
 	else:
 		border_color = palette["label"]
 
-	if selected:
-		draw_soft_outline_glow(rect, palette["player"], SELECTED_GLOW_ALPHA)
-	elif completed:
+	if completed and not selected:
 		draw_soft_outline_glow(rect, COMPLETED_COLOR, COMPLETED_GLOW_ALPHA)
 	draw_rect(rect, floor_color)
 	ThumbnailRenderer.draw(
@@ -414,7 +413,12 @@ func draw_level_entry(index: int) -> void:
 	)
 	draw_rect(rect, border_color, false, border_width)
 	if selected:
-		draw_rect(rect.grow(4.0), palette["player"], false, 6.0)
+		draw_rect(
+			rect.grow(SELECT_FRAME_GROW),
+			palette["player"],
+			false,
+			SELECT_FRAME_WIDTH
+		)
 
 
 func draw_soft_outline_glow(rect: Rect2, color: Color, alpha: float) -> void:
