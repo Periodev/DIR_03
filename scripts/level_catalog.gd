@@ -26,7 +26,7 @@ const AREA_01_LEVELS := [
 		"cell": Vector2i(2, 0),
 		"route": "main",
 		"requires": ["1-1"],
-		"source": "!cell-edge-v1\n\n[cells]\n#*##\n@B#*\n..A.\n\n[horizontal_edges]\n....\n....\n\n[vertical_edges]\n...\n...\n...",
+		"source": "!cell-edge-v1\n\n[cells]\n#*##\n.B#*\n@.A.\n\n[horizontal_edges]\n....\n....\n\n[vertical_edges]\n...\n...\n...",
 	},
 	{
 		"id": "1-3",
@@ -34,7 +34,7 @@ const AREA_01_LEVELS := [
 		"cell": Vector2i(3, 0),
 		"route": "main",
 		"requires": ["1-2"],
-		"source": "!cell-edge-v1\n\n[cells]\n@#B#\nA..*\n*..#\n\n[horizontal_edges]\n....\n....\n\n[vertical_edges]\n...\n...\n...",
+		"source": "!cell-edge-v1\n\n[cells]\n#*#\nB..\n#..\n@A*\n\n[horizontal_edges]\n...\n...\n...\n\n[vertical_edges]\n..\n..\n..\n..",
 	},
 	{
 		"id": "1-4",

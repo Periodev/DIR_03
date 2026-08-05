@@ -135,6 +135,10 @@ $checks = @(
 		Pass = $project -match "undo_command=" -and $project -match 'keycode":90'
 	},
 	@{
+		Name = "movement actions support arrow keys and WASD"
+		Pass = $project -match 'move_up=\{[\s\S]*?keycode":4194320[\s\S]*?keycode":87' -and $project -match 'move_down=\{[\s\S]*?keycode":4194322[\s\S]*?keycode":83' -and $project -match 'move_left=\{[\s\S]*?keycode":4194319[\s\S]*?keycode":65' -and $project -match 'move_right=\{[\s\S]*?keycode":4194321[\s\S]*?keycode":68'
+	},
+	@{
 		Name = "main.gd has reset_level operation"
 		Pass = $main -match "func\s+reset_level\(\)"
 	},
