@@ -147,6 +147,13 @@ func play_completion_feedback() -> void:
 		VisualStyle.COMPLETION_PULSE_SECONDS
 	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	completion_pulse_tween.tween_callback(finish_completion_pulse)
+	completion_pulse_tween.tween_property(
+		self,
+		"modulate:a",
+		VisualStyle.COMPLETION_BOARD_DIM_ALPHA,
+		VisualStyle.COMPLETION_BOARD_FADE_SECONDS
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	completion_pulse_tween.tween_callback(finish_completion_feedback)
 
 
 func begin_completion_pulse() -> void:
@@ -159,6 +166,7 @@ func reset_completion_feedback() -> void:
 		completion_pulse_tween.kill()
 	completion_pulse_tween = null
 	completion_pulse_progress = -1.0
+	modulate = Color(modulate.r, modulate.g, modulate.b, 1.0)
 	queue_redraw()
 
 
@@ -168,9 +176,12 @@ func set_completion_pulse_progress(value: float) -> void:
 
 
 func finish_completion_pulse() -> void:
-	completion_pulse_tween = null
 	completion_pulse_progress = -1.0
 	queue_redraw()
+
+
+func finish_completion_feedback() -> void:
+	completion_pulse_tween = null
 
 
 func play_player_error_flash(cell: Vector2i) -> void:

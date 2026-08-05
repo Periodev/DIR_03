@@ -363,7 +363,7 @@ func draw_header() -> void:
 	var viewport_width := get_viewport_rect().size.x
 	draw_text_centered(
 		Rect2(0, 22, viewport_width, 28),
-		"DIR / LEVEL SELECT",
+		"LEVEL SELECT",
 		21,
 		palette["text_hi"]
 	)

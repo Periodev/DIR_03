@@ -21,7 +21,7 @@ func run_checks() -> void:
 	check_active_vector_pulse(game)
 	check_progressive_control_hints(game)
 	check_control_hint_availability(game)
-	check_adaptive_board_fit(game)
+	await check_adaptive_board_fit(game)
 	check_undo_deadlock_prompt(game)
 	await check_install_tutorial_hint(game)
 	await check_empty_release_error(game)
@@ -170,12 +170,15 @@ func check_control_hint_availability(game: Node) -> void:
 func check_adaptive_board_fit(game: Node) -> void:
 	require_level(
 		game,
-		"@.........\n..........\n..........\n..........\n.........."
+		"@..\n...\n...\n...\n..."
 	)
 	var hud: Node = game.game_hud
 	hud.fit_board_to_viewport()
+	await get_tree().process_frame
+	await get_tree().process_frame
 	var view: Control = game.board_view
 	var status: Control = hud.root_panel.find_child("StatusBar", true, false)
+	var viewport_bottom: float = get_viewport().get_visible_rect().end.y
 	require(
 		float(view.cell_size) < float(VisualStyle.PLAYER_CELL_SIZE),
 		"large boards should reduce player cell size below the visual maximum"
@@ -183,7 +186,7 @@ func check_adaptive_board_fit(game: Node) -> void:
 	require(status != null, "player interface should retain its bottom status bar")
 	if status != null:
 		require(
-			status.get_global_rect().end.y <= hud.root_panel.get_global_rect().end.y + 1.0,
+			status.get_global_rect().end.y <= viewport_bottom + 1.0,
 			"adaptive board sizing should keep bottom controls inside the viewport"
 		)
 
@@ -869,6 +872,15 @@ func check_completion_feedback(game: Node) -> void:
 		hud.goals_value.get_theme_color("font_color") == Color.WHITE,
 		"completed goal count should become pure white"
 	)
+	while view.completion_pulse_tween != null:
+		await get_tree().process_frame
+	require(
+		is_equal_approx(
+			float(view.modulate.a),
+			VisualStyle.COMPLETION_BOARD_DIM_ALPHA
+		),
+		"board should dim after the completion pulse finishes"
+	)
 
 	var undone: bool = bool(game.undo_last_command())
 	require(undone, "completion should remain undoable")
@@ -876,6 +888,10 @@ func check_completion_feedback(game: Node) -> void:
 	require(
 		float(view.completion_pulse_progress) < 0.0,
 		"undo should cancel the completed-goal pulse"
+	)
+	require(
+		is_equal_approx(float(view.modulate.a), 1.0),
+		"undo should restore full board opacity"
 	)
 	require(not bool(hud.continue_hint.visible), "undo should hide the continue hint")
 	require(bool(hud.direction_hint.visible), "undo should restore movement hints")

@@ -470,13 +470,17 @@ func refresh() -> void:
 
 
 func fit_board_to_viewport() -> void:
+	var viewport := get_viewport()
+	if viewport == null:
+		return
+	var viewport_size := viewport.get_visible_rect().size
 	if (
 		root_panel == null
 		or board_view == null
 		or game_board == null
 		or game_board.terrain.is_empty()
-		or root_panel.size.x <= 0.0
-		or root_panel.size.y <= 0.0
+		or viewport_size.x <= 0.0
+		or viewport_size.y <= 0.0
 	):
 		return
 
@@ -487,11 +491,11 @@ func fit_board_to_viewport() -> void:
 
 	var available_width: float = maxf(
 		BOARD_CELL_SIZE_MIN,
-		root_panel.size.x - STAGE_HORIZONTAL_MARGIN * 2.0
+		viewport_size.x - STAGE_HORIZONTAL_MARGIN * 2.0
 	)
 	var available_height: float = maxf(
 		BOARD_CELL_SIZE_MIN,
-		root_panel.size.y
+		viewport_size.y
 		- HEADER_HEIGHT
 		- control_hint_status_height()
 		- STAGE_TOP_MARGIN
