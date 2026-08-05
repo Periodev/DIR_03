@@ -38,6 +38,8 @@ const CONTROL_HINT_SCALE := 2.0
 const CONTROL_HINT_ACTION_FONT_SIZE := 12
 const CONTROL_HINT_VERTICAL_PADDING := 48
 const CONTROL_HINT_MOVE_ICON_BASE_SIZE := 44
+const CONTROL_HINT_SPACE_ICON_BASE_SIZE := Vector2(48.0, 24.0)
+const CONTROL_HINT_SPACE_SOURCE_RECT := Rect2(8.0, 18.0, 48.0, 28.0)
 const CONTROL_HINT_GROUP_SEPARATION := 44
 const CONTROL_HINT_INACTIVE_ALPHA := 0.35
 
@@ -261,8 +263,22 @@ func build_key_hints() -> HBoxContainer:
 	hints.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	direction_hint = add_icon_key_hint(hints, MOVE_KEYS_TEXTURE, "MOVE")
 	install_hint = add_icon_key_hint(hints, INSTALL_KEY_TEXTURE, "INSTALL", 0.5)
-	release_hint = add_icon_key_hint(hints, RELEASE_KEY_TEXTURE, "RELEASE")
-	continue_hint = add_icon_key_hint(hints, RELEASE_KEY_TEXTURE, "CONTINUE")
+	release_hint = add_icon_key_hint(
+		hints,
+		RELEASE_KEY_TEXTURE,
+		"RELEASE",
+		1.0,
+		CONTROL_HINT_SPACE_ICON_BASE_SIZE,
+		CONTROL_HINT_SPACE_SOURCE_RECT
+	)
+	continue_hint = add_icon_key_hint(
+		hints,
+		RELEASE_KEY_TEXTURE,
+		"CONTINUE",
+		1.0,
+		CONTROL_HINT_SPACE_ICON_BASE_SIZE,
+		CONTROL_HINT_SPACE_SOURCE_RECT
+	)
 	continue_hint.visible = false
 	return hints
 
@@ -271,21 +287,30 @@ func add_icon_key_hint(
 	parent: HBoxContainer,
 	key_texture: Texture2D,
 	action_text: String,
-	icon_scale: float = 1.0
+	icon_scale: float = 1.0,
+	icon_base_size: Vector2 = Vector2.ZERO,
+	source_rect: Rect2 = Rect2()
 ) -> HBoxContainer:
 	var item := HBoxContainer.new()
 	item.add_theme_constant_override("separation", 7)
 	parent.add_child(item)
 
 	var keycap := TextureRect.new()
-	var icon_size := control_hint_icon_size() * icon_scale
-	keycap.custom_minimum_size = Vector2(
-		icon_size,
-		icon_size
-	)
-	keycap.texture = key_texture
+	var icon_size := Vector2.ONE * control_hint_icon_size() * icon_scale
+	if icon_base_size != Vector2.ZERO:
+		icon_size = icon_base_size * CONTROL_HINT_SCALE
+	keycap.custom_minimum_size = icon_size
+	if source_rect.has_area():
+		var cropped_texture := AtlasTexture.new()
+		cropped_texture.atlas = key_texture
+		cropped_texture.region = source_rect
+		keycap.texture = cropped_texture
+		keycap.stretch_mode = TextureRect.STRETCH_SCALE
+		keycap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	else:
+		keycap.texture = key_texture
+		keycap.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	keycap.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	keycap.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	keycap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	keycap_icons.append(keycap)
 	item.add_child(keycap)
@@ -298,6 +323,7 @@ func add_icon_key_hint(
 	text_tone_labels.append(action)
 	item.add_child(action)
 	return item
+
 
 func control_hint_font_size(base_size: int) -> int:
 	return maxi(8, roundi(base_size * CONTROL_HINT_SCALE))

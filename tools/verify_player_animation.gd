@@ -845,11 +845,8 @@ func check_completion_feedback(game: Node) -> void:
 	require_level(game, "@A*")
 	var started: bool = bool(game.execute_command("R"))
 	require(started, "completion push should be accepted")
-	await create_timer(
-		VisualStyle.PUSH_DISPLACEMENT_DELAY_SECONDS
-		+ VisualStyle.DISPLACEMENT_SECONDS
-		+ VisualStyle.COMPLETION_PULSE_DELAY_SECONDS * 0.5
-	).timeout
+	while bool(game.input_locked):
+		await get_tree().process_frame
 	require(bool(game.level_completed), "final displacement should complete the level")
 	var view: Node = game.board_view
 	var hud: Node = game.game_hud
@@ -858,7 +855,7 @@ func check_completion_feedback(game: Node) -> void:
 		"completed goals should remain still during the pulse delay"
 	)
 	await create_timer(
-		VisualStyle.COMPLETION_PULSE_DELAY_SECONDS * 0.5 + 0.05
+		VisualStyle.COMPLETION_PULSE_DELAY_SECONDS + 0.03
 	).timeout
 	require(
 		float(view.completion_pulse_progress) >= 0.0,

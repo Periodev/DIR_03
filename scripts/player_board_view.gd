@@ -2,6 +2,15 @@ class_name DirPlayerBoardView
 extends Control
 
 const VisualStyle = preload("res://scripts/visual_style.gd")
+const INSTALL_KEY_TEXTURE = preload(
+	"res://assets/input_prompts/keyboard_x_outline.svg"
+)
+const RELEASE_KEY_TEXTURE = preload(
+	"res://assets/input_prompts/keyboard_space_outline.svg"
+)
+const UNDO_KEY_TEXTURE = preload(
+	"res://assets/input_prompts/keyboard_z_outline.svg"
+)
 
 const DISPLACEMENT_NONE := 0
 const DISPLACEMENT_PLAYER := 1
@@ -1198,8 +1207,10 @@ func draw_install_tutorial_hint() -> void:
 
 	draw_tutorial_hint(
 		install_tutorial_hint_cell,
-		"[X] Install",
-		alpha
+		INSTALL_KEY_TEXTURE,
+		alpha,
+		VisualStyle.TUTORIAL_X_KEY_SIZE,
+		Rect2(8.0, 8.0, 48.0, 48.0)
 	)
 
 
@@ -1243,46 +1254,122 @@ func draw_release_tutorial_hint() -> void:
 		return
 	draw_tutorial_hint(
 		release_tutorial_hint_cell,
-		"[SPACE] Release",
-		alpha
+		RELEASE_KEY_TEXTURE,
+		alpha,
+		VisualStyle.TUTORIAL_SPACE_KEY_SIZE,
+		Rect2(),
+		VisualStyle.TUTORIAL_SPACE_KEY_GAP
 	)
 
 
-func draw_tutorial_hint(cell: Vector2i, hint_text: String, alpha: float) -> void:
+func draw_tutorial_hint(
+	cell: Vector2i,
+	key_texture: Texture2D,
+	alpha: float,
+	base_icon_size: Vector2,
+	source_rect: Rect2 = Rect2(),
+	base_gap: float = VisualStyle.TUTORIAL_KEY_GAP
+) -> void:
 	var block_gap := roundi(cell_size * VisualStyle.BLOCK_INSET_RATIO)
 	var block_rect := Rect2(
 		cell_to_position(cell) + Vector2.ONE * block_gap,
 		Vector2.ONE * (cell_size - block_gap * 2)
 	)
-	var horizontal_padding := scaled_px(5.0)
-	var available_width := cell_size * 1.6 - horizontal_padding * 2.0
-	var font_size := scaled_font_size(14)
-	var text_size := fallback_font.get_string_size(
-		hint_text,
-		HORIZONTAL_ALIGNMENT_LEFT,
-		-1,
-		font_size
+	var icon_size := scaled_tutorial_key_size(base_icon_size)
+	var center := Vector2(
+		block_rect.get_center().x,
+		block_rect.position.y
+		- scaled_tutorial_key_length(base_gap)
+		- icon_size.y / 2.0
 	)
-	while text_size.x > available_width and font_size > 8:
-		font_size -= 1
-		text_size = fallback_font.get_string_size(
-			hint_text,
-			HORIZONTAL_ALIGNMENT_LEFT,
-			-1,
-			font_size
-		)
-	var text_position := Vector2(
-		block_rect.get_center().x - text_size.x / 2.0,
-		block_rect.position.y - scaled_px(6.0)
+	draw_key_prompt(
+		center,
+		key_texture,
+		alpha,
+		icon_size,
+		source_rect
+	)
+
+
+func draw_key_prompt(
+	center: Vector2,
+	key_texture: Texture2D,
+	alpha: float,
+	icon_size: Vector2,
+	source_rect: Rect2
+) -> void:
+	var icon_rect := Rect2(
+		center - icon_size / 2.0,
+		icon_size
 	)
 	var shadow_color: Color = palette["direction_fill"]
 	shadow_color.a *= alpha
 	var hint_color: Color = palette["tutorial_hint"]
 	hint_color.a *= alpha
+	var shadow_offset := Vector2.ONE * scaled_px(2.0)
+	var shadow_rect := Rect2(icon_rect.position + shadow_offset, icon_rect.size)
+	if source_rect.has_area():
+		draw_texture_rect_region(
+			key_texture,
+			shadow_rect,
+			source_rect,
+			shadow_color
+		)
+		draw_texture_rect_region(
+			key_texture,
+			icon_rect,
+			source_rect,
+			hint_color
+		)
+	else:
+		draw_texture_rect(key_texture, shadow_rect, false, shadow_color)
+		draw_texture_rect(key_texture, icon_rect, false, hint_color)
+
+
+func draw_key_action_prompt(
+	center: Vector2,
+	key_texture: Texture2D,
+	action_text: String,
+	alpha: float,
+	font_size: int,
+	icon_size: float
+) -> void:
+	var gap := float(scaled_px(5.0))
+	var text_size := fallback_font.get_string_size(
+		action_text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		font_size
+	)
+	var group_width := icon_size + gap + text_size.x
+	var group_height := maxf(icon_size, fallback_font.get_height(font_size))
+	var group_top_left := center - Vector2(group_width, group_height) / 2.0
+	var icon_rect := Rect2(
+		group_top_left + Vector2(0.0, (group_height - icon_size) / 2.0),
+		Vector2.ONE * icon_size
+	)
+	var text_baseline := Vector2(
+		group_top_left.x + icon_size + gap,
+		group_top_left.y
+		+ (group_height - fallback_font.get_height(font_size)) / 2.0
+		+ fallback_font.get_ascent(font_size)
+	)
+	var shadow_color: Color = palette["direction_fill"]
+	shadow_color.a *= alpha
+	var hint_color: Color = palette["tutorial_hint"]
+	hint_color.a *= alpha
+	var shadow_offset := Vector2.ONE * scaled_px(2.0)
+	draw_texture_rect(
+		key_texture,
+		Rect2(icon_rect.position + shadow_offset, icon_rect.size),
+		false,
+		shadow_color
+	)
+	draw_texture_rect(key_texture, icon_rect, false, hint_color)
 	draw_string(
 		fallback_font,
-		text_position + Vector2(scaled_px(2.0), scaled_px(2.0)),
-		hint_text,
+		text_baseline + shadow_offset,
+		action_text,
 		HORIZONTAL_ALIGNMENT_LEFT,
 		-1,
 		font_size,
@@ -1290,8 +1377,8 @@ func draw_tutorial_hint(cell: Vector2i, hint_text: String, alpha: float) -> void
 	)
 	draw_string(
 		fallback_font,
-		text_position,
-		hint_text,
+		text_baseline,
+		action_text,
 		HORIZONTAL_ALIGNMENT_LEFT,
 		-1,
 		font_size,
@@ -1312,43 +1399,18 @@ func draw_undo_tutorial_prompt() -> void:
 	if not should_draw_undo_tutorial_prompt():
 		return
 
-	var prompt := "[Z] UNDO"
 	var font_size := scaled_font_size(28)
-	var text_size := fallback_font.get_string_size(
-		prompt,
-		HORIZONTAL_ALIGNMENT_LEFT,
-		-1,
-		font_size
-	)
 	var wall_rect := Rect2(
 		cell_to_position(Vector2i.ZERO),
 		Vector2(cell_size * 2.0, cell_size)
 	)
-	var baseline := Vector2(
-		wall_rect.get_center().x - text_size.x / 2.0,
-		wall_rect.get_center().y
-		+ fallback_font.get_ascent(font_size) / 2.0
-		- fallback_font.get_descent(font_size) / 2.0
-	)
-	var shadow_color: Color = palette["direction_fill"]
-	var prompt_color: Color = palette["tutorial_hint"]
-	draw_string(
-		fallback_font,
-		baseline + Vector2(scaled_px(2.0), scaled_px(2.0)),
-		prompt,
-		HORIZONTAL_ALIGNMENT_LEFT,
-		-1,
+	draw_key_action_prompt(
+		wall_rect.get_center(),
+		UNDO_KEY_TEXTURE,
+		"UNDO",
+		1.0,
 		font_size,
-		shadow_color
-	)
-	draw_string(
-		fallback_font,
-		baseline,
-		prompt,
-		HORIZONTAL_ALIGNMENT_LEFT,
-		-1,
-		font_size,
-		prompt_color
+		float(scaled_px(34.0))
 	)
 
 
@@ -1527,6 +1589,14 @@ func scaled_px(value: float) -> int:
 
 func scaled_font_size(value: int) -> int:
 	return maxi(8, roundi(value * cell_size / float(VisualStyle.CELL_SIZE)))
+
+
+func scaled_tutorial_key_size(value: Vector2) -> Vector2:
+	return value * cell_size / float(VisualStyle.PLAYER_CELL_SIZE)
+
+
+func scaled_tutorial_key_length(value: float) -> float:
+	return value * cell_size / float(VisualStyle.PLAYER_CELL_SIZE)
 
 
 func direction_vector(direction_name: String) -> Vector2:
