@@ -35,6 +35,9 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if SceneTransition.is_active():
+		clear_held_movement()
+		return
 	if event is InputEventKey and event.echo:
 		return
 	var move_command := movement_command(event)

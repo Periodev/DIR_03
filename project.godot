@@ -17,6 +17,7 @@ config/features=PackedStringArray("4.6")
 [autoload]
 
 Campaign="*res://scripts/campaign.gd"
+SceneTransition="*res://scripts/scene_transition.gd"
 
 [dir]
 

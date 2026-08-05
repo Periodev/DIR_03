@@ -32,11 +32,8 @@ const BASE_STATUS_HEIGHT := 88
 const STAGE_HORIZONTAL_MARGIN := 24
 const STAGE_TOP_MARGIN := 52
 const STAGE_BOTTOM_MARGIN := 44
-const STAGE_CONTENT_SEPARATION := 32
 const BOARD_CELL_SIZE_MAX := float(VisualStyle.PLAYER_CELL_SIZE)
 const BOARD_CELL_SIZE_MIN := 16.0
-const MESSAGE_HEIGHT := 20
-const MESSAGE_WIDTH := 640
 const CONTROL_HINT_SCALE := 2.0
 const CONTROL_HINT_ACTION_FONT_SIZE := 12
 const CONTROL_HINT_VERTICAL_PADDING := 48
@@ -48,7 +45,6 @@ var game_board
 var board_view
 var light_theme := false
 var palette: Dictionary = {}
-var result_active := false
 var tutorial_controls_stage := 0
 
 var ui_font: Font
@@ -57,11 +53,11 @@ var mono_label_font: Font
 
 var root_panel: PanelContainer
 var board_host: CenterContainer
-var message_label: Label
 var goals_value: Label
 var direction_hint: HBoxContainer
 var install_hint: HBoxContainer
 var release_hint: HBoxContainer
+var continue_hint: HBoxContainer
 
 var label_tone_labels: Array[Label] = []
 var text_tone_labels: Array[Label] = []
@@ -194,13 +190,9 @@ func build_stage() -> Control:
 	stage_center.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	stage.add_child(stage_center)
 
-	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", STAGE_CONTENT_SEPARATION)
-	stage_center.add_child(content)
-
 	board_host = CenterContainer.new()
 	board_host.name = "BoardHost"
-	content.add_child(board_host)
+	stage_center.add_child(board_host)
 	board_host.add_child(board_view)
 
 	var board_goals := build_goal_group()
@@ -209,19 +201,6 @@ func build_stage() -> Control:
 		-HEADER_KEY_ICON_SIZE - BOARD_GOAL_GAP
 	)
 	board_view.add_child(board_goals)
-
-	var message_holder := CenterContainer.new()
-	message_holder.custom_minimum_size.y = MESSAGE_HEIGHT
-	content.add_child(message_holder)
-
-	message_label = make_label("", 13, ui_font)
-	message_label.custom_minimum_size = Vector2(MESSAGE_WIDTH, MESSAGE_HEIGHT)
-	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	message_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	message_label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	message_label.clip_text = true
-	dim_tone_labels.append(message_label)
-	message_holder.add_child(message_label)
 
 	return stage
 
@@ -283,6 +262,8 @@ func build_key_hints() -> HBoxContainer:
 	direction_hint = add_icon_key_hint(hints, MOVE_KEYS_TEXTURE, "MOVE")
 	install_hint = add_icon_key_hint(hints, INSTALL_KEY_TEXTURE, "INSTALL", 0.5)
 	release_hint = add_icon_key_hint(hints, RELEASE_KEY_TEXTURE, "RELEASE")
+	continue_hint = add_icon_key_hint(hints, RELEASE_KEY_TEXTURE, "CONTINUE")
+	continue_hint.visible = false
 	return hints
 
 
@@ -456,6 +437,10 @@ func refresh() -> void:
 		if game_board.find_block_index_at(goal_cell) != -1:
 			filled_goals += 1
 	goals_value.text = "%s / %s" % [filled_goals, game_board.goal_cells.size()]
+	goals_value.add_theme_color_override(
+		"font_color",
+		Color.WHITE if game_board.level_completed else palette["text_hi"]
+	)
 
 
 func fit_board_to_viewport() -> void:
@@ -485,8 +470,6 @@ func fit_board_to_viewport() -> void:
 		- control_hint_status_height()
 		- STAGE_TOP_MARGIN
 		- STAGE_BOTTOM_MARGIN
-		- STAGE_CONTENT_SEPARATION
-		- MESSAGE_HEIGHT
 	)
 	var width_limited_size: float = available_width / float(board_columns)
 	var height_limited_size: float = (
@@ -501,6 +484,15 @@ func fit_board_to_viewport() -> void:
 
 
 func refresh_control_hints() -> void:
+	if game_board.level_completed:
+		direction_hint.visible = false
+		install_hint.visible = false
+		release_hint.visible = false
+		continue_hint.visible = true
+		continue_hint.modulate = Color.WHITE
+		return
+
+	continue_hint.visible = false
 	var level_id: String = Campaign.active_level_id
 	if level_id == "1-0":
 		tutorial_controls_stage = 0
@@ -532,20 +524,16 @@ func refresh_control_hints() -> void:
 	)
 
 
-func set_message(text: String) -> void:
-	result_active = false
-	message_label.text = text
+func set_message(_text: String) -> void:
+	pass
 
 
-func show_result(text: String) -> void:
-	result_active = true
-	message_label.text = text
+func show_result(_text: String) -> void:
+	pass
 
 
 func clear_result() -> void:
-	if result_active:
-		message_label.text = ""
-	result_active = false
+	pass
 
 
 func set_light_theme(enabled: bool) -> void:

@@ -7,6 +7,7 @@ $boardViewPath = Join-Path $root "scripts/board_view.gd"
 $playerBoardViewPath = Join-Path $root "scripts/player_board_view.gd"
 $gameHudPath = Join-Path $root "scripts/game_hud.gd"
 $playerInterfacePath = Join-Path $root "scripts/player_interface.gd"
+$sceneTransitionPath = Join-Path $root "scripts/scene_transition.gd"
 $debugPanelPath = Join-Path $root "scripts/debug_panel.gd"
 $visualStylePath = Join-Path $root "scripts/visual_style.gd"
 $debugStylePath = Join-Path $root "scripts/debug_style.gd"
@@ -32,6 +33,7 @@ $boardView = Get-Content -LiteralPath $boardViewPath -Raw
 $playerBoardView = Get-Content -LiteralPath $playerBoardViewPath -Raw
 $gameHud = Get-Content -LiteralPath $gameHudPath -Raw
 $playerInterface = Get-Content -LiteralPath $playerInterfacePath -Raw
+$sceneTransition = Get-Content -LiteralPath $sceneTransitionPath -Raw
 $debugPanel = Get-Content -LiteralPath $debugPanelPath -Raw
 $visualStyle = Get-Content -LiteralPath $visualStylePath -Raw
 $debugStyle = Get-Content -LiteralPath $debugStylePath -Raw
@@ -137,6 +139,14 @@ $checks = @(
 	@{
 		Name = "movement actions support arrow keys and WASD"
 		Pass = $project -match 'move_up=\{[\s\S]*?keycode":4194320[\s\S]*?keycode":87' -and $project -match 'move_down=\{[\s\S]*?keycode":4194322[\s\S]*?keycode":83' -and $project -match 'move_left=\{[\s\S]*?keycode":4194319[\s\S]*?keycode":65' -and $project -match 'move_right=\{[\s\S]*?keycode":4194321[\s\S]*?keycode":68'
+	},
+	@{
+		Name = "level entry uses one persistent black scene transition"
+		Pass = $project -match 'SceneTransition="\*res://scripts/scene_transition\.gd"' -and $sceneTransition -match 'extends\s+CanvasLayer' -and $sceneTransition -match 'layer\s*=\s*1000' -and $sceneTransition -match 'FADE_OUT_SECONDS\s*:=\s*0\.20' -and $sceneTransition -match 'FADE_IN_SECONDS\s*:=\s*0\.20' -and $sceneTransition -match 'tween_property\(overlay,\s*"color:a",\s*1\.0,\s*FADE_OUT_SECONDS\)' -and $sceneTransition -match 'change_scene_to_file\(scene_path\)' -and $sceneTransition -match 'tween_property\(overlay,\s*"color:a",\s*0\.0,\s*FADE_IN_SECONDS\)' -and $classicLevelSelect -match 'SceneTransition\.transition_to\("res://scenes/main\.tscn"\)' -and $worldMap -match 'SceneTransition\.transition_to\("res://scenes/main\.tscn"\)' -and $mainEntry -match 'SceneTransition\.is_active\(\)[\s\S]*clear_held_movement\(\)'
+	},
+	@{
+		Name = "level completion pulses goals and replaces controls with continue"
+		Pass = $visualStyle -match 'COMPLETION_PULSE_DELAY_SECONDS\s*:=\s*0\.12' -and $visualStyle -match 'COMPLETION_PULSE_SECONDS\s*:=\s*0\.32' -and $visualStyle -match 'COMPLETION_PULSE_EXPAND_RATIO\s*:=\s*0\.08' -and $playerBoardView -match 'func\s+play_completion_feedback\(\)[\s\S]*COMPLETION_PULSE_DELAY_SECONDS[\s\S]*begin_completion_pulse[\s\S]*COMPLETION_PULSE_SECONDS' -and $playerBoardView -match 'func\s+draw_completion_pulse\([\s\S]*1\.0\s*-\s*progress[\s\S]*block_rect\.grow\(expansion\)' -and $gameBoard -match 'func\s+finish_level_completion\([\s\S]*play_completion_feedback\(\)' -and $gameBoard -match 'func\s+reset_level\(\)[\s\S]*reset_completion_feedback\(\)' -and $playerInterface -match 'add_icon_key_hint\(hints,\s*RELEASE_KEY_TEXTURE,\s*"CONTINUE"\)' -and $playerInterface -match 'if\s+game_board\.level_completed:[\s\S]*continue_hint\.visible\s*=\s*true' -and $playerInterface -match 'Color\.WHITE\s+if\s+game_board\.level_completed' -and $playerAnimationCheck -match 'func\s+check_completion_feedback\(game:\s*Node\)'
 	},
 	@{
 		Name = "main.gd has reset_level operation"
@@ -259,8 +269,8 @@ $checks = @(
 		Pass = $playerInterface -match "CenterContainer\.new\(\)" -and $playerInterface -match "board_host\.add_child\(board_view\)" -and $playerBoardView -match "return Vector2\(cell\.x \* cell_size, cell\.y \* cell_size\)"
 	},
 	@{
-		Name = "player message keeps a fixed-height layout slot"
-		Pass = $playerInterface -match "MESSAGE_HEIGHT\s*:=\s*20" -and $playerInterface -match "message_label\.clip_text\s*=\s*true"
+		Name = "player mode suppresses core status and debug messages"
+		Pass = $playerInterface -notmatch 'message_label|MESSAGE_HEIGHT|MESSAGE_WIDTH' -and $playerInterface -match 'func\s+set_message\(_text:\s*String\)\s*->\s*void:\s*\r?\n\s*pass' -and $playerInterface -match 'func\s+show_result\(_text:\s*String\)\s*->\s*void:\s*\r?\n\s*pass'
 	},
 	@{
 		Name = "player header keeps only a larger level name after the level control"
@@ -288,7 +298,7 @@ $checks = @(
 	},
 	@{
 		Name = "player board cells shrink independently to preserve the bottom controls"
-		Pass = $playerInterface -match 'BOARD_CELL_SIZE_MAX\s*:=\s*float\(VisualStyle\.PLAYER_CELL_SIZE\)' -and $playerInterface -match 'func\s+fit_board_to_viewport\(\)\s*->\s*void:' -and $playerInterface -match 'root_panel\.size\.y[\s\S]*-\s*HEADER_HEIGHT[\s\S]*-\s*control_hint_status_height\(\)[\s\S]*-\s*MESSAGE_HEIGHT' -and $playerInterface -match 'width_limited_size[\s\S]*height_limited_size[\s\S]*board_view\.set_cell_size' -and $playerInterface -match 'get_viewport\(\)\.size_changed\.connect\(fit_board_to_viewport\)' -and $playerInterface -match 'func\s+refresh\(\)\s*->\s*void:[\s\S]*fit_board_to_viewport\(\)'
+		Pass = $playerInterface -match 'BOARD_CELL_SIZE_MAX\s*:=\s*float\(VisualStyle\.PLAYER_CELL_SIZE\)' -and $playerInterface -match 'func\s+fit_board_to_viewport\(\)\s*->\s*void:' -and $playerInterface -match 'root_panel\.size\.y[\s\S]*-\s*HEADER_HEIGHT[\s\S]*-\s*control_hint_status_height\(\)[\s\S]*-\s*STAGE_TOP_MARGIN[\s\S]*-\s*STAGE_BOTTOM_MARGIN' -and $playerInterface -match 'width_limited_size[\s\S]*height_limited_size[\s\S]*board_view\.set_cell_size' -and $playerInterface -match 'get_viewport\(\)\.size_changed\.connect\(fit_board_to_viewport\)' -and $playerInterface -match 'func\s+refresh\(\)\s*->\s*void:[\s\S]*fit_board_to_viewport\(\)'
 	},
 	@{
 		Name = "player interface progressively reveals tutorial controls"
@@ -448,7 +458,7 @@ $checks = @(
 	},
 	@{
 		Name = "player goals use dashed empty markers and replace the block edge when completed"
-		Pass = $visualStyle -match "GOAL_INSET_RATIO\s*:=\s*0\.21" -and $playerBoardView -match "func\s+draw_goals\(\)[\s\S]*is_goal_visually_occupied\(cell\)[\s\S]*continue[\s\S]*GOAL_INSET_RATIO[\s\S]*draw_dashed_shape\(" -and $playerBoardView -match 'palette\["goal_complete"\][\s\S]*if\s+game_board\.goal_cells\.has\(occupied_cell\)[\s\S]*else\s+palette\["block_edge"\]' -and $playerBoardView -notmatch "outline_rect" -and $visualStyle -match '"goal_complete": Color\("#f2f2f2"\)' -and $visualStyle -match '"goal_complete": Color\("#1e1d1c"\)' -and $visualStyle -notmatch "GOAL_DIAMOND_RATIO"
+		Pass = $visualStyle -match "GOAL_INSET_RATIO\s*:=\s*0\.21" -and $playerBoardView -match "func\s+draw_goals\(\)[\s\S]*is_goal_visually_occupied\(cell\)[\s\S]*continue[\s\S]*GOAL_INSET_RATIO[\s\S]*draw_dashed_shape\(" -and $playerBoardView -match 'var\s+on_goal:\s*bool\s*=\s*game_board\.goal_cells\.has\(occupied_cell\)[\s\S]*palette\["goal_complete"\][\s\S]*if\s+on_goal[\s\S]*else\s+palette\["block_edge"\]' -and $playerBoardView -notmatch "outline_rect" -and $visualStyle -match '"goal_complete": Color\("#f2f2f2"\)' -and $visualStyle -match '"goal_complete": Color\("#1e1d1c"\)' -and $visualStyle -notmatch "GOAL_DIAMOND_RATIO"
 	},
 	@{
 		Name = "game board dispatches compact UDLRXT commands"
@@ -516,7 +526,7 @@ $checks = @(
 	},
 	@{
 		Name = "classic selector preserves single-level launch mode"
-		Pass = $project -match 'launch_mode="(?:campaign|single_level)"' -and $project -match 'single_level:\s*res://levels/level_test\.txt' -and $classicLevelSelect -match 'Campaign\.is_single_level_mode\(\)[\s\S]*call_deferred\("open_single_level_test"\)' -and $classicLevelSelect -match 'func\s+open_single_level_test\(\)[\s\S]*change_scene_to_file\("res://scenes/main\.tscn"\)'
+		Pass = $project -match 'launch_mode="(?:campaign|single_level)"' -and $project -match 'single_level:\s*res://levels/level_test\.txt' -and $classicLevelSelect -match 'Campaign\.is_single_level_mode\(\)[\s\S]*call_deferred\("open_single_level_test"\)' -and $classicLevelSelect -match 'func\s+open_single_level_test\(\)[\s\S]*SceneTransition\.transition_to\("res://scenes/main\.tscn"\)'
 	},
 	@{
 		Name = "classic selector uses restrained white teal and dim state colors"

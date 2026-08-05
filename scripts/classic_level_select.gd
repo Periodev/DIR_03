@@ -45,10 +45,12 @@ func _ready() -> void:
 
 
 func open_single_level_test() -> void:
-	get_tree().change_scene_to_file("res://scenes/main.tscn")
+	SceneTransition.transition_to("res://scenes/main.tscn")
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if SceneTransition.is_active():
+		return
 	if event is InputEventKey and event.echo:
 		return
 	if event.is_action_pressed("reset_level"):
@@ -197,7 +199,7 @@ func start_selected_level() -> void:
 	):
 		queue_redraw()
 		return
-	get_tree().change_scene_to_file("res://scenes/main.tscn")
+	SceneTransition.transition_to("res://scenes/main.tscn")
 
 
 func reset_progress() -> void:

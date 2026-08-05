@@ -49,6 +49,8 @@ var install_tutorial_hint_cell := Vector2i(-1, -1)
 var install_tutorial_hint_elapsed := 0.0
 var release_tutorial_hint_cell := Vector2i(-1, -1)
 var release_tutorial_hint_elapsed := 0.0
+var completion_pulse_progress := -1.0
+var completion_pulse_tween: Tween
 
 
 func initialize(board) -> void:
@@ -119,6 +121,46 @@ func set_facing_action_offset_ratio(value: float) -> void:
 
 func set_grid_lines_visible(lines_visible: bool) -> void:
 	grid_lines_visible = lines_visible
+	queue_redraw()
+
+
+func play_completion_feedback() -> void:
+	reset_completion_feedback()
+	completion_pulse_tween = create_tween()
+	completion_pulse_tween.tween_interval(
+		VisualStyle.COMPLETION_PULSE_DELAY_SECONDS
+	)
+	completion_pulse_tween.tween_callback(begin_completion_pulse)
+	completion_pulse_tween.tween_method(
+		set_completion_pulse_progress,
+		0.0,
+		1.0,
+		VisualStyle.COMPLETION_PULSE_SECONDS
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	completion_pulse_tween.tween_callback(finish_completion_pulse)
+
+
+func begin_completion_pulse() -> void:
+	completion_pulse_progress = 0.0
+	queue_redraw()
+
+
+func reset_completion_feedback() -> void:
+	if completion_pulse_tween != null and completion_pulse_tween.is_valid():
+		completion_pulse_tween.kill()
+	completion_pulse_tween = null
+	completion_pulse_progress = -1.0
+	queue_redraw()
+
+
+func set_completion_pulse_progress(value: float) -> void:
+	completion_pulse_progress = clampf(value, 0.0, 1.0)
+	queue_redraw()
+
+
+func finish_completion_pulse() -> void:
+	completion_pulse_tween = null
+	completion_pulse_progress = -1.0
 	queue_redraw()
 
 
@@ -809,13 +851,16 @@ func draw_block_at(
 		1.0,
 		roundi(cell_size * VisualStyle.BLOCK_EDGE_RATIO)
 	)
+	var on_goal: bool = game_board.goal_cells.has(occupied_cell)
 	var edge_color: Color = (
 		palette["goal_complete"]
-		if game_board.goal_cells.has(occupied_cell)
+		if on_goal
 		else palette["block_edge"]
 	)
 	draw_rect(block_rect, edge_color)
 	draw_rect(block_rect.grow(-edge_width), color)
+	if on_goal and completion_pulse_progress >= 0.0:
+		draw_completion_pulse(block_rect, edge_width)
 
 	if recovery_block:
 		var marker_size := scaled_font_size(16)
@@ -840,6 +885,24 @@ func draw_block_at(
 		)
 		if should_draw_active_vector_pulse(block_id):
 			draw_active_vector_outline(vector_center, vector_name)
+
+
+func draw_completion_pulse(block_rect: Rect2, edge_width: float) -> void:
+	var progress := clampf(completion_pulse_progress, 0.0, 1.0)
+	var expansion := (
+		cell_size
+		* VisualStyle.COMPLETION_PULSE_EXPAND_RATIO
+		* sin(progress * PI / 2.0)
+	)
+	var pulse_color: Color = palette["goal_complete"]
+	pulse_color.a *= 1.0 - progress
+	draw_rect(
+		block_rect.grow(expansion),
+		pulse_color,
+		false,
+		edge_width,
+		true
+	)
 
 
 func queued_release_block_id() -> int:

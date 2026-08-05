@@ -35,6 +35,7 @@ func run_checks() -> void:
 	await check_blocked_trigger_sequence(game)
 	await check_collision_trigger_sequence(game)
 	await check_reset_cancels_animation(game)
+	await check_completion_feedback(game)
 
 	if failures == 0:
 		print("PASS: player displacement and trigger animation checks passed.")
@@ -838,6 +839,49 @@ func check_reset_cancels_animation(game: Node) -> void:
 		not bool(game.level_completed),
 		"a cancelled animation must not complete the reset level"
 	)
+
+
+func check_completion_feedback(game: Node) -> void:
+	require_level(game, "@A*")
+	var started: bool = bool(game.execute_command("R"))
+	require(started, "completion push should be accepted")
+	await create_timer(
+		VisualStyle.PUSH_DISPLACEMENT_DELAY_SECONDS
+		+ VisualStyle.DISPLACEMENT_SECONDS
+		+ VisualStyle.COMPLETION_PULSE_DELAY_SECONDS * 0.5
+	).timeout
+	require(bool(game.level_completed), "final displacement should complete the level")
+	var view: Node = game.board_view
+	var hud: Node = game.game_hud
+	require(
+		float(view.completion_pulse_progress) < 0.0,
+		"completed goals should remain still during the pulse delay"
+	)
+	await create_timer(
+		VisualStyle.COMPLETION_PULSE_DELAY_SECONDS * 0.5 + 0.05
+	).timeout
+	require(
+		float(view.completion_pulse_progress) >= 0.0,
+		"completed goals should pulse only after the delay"
+	)
+	require(bool(hud.continue_hint.visible), "completion should show the continue hint")
+	require(not bool(hud.direction_hint.visible), "completion should hide movement hints")
+	require(not bool(hud.install_hint.visible), "completion should hide install hints")
+	require(not bool(hud.release_hint.visible), "completion should hide release hints")
+	require(
+		hud.goals_value.get_theme_color("font_color") == Color.WHITE,
+		"completed goal count should become pure white"
+	)
+
+	var undone: bool = bool(game.undo_last_command())
+	require(undone, "completion should remain undoable")
+	require(not bool(game.level_completed), "undo should reopen the board state")
+	require(
+		float(view.completion_pulse_progress) < 0.0,
+		"undo should cancel the completed-goal pulse"
+	)
+	require(not bool(hud.continue_hint.visible), "undo should hide the continue hint")
+	require(bool(hud.direction_hint.visible), "undo should restore movement hints")
 
 
 func require_level(game: Node, source: String) -> void:

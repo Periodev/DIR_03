@@ -505,6 +505,7 @@ func undo_last_command() -> bool:
 
 func reset_level() -> void:
 	begin_atomic_input()
+	reset_completion_feedback()
 	player_cell = initial_player_cell
 	player_queue = ""
 	facing_direction = Vector2i.RIGHT
@@ -597,6 +598,7 @@ func restore_board_snapshot(snapshot: BoardSnapshot) -> void:
 	command_history.clear()
 	for command in snapshot.command_history:
 		command_history.append(command)
+	reset_completion_feedback()
 
 
 func duplicate_initial_blocks() -> Array[Dictionary]:
@@ -802,6 +804,7 @@ func complete_level_for_testing() -> bool:
 
 func finish_level_completion(completion_log: String) -> bool:
 	level_completed = true
+	play_completion_feedback()
 	if Campaign.has_active_level():
 		Campaign.complete_active_level()
 	var input_result := command_history_text()
@@ -820,6 +823,16 @@ func finish_level_completion(completion_log: String) -> bool:
 		"(empty)" if input_result == "" else input_result,
 	])
 	return true
+
+
+func play_completion_feedback() -> void:
+	if board_view != null and board_view.has_method("play_completion_feedback"):
+		board_view.play_completion_feedback()
+
+
+func reset_completion_feedback() -> void:
+	if board_view != null and board_view.has_method("reset_completion_feedback"):
+		board_view.reset_completion_feedback()
 
 
 func can_block_move_to(from: Vector2i, cell: Vector2i) -> bool:
