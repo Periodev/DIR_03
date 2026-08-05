@@ -303,6 +303,10 @@ $checks = @(
 		Pass = $playerInterface -match 'CONTROL_HINT_SCALE\s*:=\s*[0-9]+(?:\.[0-9]+)?' -and $playerInterface -match 'CONTROL_HINT_GROUP_SEPARATION\s*:=\s*44' -and $playerInterface -match 'add_theme_constant_override\("separation",\s*CONTROL_HINT_GROUP_SEPARATION\)' -and $playerInterface -match 'func\s+control_hint_font_size\(base_size:\s*int\)\s*->\s*int' -and $playerInterface -match 'base_size\s*\*\s*CONTROL_HINT_SCALE' -and $playerInterface -match 'func\s+control_hint_icon_size\(\)\s*->\s*float:[\s\S]*CONTROL_HINT_MOVE_ICON_BASE_SIZE\s*\*\s*CONTROL_HINT_SCALE' -and $playerInterface -match 'func\s+control_hint_status_height\(\)\s*->\s*float[\s\S]*control_hint_icon_size\(\)' -and $playerInterface -match 'status\.custom_minimum_size\.y\s*=\s*control_hint_status_height\(\)'
 	},
 	@{
+		Name = "install and release hints dim when their commands are ineffective"
+		Pass = $playerInterface -match 'CONTROL_HINT_INACTIVE_ALPHA\s*:=\s*0\.35' -and $playerInterface -match 'install_hint\.modulate\s*=\s*Color\([\s\S]*command_will_change_state\("X"\)[\s\S]*CONTROL_HINT_INACTIVE_ALPHA' -and $playerInterface -match 'release_hint\.modulate\s*=\s*Color\([\s\S]*command_will_change_state\("T"\)[\s\S]*CONTROL_HINT_INACTIVE_ALPHA' -and $playerAnimationCheck -match 'install hint should dim when X cannot change state' -and $playerAnimationCheck -match 'release hint should brighten when a direction is installed'
+	},
+	@{
 		Name = "player interface buttons do not capture gameplay keys"
 		Pass = $playerInterface -match "func\s+make_button\([\s\S]*focus_mode\s*=\s*Control\.FOCUS_NONE"
 	},

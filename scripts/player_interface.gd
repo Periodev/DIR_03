@@ -42,6 +42,7 @@ const CONTROL_HINT_ACTION_FONT_SIZE := 12
 const CONTROL_HINT_VERTICAL_PADDING := 48
 const CONTROL_HINT_MOVE_ICON_BASE_SIZE := 44
 const CONTROL_HINT_GROUP_SEPARATION := 44
+const CONTROL_HINT_INACTIVE_ALPHA := 0.35
 
 var game_board
 var board_view
@@ -517,6 +518,18 @@ func refresh_control_hints() -> void:
 	direction_hint.visible = true
 	install_hint.visible = tutorial_controls_stage >= 1
 	release_hint.visible = tutorial_controls_stage >= 2
+	install_hint.modulate = Color(
+		1.0,
+		1.0,
+		1.0,
+		1.0 if game_board.command_will_change_state("X") else CONTROL_HINT_INACTIVE_ALPHA
+	)
+	release_hint.modulate = Color(
+		1.0,
+		1.0,
+		1.0,
+		1.0 if game_board.command_will_change_state("T") else CONTROL_HINT_INACTIVE_ALPHA
+	)
 
 
 func set_message(text: String) -> void:

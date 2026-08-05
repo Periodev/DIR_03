@@ -20,6 +20,7 @@ func run_checks() -> void:
 	check_grid_line_toggle(game)
 	check_active_vector_pulse(game)
 	check_progressive_control_hints(game)
+	check_control_hint_availability(game)
 	check_adaptive_board_fit(game)
 	check_undo_deadlock_prompt(game)
 	await check_install_tutorial_hint(game)
@@ -125,6 +126,44 @@ func check_progressive_control_hints(game: Node) -> void:
 		hints.get_combined_minimum_size().y <= hud.control_hint_status_height(),
 		"scaled control hints should fit the automatic status bar height"
 	)
+
+
+func check_control_hint_availability(game: Node) -> void:
+	var previous_level_id: String = Campaign.active_level_id
+	require_level(game, "@A.")
+	Campaign.active_level_id = "1-2"
+	var hud: Node = game.game_hud
+	game.player_queue = ""
+	game.install_order.clear()
+	hud.refresh()
+	require(
+		is_equal_approx(
+			float(hud.install_hint.modulate.a),
+			float(hud.CONTROL_HINT_INACTIVE_ALPHA)
+		),
+		"install hint should dim when X cannot change state"
+	)
+	require(
+		is_equal_approx(
+			float(hud.release_hint.modulate.a),
+			float(hud.CONTROL_HINT_INACTIVE_ALPHA)
+		),
+		"release hint should dim when no direction is installed"
+	)
+
+	game.player_queue = "Right"
+	hud.refresh()
+	require(
+		is_equal_approx(float(hud.install_hint.modulate.a), 1.0),
+		"install hint should brighten when X can install"
+	)
+	install_test_vector(game, 1, "Left")
+	require(
+		is_equal_approx(float(hud.release_hint.modulate.a), 1.0),
+		"release hint should brighten when a direction is installed"
+	)
+	Campaign.active_level_id = previous_level_id
+	hud.refresh()
 
 
 func check_adaptive_board_fit(game: Node) -> void:
