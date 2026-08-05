@@ -138,4 +138,4 @@ func is_quick_complete_key(event: InputEvent) -> bool:
 
 func return_to_world_map() -> void:
 	Campaign.leave_active_level()
-	get_tree().change_scene_to_file(Campaign.level_select_scene_path)
+	SceneTransition.transition_to(Campaign.level_select_scene_path)

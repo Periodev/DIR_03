@@ -142,7 +142,7 @@ $checks = @(
 	},
 	@{
 		Name = "level entry uses one persistent black scene transition"
-		Pass = $project -match 'SceneTransition="\*res://scripts/scene_transition\.gd"' -and $sceneTransition -match 'extends\s+CanvasLayer' -and $sceneTransition -match 'layer\s*=\s*1000' -and $sceneTransition -match 'FADE_OUT_SECONDS\s*:=\s*0\.20' -and $sceneTransition -match 'FADE_IN_SECONDS\s*:=\s*0\.20' -and $sceneTransition -match 'tween_property\(overlay,\s*"color:a",\s*1\.0,\s*FADE_OUT_SECONDS\)' -and $sceneTransition -match 'change_scene_to_file\(scene_path\)' -and $sceneTransition -match 'tween_property\(overlay,\s*"color:a",\s*0\.0,\s*FADE_IN_SECONDS\)' -and $classicLevelSelect -match 'SceneTransition\.transition_to\("res://scenes/main\.tscn"\)' -and $worldMap -match 'SceneTransition\.transition_to\("res://scenes/main\.tscn"\)' -and $mainEntry -match 'SceneTransition\.is_active\(\)[\s\S]*clear_held_movement\(\)'
+		Pass = $project -match 'SceneTransition="\*res://scripts/scene_transition\.gd"' -and $sceneTransition -match 'extends\s+CanvasLayer' -and $sceneTransition -match 'layer\s*=\s*1000' -and $sceneTransition -match 'FADE_OUT_SECONDS\s*:=\s*0\.15' -and $sceneTransition -match 'FADE_IN_SECONDS\s*:=\s*0\.15' -and $sceneTransition -match 'tween_property\(overlay,\s*"color:a",\s*1\.0,\s*FADE_OUT_SECONDS\)' -and $sceneTransition -match 'change_scene_to_file\(scene_path\)' -and $sceneTransition -match 'tween_property\(overlay,\s*"color:a",\s*0\.0,\s*FADE_IN_SECONDS\)' -and $classicLevelSelect -match 'SceneTransition\.transition_to\("res://scenes/main\.tscn"\)' -and $worldMap -match 'SceneTransition\.transition_to\("res://scenes/main\.tscn"\)' -and $mainEntry -match 'SceneTransition\.is_active\(\)[\s\S]*clear_held_movement\(\)' -and $mainEntry -match 'func\s+return_to_world_map\(\)[\s\S]*SceneTransition\.transition_to\(Campaign\.level_select_scene_path\)'
 	},
 	@{
 		Name = "level completion pulses goals and replaces controls with continue"
@@ -522,7 +522,7 @@ $checks = @(
 	},
 	@{
 		Name = "classic level selector scene and return routing are wired"
-		Pass = $classicLevelSelectScene -match 'res://scripts/classic_level_select\.gd' -and $mainEntry -match 'change_scene_to_file\(Campaign\.level_select_scene_path\)' -and $worldMap -match 'Campaign\.WORLD_MAP_SCENE_PATH'
+		Pass = $classicLevelSelectScene -match 'res://scripts/classic_level_select\.gd' -and $mainEntry -match 'SceneTransition\.transition_to\(Campaign\.level_select_scene_path\)' -and $worldMap -match 'Campaign\.WORLD_MAP_SCENE_PATH'
 	},
 	@{
 		Name = "classic selector preserves single-level launch mode"

@@ -1,7 +1,7 @@
 extends CanvasLayer
 
-const FADE_OUT_SECONDS := 0.20
-const FADE_IN_SECONDS := 0.20
+const FADE_OUT_SECONDS := 0.15
+const FADE_IN_SECONDS := 0.15
 
 var transition_active := false
 var overlay: ColorRect
