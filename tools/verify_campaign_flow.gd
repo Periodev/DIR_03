@@ -44,7 +44,7 @@ func run_verification() -> void:
 	if verified_levels != 34:
 		fail("Expected 34 campaign levels; found %s." % verified_levels)
 		return
-	if campaign.level_name_for("1-0") != "Push" or campaign.level_name_for("3-11") != "Phase":
+	if campaign.level_name_for("1-0") != "Push" or campaign.level_name_for("3-11") != "Phase" or campaign.level_name_for("3-12") != "Fin":
 		fail("Campaign level names are not available through the catalog.")
 		return
 

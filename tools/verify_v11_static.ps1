@@ -490,7 +490,11 @@ $checks = @(
 	},
 	@{
 		Name = "campaign levels use one named cell-edge catalog"
-		Pass = $campaign -match 'preload\("res://scripts/level_catalog\.gd"\)' -and $campaign -match 'const\s+AREAS\s*:=\s*LevelCatalogData\.AREAS' -and $campaign -notmatch 'collection_path|load_collection_sections' -and ([regex]::Matches($levelCatalog, '"id":\s*"')).Count -eq 35 -and ([regex]::Matches($levelCatalog, '"name":\s*"')).Count -eq 35 -and ([regex]::Matches($levelCatalog, '"source":\s*"!cell-edge-v1')).Count -eq 35
+		Pass = $campaign -match 'preload\("res://scripts/level_catalog\.gd"\)' -and $campaign -match 'const\s+AREAS\s*:=\s*LevelCatalogData\.AREAS' -and $campaign -notmatch 'collection_path|load_collection_sections' -and ([regex]::Matches($levelCatalog, '"id":\s*"')).Count -eq 36 -and ([regex]::Matches($levelCatalog, '"name":\s*"')).Count -eq 36 -and ([regex]::Matches($levelCatalog, '"source":\s*"!cell-edge-v1')).Count -eq 36
+	},
+	@{
+		Name = "area three hard branches jointly unlock Fin"
+		Pass = $levelCatalog -match '"id":\s*"3-9"[\s\S]*?"requires":\s*\["3-8"\]' -and $levelCatalog -match '"id":\s*"3-10"[\s\S]*?"requires":\s*\["3-8"\]' -and $levelCatalog -match '"id":\s*"3-11"[\s\S]*?"requires":\s*\["3-8"\]' -and $levelCatalog -match '"id":\s*"3-12"[\s\S]*?"name":\s*"Fin"[\s\S]*?"requires":\s*\["3-9",\s*"3-10",\s*"3-11"\]' -and $classicLevelSelect -match 'for\s+required_value\s+in\s+requirements:[\s\S]*if\s+not\s+Campaign\.is_completed\(String\(required_value\)\):[\s\S]*return\s+false'
 	},
 	@{
 		Name = "campaign level names reach the player and selector UI"
