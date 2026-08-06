@@ -15,7 +15,9 @@ func _ready() -> void:
 
 
 func create_board_view():
-	return PlayerBoardView.new()
+	var player_view: DirPlayerBoardView = PlayerBoardView.new()
+	player_view.set_grid_lines_visible(Campaign.grid_lines_visible)
+	return player_view
 
 
 func create_game_hud():

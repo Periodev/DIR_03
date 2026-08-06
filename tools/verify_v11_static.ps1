@@ -14,10 +14,12 @@ $debugStylePath = Join-Path $root "scripts/debug_style.gd"
 $commandPlayerPath = Join-Path $root "scripts/command_player.gd"
 $worldMapPath = Join-Path $root "scripts/world_map.gd"
 $classicLevelSelectPath = Join-Path $root "scripts/classic_level_select.gd"
+$titleScreenPath = Join-Path $root "scripts/title_screen.gd"
 $levelThumbnailRendererPath = Join-Path $root "scripts/level_thumbnail_renderer.gd"
 $campaignPath = Join-Path $root "scripts/campaign.gd"
 $levelCatalogPath = Join-Path $root "scripts/level_catalog.gd"
 $classicLevelSelectScenePath = Join-Path $root "scenes/classic_level_select.tscn"
+$titleScreenScenePath = Join-Path $root "scenes/title_screen.tscn"
 $commandPlayerScenePath = Join-Path $root "scenes/command_player.tscn"
 $asciiMapPath = Join-Path $root "scripts/ascii_map.gd"
 $levelPath = Join-Path $root "levels/level_test.txt"
@@ -41,10 +43,12 @@ $main = "$mainEntry`n$gameBoard`n$boardView`n$playerBoardView`n$gameHud`n$player
 $commandPlayer = Get-Content -LiteralPath $commandPlayerPath -Raw
 $worldMap = Get-Content -LiteralPath $worldMapPath -Raw
 $classicLevelSelect = Get-Content -LiteralPath $classicLevelSelectPath -Raw
+$titleScreen = Get-Content -LiteralPath $titleScreenPath -Raw
 $levelThumbnailRenderer = Get-Content -LiteralPath $levelThumbnailRendererPath -Raw
 $campaign = Get-Content -LiteralPath $campaignPath -Raw
 $levelCatalog = Get-Content -LiteralPath $levelCatalogPath -Raw
 $classicLevelSelectScene = Get-Content -LiteralPath $classicLevelSelectScenePath -Raw
+$titleScreenScene = Get-Content -LiteralPath $titleScreenScenePath -Raw
 $commandPlayerScene = Get-Content -LiteralPath $commandPlayerScenePath -Raw
 $asciiMap = Get-Content -LiteralPath $asciiMapPath -Raw
 $level = Get-Content -LiteralPath $levelPath -Raw
@@ -525,8 +529,16 @@ $checks = @(
 		Pass = $classicLevelSelectScene -match 'res://scripts/classic_level_select\.gd' -and $mainEntry -match 'SceneTransition\.transition_to\(Campaign\.level_select_scene_path\)' -and $worldMap -match 'Campaign\.WORLD_MAP_SCENE_PATH'
 	},
 	@{
+		Name = "title screen presents the directional main menu"
+		Pass = $project -match 'run/main_scene="res://scenes/title_screen\.tscn"' -and $titleScreenScene -match 'res://scripts/title_screen\.gd' -and $campaign -match 'TITLE_SCREEN_SCENE_PATH\s*:=\s*"res://scenes/title_screen\.tscn"' -and $titleScreen -match 'class_name\s+DirTitleScreen' -and $titleScreen -match 'MENU_CELL_SIZE\s*:=\s*288\.0' -and $titleScreen -match 'MENU_CENTER_Y_RATIO\s*:=\s*0\.61' -and $titleScreen -match '"START"[\s\S]*Vector2i\.UP' -and $titleScreen -match '"EXTRA"[\s\S]*Vector2i\.LEFT' -and $titleScreen -match '"CONFIG"[\s\S]*Vector2i\.RIGHT' -and $titleScreen -match '"CREDITS"[\s\S]*Vector2i\.DOWN' -and $titleScreen -match 'stored_direction\s*:=\s*Vector2i\.ZERO' -and $titleScreen -match 'stored_direction\s*=\s*selected_direction' -and $titleScreen -match 'if\s+stored_direction\s*==\s*Vector2i\.ZERO:[\s\S]*return' -and $titleScreen -match 'VisualStyle\.PLAYER_BODY_RATIO' -and $titleScreen -match 'VisualStyle\.PLAYER_TRI_H_RATIO' -and $titleScreen -match 'VisualStyle\.STORED_VECTOR_OFFSET_RATIO' -and $titleScreen -match 'VisualStyle\.FACING_CHV_LEN_RATIO' -and $titleScreen -match 'func\s+chevron_points\(' -and $titleScreen -match 'OPTION_BOX_SIZE[\s\S]*draw_rect\(option_rect,\s*frame_color,\s*false,\s*frame_width\)' -and $titleScreen -match 'CONFIRM_HOLD_SECONDS[\s\S]*create_timer\(CONFIRM_HOLD_SECONDS\)' -and $titleScreen -match 'palette\["direction_fill"\]' -and $titleScreen -match 'SceneTransition\.transition_to\(Campaign\.CLASSIC_LEVEL_SELECT_SCENE_PATH\)' -and $classicLevelSelect -match 'is_cancel_key\(event\)[\s\S]*Campaign\.TITLE_SCREEN_SCENE_PATH'
+	},
+	@{
+		Name = "title config orders screen grid audio and back"
+		Pass = $titleScreen -match '"SCREEN\s+%s"[\s\S]*"GRID\s+%s"[\s\S]*"AUDIO"[\s\S]*"BACK"' -and $titleScreen -match 'CONFIG_PANEL_OFFSET_X\s*:=\s*370\.0' -and $titleScreen -match 'draw_player_mark\(menu_center\)[\s\S]*menu_center\.x\s*\+\s*CONFIG_PANEL_OFFSET_X' -and $titleScreen -match 'func\s+draw_audio_option\(' -and $titleScreen -match 'AUDIO_SLIDER_SIZE\.x\s*\*\s*fill_ratio' -and $titleScreen -match 'func\s+play_config_action\(' -and $titleScreen -match '"config_action_offset"[\s\S]*-CONFIG_ACTION_RETREAT[\s\S]*CONFIG_ACTION_HOLD_SECONDS[\s\S]*CONFIG_ACTION_EXTEND[\s\S]*CONFIG_ACTION_RETURN_SECONDS' -and $titleScreen -match 'play_config_action\(leave_config\)' -and $titleScreen -match 'toggle_fullscreen\(\)' -and $titleScreen -match 'Campaign\.grid_lines_visible\s*=\s*not Campaign\.grid_lines_visible' -and $titleScreen -match 'Campaign\.set_audio_volume\(' -and $titleScreen -match 'func\s+leave_config\(' -and $campaign -match 'var\s+grid_lines_visible\s*:=\s*false' -and $campaign -match 'func\s+set_audio_volume\(' -and $mainEntry -match 'set_grid_lines_visible\(Campaign\.grid_lines_visible\)'
+	},
+	@{
 		Name = "classic selector preserves single-level launch mode"
-		Pass = $project -match 'launch_mode="(?:campaign|single_level)"' -and $project -match 'single_level:\s*res://levels/level_test\.txt' -and $classicLevelSelect -match 'Campaign\.is_single_level_mode\(\)[\s\S]*call_deferred\("open_single_level_test"\)' -and $classicLevelSelect -match 'func\s+open_single_level_test\(\)[\s\S]*SceneTransition\.transition_to\("res://scenes/main\.tscn"\)'
+		Pass = $project -match 'launch_mode="(?:campaign|single_level)"' -and $project -match 'single_level:\s*res://levels/level_test\.txt' -and $titleScreen -match 'Campaign\.is_single_level_mode\(\)[\s\S]*call_deferred\("open_single_level_test"\)' -and $titleScreen -match 'func\s+open_single_level_test\(\)[\s\S]*SceneTransition\.transition_to\("res://scenes/main\.tscn"\)'
 	},
 	@{
 		Name = "classic selector uses restrained white teal and dim state colors"

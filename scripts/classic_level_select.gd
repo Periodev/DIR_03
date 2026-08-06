@@ -53,6 +53,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventKey and event.echo:
 		return
+	if is_cancel_key(event):
+		SceneTransition.transition_to(Campaign.TITLE_SCREEN_SCENE_PATH)
+		return
 	if event.is_action_pressed("reset_level"):
 		reset_progress()
 		return
@@ -503,6 +506,13 @@ func is_confirm_key(event: InputEvent) -> bool:
 			or key_event.keycode == KEY_SPACE
 		)
 	)
+
+
+func is_cancel_key(event: InputEvent) -> bool:
+	if not event is InputEventKey:
+		return false
+	var key_event: InputEventKey = event
+	return key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE
 
 
 func is_unlock_all_key(event: InputEvent) -> bool:

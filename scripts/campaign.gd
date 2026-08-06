@@ -4,6 +4,7 @@ const LevelCatalogData = preload("res://scripts/level_catalog.gd")
 
 const LAUNCH_MODE_CAMPAIGN := "campaign"
 const LAUNCH_MODE_SINGLE_LEVEL := "single_level"
+const TITLE_SCREEN_SCENE_PATH := "res://scenes/title_screen.tscn"
 const WORLD_MAP_SCENE_PATH := "res://scenes/world_map.tscn"
 const CLASSIC_LEVEL_SELECT_SCENE_PATH := "res://scenes/classic_level_select.tscn"
 const AREAS := LevelCatalogData.AREAS
@@ -15,6 +16,21 @@ var return_cell := Vector2i.ZERO
 var all_levels_unlocked := false
 var level_select_scene_path := WORLD_MAP_SCENE_PATH
 var return_after_completion := false
+var grid_lines_visible := false
+var audio_volume_percent := 100
+
+
+func set_audio_volume(percent: int) -> void:
+	audio_volume_percent = clampi(percent, 0, 100)
+	var master_bus_index: int = AudioServer.get_bus_index("Master")
+	if master_bus_index == -1:
+		return
+	AudioServer.set_bus_mute(master_bus_index, audio_volume_percent == 0)
+	if audio_volume_percent > 0:
+		AudioServer.set_bus_volume_db(
+			master_bus_index,
+			linear_to_db(float(audio_volume_percent) / 100.0)
+		)
 
 
 func is_single_level_mode() -> bool:
