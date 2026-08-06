@@ -69,9 +69,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if is_cancel_key(event):
 		if menu_mode == MenuMode.CONFIG:
-			leave_config()
+			play_config_action(leave_config)
 		elif menu_mode == MenuMode.INFO:
-			leave_info()
+			play_config_action(leave_info)
 		return
 	if menu_mode == MenuMode.CONFIG:
 		handle_config_input(event)
