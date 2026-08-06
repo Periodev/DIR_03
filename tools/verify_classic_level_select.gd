@@ -90,7 +90,7 @@ func run_verification() -> void:
 	if selector.current_area_index != 0:
 		fail("Navigation entered Area 2 before it was unlocked.")
 		return
-	Campaign.completed_levels["1-9"] = true
+	Campaign.completed_levels["1-10"] = true
 	selector.move_selection(Vector2i.RIGHT)
 	if selector.current_area_index != 1 or selector.selected_index != 0:
 		fail("Right-edge navigation did not enter the unlocked Area 2 page.")
@@ -109,7 +109,7 @@ func run_verification() -> void:
 	if selector.is_entry_unlocked(area_2_entry):
 		fail("Area 2 opened before the Area 1 exit requirement.")
 		return
-	Campaign.completed_levels["1-9"] = true
+	Campaign.completed_levels["1-10"] = true
 	if not selector.is_entry_unlocked(area_2_entry):
 		fail("Area 2 stayed locked after the Area 1 exit requirement.")
 		return

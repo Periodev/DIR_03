@@ -490,7 +490,7 @@ $checks = @(
 	},
 	@{
 		Name = "campaign levels use one named cell-edge catalog"
-		Pass = $campaign -match 'preload\("res://scripts/level_catalog\.gd"\)' -and $campaign -match 'const\s+AREAS\s*:=\s*LevelCatalogData\.AREAS' -and $campaign -notmatch 'collection_path|load_collection_sections' -and ([regex]::Matches($levelCatalog, '"id":\s*"')).Count -eq 34 -and ([regex]::Matches($levelCatalog, '"name":\s*"')).Count -eq 34 -and ([regex]::Matches($levelCatalog, '"source":\s*"!cell-edge-v1')).Count -eq 34
+		Pass = $campaign -match 'preload\("res://scripts/level_catalog\.gd"\)' -and $campaign -match 'const\s+AREAS\s*:=\s*LevelCatalogData\.AREAS' -and $campaign -notmatch 'collection_path|load_collection_sections' -and ([regex]::Matches($levelCatalog, '"id":\s*"')).Count -eq 35 -and ([regex]::Matches($levelCatalog, '"name":\s*"')).Count -eq 35 -and ([regex]::Matches($levelCatalog, '"source":\s*"!cell-edge-v1')).Count -eq 35
 	},
 	@{
 		Name = "campaign level names reach the player and selector UI"
