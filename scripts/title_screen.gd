@@ -8,6 +8,7 @@ const OPTION_FONT_SIZE := 28
 const GRID_SPACING := 96.0
 const MENU_CELL_SIZE := 288.0
 const MENU_CENTER_Y_RATIO := 0.61
+const TITLE_CONTENT_OFFSET_Y := -40.0
 const HORIZONTAL_OPTION_DISTANCE := 290.0
 const VERTICAL_OPTION_DISTANCE := 235.0
 const OPTION_BOX_SIZE := Vector2(200.0, 72.0)
@@ -263,10 +264,13 @@ func _draw() -> void:
 
 	var menu_center := Vector2(
 		viewport_rect.get_center().x,
-		viewport_rect.size.y * MENU_CENTER_Y_RATIO
+		viewport_rect.size.y * MENU_CENTER_Y_RATIO + TITLE_CONTENT_OFFSET_Y
 	)
 	draw_centered_text(
-		Vector2(viewport_rect.get_center().x, viewport_rect.size.y * 0.16),
+		Vector2(
+			viewport_rect.get_center().x,
+			viewport_rect.size.y * 0.16 + TITLE_CONTENT_OFFSET_Y
+		),
 		"DIR",
 		TITLE_FONT_SIZE,
 		palette["text_hi"]
