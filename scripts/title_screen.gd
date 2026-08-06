@@ -17,6 +17,7 @@ const CONFIRM_HOLD_SECONDS := 0.16
 const CONFIG_OPTION_BOX_SIZE := Vector2(360.0, 64.0)
 const CONFIG_OPTION_GAP := 78.0
 const CONFIG_PANEL_OFFSET_X := 370.0
+const INFO_PANEL_OFFSET_X := 370.0
 const CONFIG_AUDIO_STEP := 10
 const AUDIO_SLIDER_SIZE := Vector2(128.0, 8.0)
 const AUDIO_SLIDER_FILL_HEIGHT := 14.0
@@ -30,6 +31,7 @@ const CONFIG_ACTION_RETURN_SECONDS := 0.030
 enum MenuMode {
 	MAIN,
 	CONFIG,
+	INFO,
 }
 
 var palette: Dictionary = VisualStyle.theme(false)
@@ -68,9 +70,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if is_cancel_key(event):
 		if menu_mode == MenuMode.CONFIG:
 			leave_config()
+		elif menu_mode == MenuMode.INFO:
+			leave_info()
 		return
 	if menu_mode == MenuMode.CONFIG:
 		handle_config_input(event)
+		return
+	if menu_mode == MenuMode.INFO:
+		handle_info_input(event)
 		return
 
 	if event.is_action_pressed("move_up"):
@@ -100,6 +107,11 @@ func handle_config_input(event: InputEvent) -> void:
 		adjust_config(1)
 
 
+func handle_info_input(event: InputEvent) -> void:
+	if event.is_action_pressed("move_right") or is_confirm_key(event):
+		play_config_action(leave_info)
+
+
 func select_direction(direction: Vector2i) -> void:
 	if selected_direction == direction:
 		return
@@ -108,8 +120,12 @@ func select_direction(direction: Vector2i) -> void:
 
 
 func activate_selection() -> void:
-	if selected_direction == Vector2i.LEFT and not extra_unlocked():
+	if selected_direction == Vector2i.DOWN and not extra_unlocked():
 		return
+	play_config_action(confirm_selection_after_action)
+
+
+func confirm_selection_after_action() -> void:
 	stored_direction = selected_direction
 	queue_redraw()
 	if selected_direction == Vector2i.UP:
@@ -122,6 +138,12 @@ func activate_selection() -> void:
 		await get_tree().create_timer(CONFIRM_HOLD_SECONDS).timeout
 		menu_mode = MenuMode.CONFIG
 		config_index = 0
+		activation_locked = false
+		queue_redraw()
+	elif selected_direction == Vector2i.LEFT:
+		activation_locked = true
+		await get_tree().create_timer(CONFIRM_HOLD_SECONDS).timeout
+		menu_mode = MenuMode.INFO
 		activation_locked = false
 		queue_redraw()
 
@@ -199,6 +221,14 @@ func leave_config() -> void:
 	queue_redraw()
 
 
+func leave_info() -> void:
+	menu_mode = MenuMode.MAIN
+	selected_direction = Vector2i.LEFT
+	stored_direction = Vector2i.ZERO
+	config_action_offset = 0.0
+	queue_redraw()
+
+
 func is_confirm_key(event: InputEvent) -> bool:
 	if event.is_action_pressed("trigger_vector"):
 		return true
@@ -243,20 +273,22 @@ func _draw() -> void:
 	)
 	if menu_mode == MenuMode.CONFIG:
 		draw_config_menu(menu_center)
+	elif menu_mode == MenuMode.INFO:
+		draw_info_menu(menu_center)
 	else:
 		draw_main_menu(menu_center)
 
 
 func draw_main_menu(menu_center: Vector2) -> void:
 	draw_option("START", menu_center + Vector2.UP * VERTICAL_OPTION_DISTANCE, Vector2i.UP)
+	draw_option("INFO", menu_center + Vector2.LEFT * HORIZONTAL_OPTION_DISTANCE, Vector2i.LEFT)
+	draw_option("CONFIG", menu_center + Vector2.RIGHT * HORIZONTAL_OPTION_DISTANCE, Vector2i.RIGHT)
 	draw_option(
 		"EXTRA",
-		menu_center + Vector2.LEFT * HORIZONTAL_OPTION_DISTANCE,
-		Vector2i.LEFT,
+		menu_center + Vector2.DOWN * VERTICAL_OPTION_DISTANCE,
+		Vector2i.DOWN,
 		extra_unlocked()
 	)
-	draw_option("CONFIG", menu_center + Vector2.RIGHT * HORIZONTAL_OPTION_DISTANCE, Vector2i.RIGHT)
-	draw_option("CREDITS", menu_center + Vector2.DOWN * VERTICAL_OPTION_DISTANCE, Vector2i.DOWN)
 	draw_player_mark(menu_center)
 
 
@@ -278,6 +310,37 @@ func draw_config_menu(menu_center: Vector2) -> void:
 			draw_audio_option(center, index == config_index)
 		else:
 			draw_config_option(labels[index], center, index == config_index)
+
+
+func draw_info_menu(menu_center: Vector2) -> void:
+	draw_player_mark(menu_center)
+	var panel_center := menu_center + Vector2.LEFT * INFO_PANEL_OFFSET_X
+	draw_centered_text(panel_center + Vector2(0.0, -145.0), "INFO", 34, palette["text_hi"])
+	draw_centered_text(
+		panel_center + Vector2(0.0, -82.0),
+		"A DIRECTIONAL BLOCK PUZZLE",
+		20,
+		palette["text"]
+	)
+	draw_centered_text(
+		panel_center + Vector2(0.0, -24.0),
+		"BUILT WITH GODOT ENGINE",
+		18,
+		palette["text_dim"]
+	)
+	draw_centered_text(
+		panel_center + Vector2(0.0, 18.0),
+		"UI ASSETS BY KENNEY",
+		18,
+		palette["text_dim"]
+	)
+	draw_centered_text(
+		panel_center + Vector2(0.0, 60.0),
+		"PROTOTYPE BUILD",
+		18,
+		palette["text_dim"]
+	)
+	draw_config_option("BACK", panel_center + Vector2(0.0, 145.0), true)
 
 
 func fullscreen_label() -> String:
@@ -403,15 +466,12 @@ func draw_player_mark(center: Vector2) -> void:
 
 func draw_player_facing(center: Vector2) -> void:
 	var forward := Vector2(selected_direction)
-	var action_offset := 0.0
-	if menu_mode == MenuMode.CONFIG:
-		action_offset = config_action_offset
 	var chevron_center := (
 		center
 		+ forward * (
 			MENU_CELL_SIZE / 2.0
 			- MENU_CELL_SIZE * VisualStyle.FACING_CHV_INSET_RATIO
-			+ action_offset
+			+ config_action_offset
 		)
 	)
 	var length := MENU_CELL_SIZE * VisualStyle.FACING_CHV_LEN_RATIO
