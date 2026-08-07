@@ -1253,7 +1253,7 @@ func draw_release_tutorial_hint() -> void:
 		RELEASE_KEY_TEXTURE,
 		alpha,
 		VisualStyle.TUTORIAL_SPACE_KEY_SIZE,
-		Rect2(),
+		VisualStyle.SPACE_KEY_SOURCE_RECT,
 		VisualStyle.TUTORIAL_SPACE_KEY_GAP
 	)
 
