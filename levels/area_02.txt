@@ -9,7 +9,7 @@
 
 [cells]
 #######
-**.B.A@
+*.*B.A@
 #######
 
 [horizontal_edges]

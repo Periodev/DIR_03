@@ -118,7 +118,7 @@ const AREA_02_LEVELS := [
 		"cell": Vector2i(1, 0),
 		"route": "branch",
 		"requires": ["2-1"],
-		"source": "!cell-edge-v1\n\n[cells]\n#######\n**.B.A@\n#######\n\n[horizontal_edges]\n.......\n.......\n\n[vertical_edges]\n......\n......\n......",
+		"source": "!cell-edge-v1\n\n[cells]\n#######\n*.*B.A@\n#######\n\n[horizontal_edges]\n.......\n.......\n\n[vertical_edges]\n......\n......\n......",
 	},
 	{
 		"id": "2-3",
