@@ -55,7 +55,6 @@ var config_action_offset := 0.0:
 		queue_redraw()
 var config_action_tween: Tween
 var config_action_callback := Callable()
-var hovered_direction := Vector2i.ZERO
 var hovered_config_index := -1
 var info_back_hovered := false
 
@@ -134,16 +133,12 @@ func handle_info_input(event: InputEvent) -> void:
 func handle_mouse_motion(pos: Vector2) -> void:
 	match menu_mode:
 		MenuMode.MAIN:
-			var new_direction := Vector2i.ZERO
 			for direction in MAIN_OPTION_OFFSETS:
 				if direction == Vector2i.DOWN and not extra_unlocked():
 					continue
 				if main_option_rect(direction).has_point(pos):
-					new_direction = direction
+					select_direction(direction)
 					break
-			if new_direction != hovered_direction:
-				hovered_direction = new_direction
-				queue_redraw()
 		MenuMode.CONFIG:
 			var new_index := -1
 			for index in 4:
@@ -185,7 +180,6 @@ func handle_mouse_click(pos: Vector2) -> void:
 
 
 func reset_hover_state() -> void:
-	hovered_direction = Vector2i.ZERO
 	hovered_config_index = -1
 	info_back_hovered = false
 
@@ -326,7 +320,6 @@ func toggle_fullscreen() -> void:
 func leave_config() -> void:
 	menu_mode = MenuMode.MAIN
 	selected_direction = Vector2i.RIGHT
-	stored_direction = Vector2i.ZERO
 	config_action_offset = 0.0
 	reset_hover_state()
 	queue_redraw()
@@ -335,7 +328,6 @@ func leave_config() -> void:
 func leave_info() -> void:
 	menu_mode = MenuMode.MAIN
 	selected_direction = Vector2i.LEFT
-	stored_direction = Vector2i.ZERO
 	config_action_offset = 0.0
 	reset_hover_state()
 	queue_redraw()
@@ -410,7 +402,7 @@ func draw_main_menu(menu_center: Vector2) -> void:
 func draw_config_menu(menu_center: Vector2) -> void:
 	draw_player_mark(menu_center)
 	var labels: Array[String] = [
-		"SCREEN  %s" % fullscreen_label(),
+		"FULLSCREEN  %s" % fullscreen_label(),
 		"GRID  %s" % ("ON" if Campaign.grid_lines_visible else "OFF"),
 		"AUDIO",
 		"BACK",
@@ -465,8 +457,8 @@ func draw_info_menu(menu_center: Vector2) -> void:
 
 func fullscreen_label() -> String:
 	if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN:
-		return "FULL"
-	return "WINDOW"
+		return "ON"
+	return "OFF"
 
 
 func draw_config_option(
@@ -557,9 +549,6 @@ func draw_option(
 		color = palette["text_hi"]
 		frame_color = palette["text_hi"]
 		frame_width = SELECTED_OPTION_BOX_WIDTH
-	elif direction == hovered_direction:
-		frame_color = palette["text"]
-		frame_width = HOVER_OPTION_BOX_WIDTH
 	if not enabled:
 		color = palette["text_dim"]
 		color.a *= 0.55
