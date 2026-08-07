@@ -413,8 +413,8 @@ $checks = @(
 		Pass = $gameBoard -match "play_facing_action\(\)\s*[\r\n]+\s*if\s+start_install_reveal\(int\(block\[`"id`"\]\)\):\s*[\r\n]+\s*return" -and $gameBoard -match "func\s+start_install_reveal\(block_id:\s*int\)\s*->\s*bool:" -and $gameBoard -match 'has_method\("play_install_reveal"\)' -and $playerBoardView -match "func\s+play_install_reveal\(block_id:\s*int,\s*on_finished:\s*Callable\)" -and $playerBoardView -match "INSTALL_VECTOR_DELAY_SECONDS[\s\S]*reveal_installed_vector[\s\S]*FACING_ACTION_SETTLE_SECONDS[\s\S]*finish_displacement" -and $playerBoardView -match 'vector_name\s*!=\s*""\s*and\s*block_id\s*!=\s*install_reveal_block_id' -and $playerBoardView -match "func\s+reveal_installed_vector\(\)[\s\S]*install_reveal_block_id\s*=\s*-1" -and $visualStyle -match "PUSH_DISPLACEMENT_DELAY_SECONDS\s*:=\s*0\.12" -and $visualStyle -match "INSTALL_VECTOR_DELAY_SECONDS\s*:=\s*0\.12"
 	},
 	@{
-		Name = "player facing chevron uses slender inset proportions"
-		Pass = $visualStyle -match "FACING_CHV_LEN_RATIO\s*:=\s*0\.44" -and $visualStyle -match "FACING_CHV_DEPTH_RATIO\s*:=\s*0\.20" -and $visualStyle -match "FACING_CHV_STROKE_RATIO\s*:=\s*0\.40" -and $visualStyle -match "FACING_CHV_INSET_RATIO\s*:=\s*0\.025" -and $playerBoardView -match "cell_size\s*/\s*2\.0[\s\S]*cell_size\s*\*\s*VisualStyle\.FACING_CHV_INSET_RATIO"
+		Name = "player facing chevron uses slender inset proportions with a right-angle tip"
+		Pass = $visualStyle -match "FACING_CHV_LEN_RATIO\s*:=\s*0\.40" -and $visualStyle -match "FACING_CHV_DEPTH_RATIO\s*:=\s*0\.20" -and $visualStyle -match "FACING_CHV_STROKE_RATIO\s*:=\s*0\.40" -and $visualStyle -match "FACING_CHV_INSET_RATIO\s*:=\s*0\.025" -and $playerBoardView -match "cell_size\s*/\s*2\.0[\s\S]*cell_size\s*\*\s*VisualStyle\.FACING_CHV_INSET_RATIO"
 	},
 	@{
 		Name = "player mode animates player and block displacement"
