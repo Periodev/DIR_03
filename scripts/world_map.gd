@@ -415,19 +415,28 @@ func draw_area_navigation_arrow(direction: Vector2i, unlocked: bool) -> void:
 	)
 
 
+func player_diamond_points(center: Vector2, radius: float) -> PackedVector2Array:
+	return PackedVector2Array([
+		center + Vector2(0, -radius),
+		center + Vector2(radius, 0),
+		center + Vector2(0, radius),
+		center + Vector2(-radius, 0),
+	])
+
+
 func draw_player() -> void:
 	var player_center := player_draw_center()
 	var body_size := CELL_SIZE * VisualStyle.PLAYER_BODY_RATIO
 	var chevron_depth := CELL_SIZE * VisualStyle.FACING_CHV_DEPTH_RATIO
 	var gap := maxf(2.0, CELL_SIZE * VisualStyle.FACING_CHV_GAP_RATIO)
 	var radius := minf(body_size * 0.5, CELL_SIZE * 0.5 - chevron_depth * 0.5 - gap)
+	var edge_width := maxf(1.0, CELL_SIZE * VisualStyle.PLAYER_EDGE_RATIO)
 	draw_colored_polygon(
-		PackedVector2Array([
-			player_center + Vector2(0, -radius),
-			player_center + Vector2(radius, 0),
-			player_center + Vector2(0, radius),
-			player_center + Vector2(-radius, 0),
-		]),
+		player_diamond_points(player_center, radius + edge_width),
+		palette["block_edge"]
+	)
+	draw_colored_polygon(
+		player_diamond_points(player_center, radius),
 		palette["player"]
 	)
 	draw_facing_chevron()
@@ -446,21 +455,13 @@ func draw_facing_chevron() -> void:
 	var depth := CELL_SIZE * VisualStyle.FACING_CHV_DEPTH_RATIO
 	var stroke := depth * VisualStyle.FACING_CHV_STROKE_RATIO
 	var outline := maxf(1.0, CELL_SIZE * VisualStyle.FACING_CHV_OUTLINE_RATIO)
+	var base_points := chevron_points(center, forward, length, depth, stroke)
 
 	draw_colored_polygon(
-		chevron_points(
-			center,
-			forward,
-			length + outline * 2.0,
-			depth + outline * 2.0,
-			stroke + outline * 2.0
-		),
+		scale_points_from(base_points, center, (depth + outline * 2.0) / depth),
 		palette["direction_fill"]
 	)
-	draw_colored_polygon(
-		chevron_points(center, forward, length, depth, stroke),
-		palette["player"]
-	)
+	draw_colored_polygon(base_points, palette["player"])
 
 
 func chevron_points(
@@ -484,6 +485,18 @@ func chevron_points(
 		back_center + side * outer_half_length,
 		outer_tip,
 	])
+
+
+func scale_points_from(
+	points: PackedVector2Array,
+	origin: Vector2,
+	scale: float
+) -> PackedVector2Array:
+	var scaled := PackedVector2Array()
+	scaled.resize(points.size())
+	for index in range(points.size()):
+		scaled[index] = origin + (points[index] - origin) * scale
+	return scaled
 
 
 func draw_text_centered(

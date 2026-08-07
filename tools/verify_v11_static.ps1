@@ -401,8 +401,8 @@ $checks = @(
 		Pass = $playerBoardView -match "func\s+draw_blocks\(\)[\s\S]*draw_direction_triangle\([\s\S]*palette\[`"direction_fill`"\]" -and $playerBoardView -match "func\s+draw_player_stored_vector\(\)[\s\S]*draw_direction_triangle\([\s\S]*palette\[`"direction_fill`"\]" -and $visualStyle -match "PLAYER_TRI_H_RATIO\s*:=\s*0\.20" -and $visualStyle -match "PLAYER_TRI_W_RATIO\s*:=\s*PLAYER_TRI_H_RATIO\s*\*\s*2\.0" -and $playerBoardView -match 'var\s+width\s*:=\s*height\s*\*\s*2\.0' -and $playerBoardView -match 'func\s+direction_triangle_points\([\s\S]*tip[\s\S]*base_center\s*\+\s*side\s*\*\s*width\s*/\s*2\.0[\s\S]*base_center\s*-\s*side\s*\*\s*width\s*/\s*2\.0'
 	},
 	@{
-		Name = "player facing chevron uses player fill thin contrast edge and fence clearance"
-		Pass = $playerBoardView -match "func\s+draw_player_facing\(\)[\s\S]*palette\[`"floor`"\][\s\S]*palette\[`"direction_fill`"\][\s\S]*chevron_points\(center,\s*forward,\s*length,\s*depth,\s*stroke\)[\s\S]*palette\[`"player`"\]" -and $visualStyle -match "FACING_CHV_OUTLINE_RATIO\s*:=\s*0\.010" -and $visualStyle -match "FACING_CHV_CLEARANCE_RATIO\s*:=\s*0\.014" -and $visualStyle -match '"direction_fill": Color\("#141414"\)' -and $visualStyle -match '"direction_fill": Color\("#f4f3f1"\)'
+		Name = "player facing chevron uses player fill thin contrast edge"
+		Pass = $playerBoardView -match "func\s+draw_player_facing\(\)[\s\S]*var\s+base_points\s*:=\s*chevron_points\(center,\s*forward,\s*length,\s*depth,\s*stroke\)[\s\S]*palette\[`"direction_fill`"\][\s\S]*base_points,[\s\S]*palette\[`"player`"\]" -and $playerBoardView -notmatch 'func\s+draw_player_facing\(\)[\s\S]*palette\[`"floor`"\]' -and $playerBoardView -match 'func\s+scale_points_from\(' -and $visualStyle -match "FACING_CHV_OUTLINE_RATIO\s*:=\s*0\.017" -and $visualStyle -notmatch 'FACING_CHV_CLEARANCE_RATIO' -and $visualStyle -match '"direction_fill": Color\("#141414"\)' -and $visualStyle -match '"direction_fill": Color\("#f4f3f1"\)'
 	},
 	@{
 		Name = "successful pushes and installs retreat then release the facing chevron"
@@ -554,7 +554,7 @@ $checks = @(
 	},
 	@{
 		Name = "classic selector keeps large responsive level tiles"
-		Pass = $classicLevelSelect -match 'MAX_SLOT_SIZE\s*:=\s*216\.0' -and $classicLevelSelect -match 'SIDE_MARGIN_RATIO\s*:=\s*0\.05' -and $classicLevelSelect -match 'func\s+slot_size_for\(viewport_size:\s*Vector2\)\s*->\s*float' -and $classicLevelSelect -match 'func\s+side_margin_for\(viewport_width:\s*float\)\s*->\s*float'
+		Pass = $classicLevelSelect -match 'MAX_SLOT_SIZE\s*:=\s*216\.0' -and $classicLevelSelect -match 'SIDE_MARGIN_RATIO\s*:=\s*0\.07' -and $classicLevelSelect -match 'func\s+slot_size_for\(viewport_size:\s*Vector2\)\s*->\s*float' -and $classicLevelSelect -match 'func\s+side_margin_for\(viewport_width:\s*float\)\s*->\s*float'
 	},
 	@{
 		Name = "classic selector renders cached text-free board thumbnails"

@@ -1060,6 +1060,11 @@ func draw_trigger_flash() -> void:
 
 func draw_player_body() -> void:
 	var center := player_draw_center()
+	var edge_width := maxf(1.0, roundi(cell_size * VisualStyle.PLAYER_EDGE_RATIO))
+	draw_colored_polygon(
+		player_body_points(center, edge_width),
+		palette["block_edge"]
+	)
 	draw_colored_polygon(
 		player_body_points(center),
 		palette["player"]
@@ -1092,7 +1097,7 @@ func draw_block_error_flash() -> void:
 	)
 
 
-func player_body_points(center: Vector2) -> PackedVector2Array:
+func player_body_points(center: Vector2, extra: float = 0.0) -> PackedVector2Array:
 	var body_size := roundi(cell_size * VisualStyle.PLAYER_BODY_RATIO)
 	var chevron_depth := roundi(cell_size * VisualStyle.FACING_CHV_DEPTH_RATIO)
 	var chevron_gap := maxf(
@@ -1102,7 +1107,7 @@ func player_body_points(center: Vector2) -> PackedVector2Array:
 	var radius := minf(
 		floorf(body_size / 2.0),
 		cell_size / 2.0 - chevron_depth / 2.0 - chevron_gap
-	)
+	) + extra
 	return PackedVector2Array([
 		center + Vector2(0, -radius),
 		center + Vector2(radius, 0),
@@ -1142,34 +1147,14 @@ func draw_player_facing() -> void:
 		1.0,
 		roundi(cell_size * VisualStyle.FACING_CHV_OUTLINE_RATIO)
 	)
-	var clearance := maxf(
-		2.0,
-		roundi(cell_size * VisualStyle.FACING_CHV_CLEARANCE_RATIO)
-	)
-	var outer_padding := outline + clearance
+	var base_points := chevron_points(center, forward, length, depth, stroke)
 
 	draw_colored_polygon(
-		chevron_points(
-			center,
-			forward,
-			length + outer_padding * 2.0,
-			depth + outer_padding * 2.0,
-			stroke + outer_padding * 2.0
-		),
-		palette["floor"]
-	)
-	draw_colored_polygon(
-		chevron_points(
-			center,
-			forward,
-			length + outline * 2.0,
-			depth + outline * 2.0,
-			stroke + outline * 2.0
-		),
+		scale_points_from(base_points, center, (depth + outline * 2.0) / depth),
 		palette["direction_fill"]
 	)
 	draw_colored_polygon(
-		chevron_points(center, forward, length, depth, stroke),
+		base_points,
 		palette["player"]
 	)
 
@@ -1477,6 +1462,18 @@ func chevron_points(
 		back_center + side * outer_half_length,
 		outer_tip,
 	])
+
+
+func scale_points_from(
+	points: PackedVector2Array,
+	origin: Vector2,
+	scale: float
+) -> PackedVector2Array:
+	var scaled := PackedVector2Array()
+	scaled.resize(points.size())
+	for index in range(points.size()):
+		scaled[index] = origin + (points[index] - origin) * scale
+	return scaled
 
 
 func draw_dashed_shape(points: PackedVector2Array, color: Color) -> void:

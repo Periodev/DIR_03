@@ -569,14 +569,23 @@ func draw_option(
 	draw_centered_text(center, text, OPTION_FONT_SIZE, color)
 
 
+func diamond_points(center: Vector2, radius: float) -> PackedVector2Array:
+	return PackedVector2Array([
+		center + Vector2(0.0, -radius),
+		center + Vector2(radius, 0.0),
+		center + Vector2(0.0, radius),
+		center + Vector2(-radius, 0.0),
+	])
+
+
 func draw_player_mark(center: Vector2) -> void:
 	var body_radius := MENU_CELL_SIZE * VisualStyle.PLAYER_BODY_RATIO / 2.0
-	draw_colored_polygon(PackedVector2Array([
-		center + Vector2(0.0, -body_radius),
-		center + Vector2(body_radius, 0.0),
-		center + Vector2(0.0, body_radius),
-		center + Vector2(-body_radius, 0.0),
-	]), palette["player"])
+	var edge_width := maxf(1.0, MENU_CELL_SIZE * VisualStyle.PLAYER_EDGE_RATIO)
+	draw_colored_polygon(
+		diamond_points(center, body_radius + edge_width),
+		palette["block_edge"]
+	)
+	draw_colored_polygon(diamond_points(center, body_radius), palette["player"])
 	draw_player_facing(center)
 	if stored_direction == Vector2i.ZERO:
 		return
@@ -612,35 +621,12 @@ func draw_player_facing(center: Vector2) -> void:
 	var depth := MENU_CELL_SIZE * VisualStyle.FACING_CHV_DEPTH_RATIO
 	var stroke := depth * VisualStyle.FACING_CHV_STROKE_RATIO
 	var outline := maxf(1.0, MENU_CELL_SIZE * VisualStyle.FACING_CHV_OUTLINE_RATIO)
-	var clearance := maxf(
-		2.0,
-		MENU_CELL_SIZE * VisualStyle.FACING_CHV_CLEARANCE_RATIO
-	)
-	var outer_padding := outline + clearance
+	var base_points := chevron_points(chevron_center, forward, length, depth, stroke)
 	draw_colored_polygon(
-		chevron_points(
-			chevron_center,
-			forward,
-			length + outer_padding * 2.0,
-			depth + outer_padding * 2.0,
-			stroke + outer_padding * 2.0
-		),
-		palette["app_bg"]
-	)
-	draw_colored_polygon(
-		chevron_points(
-			chevron_center,
-			forward,
-			length + outline * 2.0,
-			depth + outline * 2.0,
-			stroke + outline * 2.0
-		),
+		scale_points_from(base_points, chevron_center, (depth + outline * 2.0) / depth),
 		palette["direction_fill"]
 	)
-	draw_colored_polygon(
-		chevron_points(chevron_center, forward, length, depth, stroke),
-		palette["player"]
-	)
+	draw_colored_polygon(base_points, palette["player"])
 
 
 func chevron_points(
@@ -664,6 +650,18 @@ func chevron_points(
 		back_center + side * outer_half_length,
 		outer_tip,
 	])
+
+
+func scale_points_from(
+	points: PackedVector2Array,
+	origin: Vector2,
+	scale: float
+) -> PackedVector2Array:
+	var scaled := PackedVector2Array()
+	scaled.resize(points.size())
+	for index in range(points.size()):
+		scaled[index] = origin + (points[index] - origin) * scale
+	return scaled
 
 
 func draw_centered_text(
