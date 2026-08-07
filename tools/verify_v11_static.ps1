@@ -611,6 +611,10 @@ $checks = @(
 	@{
 		Name = "title screen mouse hit-testing types dictionary offsets explicitly"
 		Pass = $titleScreen -match 'func\s+main_option_rect\(direction:\s*Vector2i\)\s*->\s*Rect2:\s*\r?\n\s*var\s+offset:\s*Vector2\s*=\s*MAIN_OPTION_OFFSETS\[direction\]' -and $titleScreen -notmatch 'var\s+center\s*:=\s*compute_menu_center\(\)\s*\+\s*MAIN_OPTION_OFFSETS' -and $titleScreen -match 'func\s+handle_mouse_motion\(pos:\s*Vector2\)' -and $titleScreen -match 'func\s+handle_mouse_click\(pos:\s*Vector2\)' -and $titleScreen -match 'hovered_direction\s*:=\s*Vector2i\.ZERO' -and $titleScreen -match 'elif\s+direction\s*==\s*hovered_direction:\s*\r?\n\s*frame_color\s*=\s*palette\["text"\]'
+	},
+	@{
+		Name = "classic level selector supports mouse hover and click alongside keyboard nav"
+		Pass = $classicLevelSelect -match 'func\s+handle_mouse_motion\(pos:\s*Vector2\)' -and $classicLevelSelect -match 'func\s+handle_mouse_click\(pos:\s*Vector2\)' -and $classicLevelSelect -match 'func\s+title_button_rect\(\)\s*->\s*Rect2' -and $classicLevelSelect -match 'SceneTransition\.transition_to\(Campaign\.TITLE_SCREEN_SCENE_PATH\)' -and $classicLevelSelect -match 'func\s+draw_hovered_level_name\(\)[\s\S]*hovered_index\s*==\s*-1\s*or\s+hovered_index\s*==\s*selected_index' -and $classicLevelSelect -match 'elif\s+index\s*==\s*hovered_index\s+and\s+unlocked:' -and $classicLevelSelect -match 'const\s+AREA_ARROW_SCALE\s*:=\s*2\.0'
 	}
 )
 

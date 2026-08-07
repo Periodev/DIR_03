@@ -3,12 +3,13 @@ extends Node2D
 const VisualStyle = preload("res://scripts/visual_style.gd")
 const AsciiMapData = preload("res://scripts/ascii_map.gd")
 const ThumbnailRenderer = preload("res://scripts/level_thumbnail_renderer.gd")
+const ESCAPE_KEY_TEXTURE = preload("res://assets/input_prompts/keyboard_escape_outline.svg")
 
 const GRID_COLUMNS := 6
 const MAX_SLOT_SIZE := 216.0
-const MIN_SIDE_MARGIN := 32.0
-const MAX_SIDE_MARGIN := 72.0
-const SIDE_MARGIN_RATIO := 0.05
+const MIN_SIDE_MARGIN := 48.0
+const MAX_SIDE_MARGIN := 96.0
+const SIDE_MARGIN_RATIO := 0.07
 const HEADER_BOTTOM := 96.0
 const BOTTOM_MARGIN := 48.0
 const TILE_GAP := 8.0
@@ -22,6 +23,14 @@ const LOCKED_ALPHA := 0.28
 const COMPLETED_GLOW_ALPHA := 0.07
 const SELECT_FRAME_GROW := 4.0
 const SELECT_FRAME_WIDTH := 6.0
+const HOVER_FRAME_GROW := 2.0
+const HOVER_FRAME_WIDTH := 2.0
+const AREA_ARROW_SCALE := 2.0
+const AREA_ARROW_HIT_SIZE := Vector2(32.0, 44.0) * AREA_ARROW_SCALE
+const TITLE_BUTTON_ICON_SIZE := 36.0
+const TITLE_BUTTON_GAP := 10.0
+const TITLE_BUTTON_FONT_SIZE := 24
+const TITLE_BUTTON_MARGIN_X := 18.0
 
 var palette: Dictionary = VisualStyle.theme(false)
 var entries: Array[Dictionary] = []
@@ -30,6 +39,9 @@ var area_selection_indices: Array[int] = []
 var current_area_index := 0
 var selected_index := 0
 var ui_font: Font
+var hovered_index := -1
+var area_arrow_hovered := Vector2i.ZERO
+var title_button_hovered := false
 
 
 func _ready() -> void:
@@ -52,6 +64,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if SceneTransition.is_active():
 		return
 	if event is InputEventKey and event.echo:
+		return
+	if event is InputEventMouseMotion:
+		handle_mouse_motion(event.position)
+		return
+	if event is InputEventMouseButton:
+		var button_event: InputEventMouseButton = event
+		if button_event.pressed and button_event.button_index == MOUSE_BUTTON_LEFT:
+			handle_mouse_click(button_event.position)
 		return
 	if is_cancel_key(event):
 		SceneTransition.transition_to(Campaign.TITLE_SCREEN_SCENE_PATH)
@@ -102,6 +122,94 @@ func build_entries() -> void:
 			page_entries.append(level)
 		area_entries.append(page_entries)
 		area_selection_indices.append(0)
+
+
+func handle_mouse_motion(pos: Vector2) -> void:
+	var changed := false
+
+	var new_title_hover := title_button_rect().has_point(pos)
+	if new_title_hover != title_button_hovered:
+		title_button_hovered = new_title_hover
+		changed = true
+
+	var new_arrow_hover := Vector2i.ZERO
+	if current_area_index > 0 and left_arrow_rect().has_point(pos):
+		new_arrow_hover = Vector2i.LEFT
+	elif (
+		current_area_index < area_entries.size() - 1
+		and is_area_accessible(current_area_index + 1)
+		and right_arrow_rect().has_point(pos)
+	):
+		new_arrow_hover = Vector2i.RIGHT
+	if new_arrow_hover != area_arrow_hovered:
+		area_arrow_hovered = new_arrow_hover
+		changed = true
+
+	var new_hovered_index := -1
+	var page: Array = current_page_entries()
+	for index in range(page.size()):
+		if entry_rect(index).has_point(pos):
+			new_hovered_index = index
+			break
+	if new_hovered_index != hovered_index:
+		hovered_index = new_hovered_index
+		changed = true
+
+	if changed:
+		queue_redraw()
+
+
+func handle_mouse_click(pos: Vector2) -> void:
+	if title_button_rect().has_point(pos):
+		SceneTransition.transition_to(Campaign.TITLE_SCREEN_SCENE_PATH)
+		return
+	if current_area_index > 0 and left_arrow_rect().has_point(pos):
+		switch_area(-1)
+		return
+	if (
+		current_area_index < area_entries.size() - 1
+		and is_area_accessible(current_area_index + 1)
+		and right_arrow_rect().has_point(pos)
+	):
+		switch_area(1)
+		return
+	var page: Array = current_page_entries()
+	for index in range(page.size()):
+		if entry_rect(index).has_point(pos):
+			selected_index = index
+			area_selection_indices[current_area_index] = selected_index
+			start_selected_level()
+			return
+
+
+func title_button_rect() -> Rect2:
+	var text_size := ui_font.get_string_size(
+		"TITLE",
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		TITLE_BUTTON_FONT_SIZE
+	)
+	var width := TITLE_BUTTON_ICON_SIZE + TITLE_BUTTON_GAP + text_size.x
+	var height := maxf(TITLE_BUTTON_ICON_SIZE, text_size.y)
+	var top := HEADER_BOTTOM * 0.5 - height * 0.5
+	return Rect2(Vector2(TITLE_BUTTON_MARGIN_X, top), Vector2(width, height))
+
+
+func area_arrow_center_y() -> float:
+	return grid_origin().y + slot_size()
+
+
+func left_arrow_rect() -> Rect2:
+	var center := Vector2(side_margin() * 0.5, area_arrow_center_y())
+	return Rect2(center - AREA_ARROW_HIT_SIZE / 2.0, AREA_ARROW_HIT_SIZE)
+
+
+func right_arrow_rect() -> Rect2:
+	var center := Vector2(
+		get_viewport_rect().size.x - side_margin() * 0.5,
+		area_arrow_center_y()
+	)
+	return Rect2(center - AREA_ARROW_HIT_SIZE / 2.0, AREA_ARROW_HIT_SIZE)
 
 
 func select_return_level() -> void:
@@ -359,6 +467,7 @@ func _draw() -> void:
 	for index in range(page.size()):
 		draw_level_entry(index)
 	draw_selected_level_name()
+	draw_hovered_level_name()
 	draw_area_arrows()
 
 
@@ -370,6 +479,22 @@ func draw_header() -> void:
 		21,
 		palette["text_hi"]
 	)
+	draw_title_button()
+
+
+func draw_title_button() -> void:
+	var rect := title_button_rect()
+	var color: Color = palette["text"] if title_button_hovered else palette["text_dim"]
+	var icon_rect := Rect2(
+		rect.position + Vector2(0.0, (rect.size.y - TITLE_BUTTON_ICON_SIZE) * 0.5),
+		Vector2.ONE * TITLE_BUTTON_ICON_SIZE
+	)
+	draw_texture_rect(ESCAPE_KEY_TEXTURE, icon_rect, false, color)
+	var text_rect := Rect2(
+		rect.position + Vector2(TITLE_BUTTON_ICON_SIZE + TITLE_BUTTON_GAP, 0.0),
+		Vector2(rect.size.x - TITLE_BUTTON_ICON_SIZE - TITLE_BUTTON_GAP, rect.size.y)
+	)
+	draw_text_centered(text_rect, "TITLE", TITLE_BUTTON_FONT_SIZE, color)
 
 
 func draw_selected_level_name() -> void:
@@ -381,6 +506,22 @@ func draw_selected_level_name() -> void:
 		level_name,
 		LEVEL_NAME_FONT_SIZE,
 		palette["text_hi"]
+	)
+
+
+func draw_hovered_level_name() -> void:
+	if hovered_index == -1 or hovered_index == selected_index:
+		return
+	var page: Array = current_page_entries()
+	if hovered_index >= page.size():
+		return
+	var entry: Dictionary = page[hovered_index]
+	var level_name := String(entry["name"]).to_upper()
+	draw_text_centered(
+		selected_level_name_rect_for(hovered_index, get_viewport_rect().size),
+		level_name,
+		LEVEL_NAME_FONT_SIZE,
+		palette["text"]
 	)
 
 
@@ -424,6 +565,13 @@ func draw_level_entry(index: int) -> void:
 			false,
 			SELECT_FRAME_WIDTH
 		)
+	elif index == hovered_index and unlocked:
+		draw_rect(
+			rect.grow(HOVER_FRAME_GROW),
+			palette["text"],
+			false,
+			HOVER_FRAME_WIDTH
+		)
 
 
 func draw_soft_outline_glow(rect: Rect2, color: Color, alpha: float) -> void:
@@ -437,17 +585,21 @@ func draw_soft_outline_glow(rect: Rect2, color: Color, alpha: float) -> void:
 
 func draw_area_arrows() -> void:
 	var viewport_size := get_viewport_rect().size
-	var center_y := grid_origin().y + slot_size()
+	var center_y := area_arrow_center_y()
 	var margin := side_margin()
 	var left_color: Color = palette["text_dim"]
 	var right_color: Color = palette["text_dim"]
 	if current_area_index == 0:
 		left_color.a = 0.16
+	elif area_arrow_hovered == Vector2i.LEFT:
+		left_color = palette["text"]
 	if (
 		current_area_index >= area_entries.size() - 1
 		or not is_area_accessible(current_area_index + 1)
 	):
 		right_color.a = 0.16
+	elif area_arrow_hovered == Vector2i.RIGHT:
+		right_color = palette["text"]
 	draw_chevron(Vector2(margin * 0.5, center_y), Vector2i.LEFT, left_color)
 	draw_chevron(
 		Vector2(viewport_size.x - margin * 0.5, center_y),
@@ -465,6 +617,8 @@ func draw_chevron(center: Vector2, direction: Vector2i, color: Color) -> void:
 		Vector2(-1, 0),
 		Vector2(-9, -9),
 	])
+	for index in range(points.size()):
+		points[index] *= AREA_ARROW_SCALE
 	if direction == Vector2i.LEFT:
 		for index in range(points.size()):
 			points[index].x *= -1.0
