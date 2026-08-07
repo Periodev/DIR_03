@@ -13,7 +13,14 @@ const HORIZONTAL_OPTION_DISTANCE := 290.0
 const VERTICAL_OPTION_DISTANCE := 235.0
 const OPTION_BOX_SIZE := Vector2(200.0, 72.0)
 const OPTION_BOX_WIDTH := 1.0
+const HOVER_OPTION_BOX_WIDTH := 2.0
 const SELECTED_OPTION_BOX_WIDTH := 3.0
+const MAIN_OPTION_OFFSETS := {
+	Vector2i.UP: Vector2.UP * VERTICAL_OPTION_DISTANCE,
+	Vector2i.LEFT: Vector2.LEFT * HORIZONTAL_OPTION_DISTANCE,
+	Vector2i.RIGHT: Vector2.RIGHT * HORIZONTAL_OPTION_DISTANCE,
+	Vector2i.DOWN: Vector2.DOWN * VERTICAL_OPTION_DISTANCE,
+}
 const CONFIRM_HOLD_SECONDS := 0.16
 const CONFIG_OPTION_BOX_SIZE := Vector2(360.0, 64.0)
 const CONFIG_OPTION_GAP := 78.0
@@ -48,6 +55,9 @@ var config_action_offset := 0.0:
 		queue_redraw()
 var config_action_tween: Tween
 var config_action_callback := Callable()
+var hovered_direction := Vector2i.ZERO
+var hovered_config_index := -1
+var info_back_hovered := false
 
 
 func _ready() -> void:
@@ -67,6 +77,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if SceneTransition.is_active() or activation_locked:
 		return
 	if event is InputEventKey and event.echo:
+		return
+	if event is InputEventMouseMotion:
+		handle_mouse_motion(event.position)
+		return
+	if event is InputEventMouseButton:
+		var button_event: InputEventMouseButton = event
+		if button_event.pressed and button_event.button_index == MOUSE_BUTTON_LEFT:
+			handle_mouse_click(button_event.position)
 		return
 	if is_cancel_key(event):
 		if menu_mode == MenuMode.CONFIG:
@@ -113,6 +131,95 @@ func handle_info_input(event: InputEvent) -> void:
 		play_config_action(leave_info)
 
 
+func handle_mouse_motion(pos: Vector2) -> void:
+	match menu_mode:
+		MenuMode.MAIN:
+			var new_direction := Vector2i.ZERO
+			for direction in MAIN_OPTION_OFFSETS:
+				if direction == Vector2i.DOWN and not extra_unlocked():
+					continue
+				if main_option_rect(direction).has_point(pos):
+					new_direction = direction
+					break
+			if new_direction != hovered_direction:
+				hovered_direction = new_direction
+				queue_redraw()
+		MenuMode.CONFIG:
+			var new_index := -1
+			for index in 4:
+				if config_option_rect(index).has_point(pos):
+					new_index = index
+					break
+			if new_index != hovered_config_index:
+				hovered_config_index = new_index
+				queue_redraw()
+		MenuMode.INFO:
+			var hovered := info_back_rect().has_point(pos)
+			if hovered != info_back_hovered:
+				info_back_hovered = hovered
+				queue_redraw()
+
+
+func handle_mouse_click(pos: Vector2) -> void:
+	match menu_mode:
+		MenuMode.MAIN:
+			for direction in MAIN_OPTION_OFFSETS:
+				if direction == Vector2i.DOWN and not extra_unlocked():
+					continue
+				if main_option_rect(direction).has_point(pos):
+					select_direction(direction)
+					activate_selection()
+					return
+		MenuMode.CONFIG:
+			for index in 4:
+				if config_option_rect(index).has_point(pos):
+					config_index = index
+					if index == 2:
+						queue_redraw()
+					else:
+						adjust_config(1)
+					return
+		MenuMode.INFO:
+			if info_back_rect().has_point(pos):
+				play_config_action(leave_info)
+
+
+func reset_hover_state() -> void:
+	hovered_direction = Vector2i.ZERO
+	hovered_config_index = -1
+	info_back_hovered = false
+
+
+func compute_menu_center() -> Vector2:
+	var viewport_rect := get_viewport_rect()
+	return Vector2(
+		viewport_rect.get_center().x,
+		viewport_rect.size.y * MENU_CENTER_Y_RATIO + TITLE_CONTENT_OFFSET_Y
+	)
+
+
+func main_option_rect(direction: Vector2i) -> Rect2:
+	var offset: Vector2 = MAIN_OPTION_OFFSETS[direction]
+	var center: Vector2 = compute_menu_center() + offset
+	return Rect2(center - OPTION_BOX_SIZE / 2.0, OPTION_BOX_SIZE)
+
+
+func config_list_center() -> Vector2:
+	var center := compute_menu_center()
+	return Vector2(center.x + CONFIG_PANEL_OFFSET_X, center.y - CONFIG_OPTION_GAP * 0.5)
+
+
+func config_option_rect(index: int) -> Rect2:
+	var center := config_list_center() + Vector2(0.0, (float(index) - 1.5) * CONFIG_OPTION_GAP)
+	return Rect2(center - CONFIG_OPTION_BOX_SIZE / 2.0, CONFIG_OPTION_BOX_SIZE)
+
+
+func info_back_rect() -> Rect2:
+	var panel_center := compute_menu_center() + Vector2.LEFT * INFO_PANEL_OFFSET_X
+	var center := panel_center + Vector2(0.0, 145.0)
+	return Rect2(center - CONFIG_OPTION_BOX_SIZE / 2.0, CONFIG_OPTION_BOX_SIZE)
+
+
 func select_direction(direction: Vector2i) -> void:
 	if selected_direction == direction:
 		return
@@ -139,12 +246,14 @@ func confirm_selection_after_action() -> void:
 		await get_tree().create_timer(CONFIRM_HOLD_SECONDS).timeout
 		menu_mode = MenuMode.CONFIG
 		config_index = 0
+		reset_hover_state()
 		activation_locked = false
 		queue_redraw()
 	elif selected_direction == Vector2i.LEFT:
 		activation_locked = true
 		await get_tree().create_timer(CONFIRM_HOLD_SECONDS).timeout
 		menu_mode = MenuMode.INFO
+		reset_hover_state()
 		activation_locked = false
 		queue_redraw()
 
@@ -219,6 +328,7 @@ func leave_config() -> void:
 	selected_direction = Vector2i.RIGHT
 	stored_direction = Vector2i.ZERO
 	config_action_offset = 0.0
+	reset_hover_state()
 	queue_redraw()
 
 
@@ -227,6 +337,7 @@ func leave_info() -> void:
 	selected_direction = Vector2i.LEFT
 	stored_direction = Vector2i.ZERO
 	config_action_offset = 0.0
+	reset_hover_state()
 	queue_redraw()
 
 
@@ -284,12 +395,12 @@ func _draw() -> void:
 
 
 func draw_main_menu(menu_center: Vector2) -> void:
-	draw_option("START", menu_center + Vector2.UP * VERTICAL_OPTION_DISTANCE, Vector2i.UP)
-	draw_option("INFO", menu_center + Vector2.LEFT * HORIZONTAL_OPTION_DISTANCE, Vector2i.LEFT)
-	draw_option("CONFIG", menu_center + Vector2.RIGHT * HORIZONTAL_OPTION_DISTANCE, Vector2i.RIGHT)
+	draw_option("START", menu_center + MAIN_OPTION_OFFSETS[Vector2i.UP], Vector2i.UP)
+	draw_option("INFO", menu_center + MAIN_OPTION_OFFSETS[Vector2i.LEFT], Vector2i.LEFT)
+	draw_option("CONFIG", menu_center + MAIN_OPTION_OFFSETS[Vector2i.RIGHT], Vector2i.RIGHT)
 	draw_option(
 		"EXTRA",
-		menu_center + Vector2.DOWN * VERTICAL_OPTION_DISTANCE,
+		menu_center + MAIN_OPTION_OFFSETS[Vector2i.DOWN],
 		Vector2i.DOWN,
 		extra_unlocked()
 	)
@@ -311,9 +422,14 @@ func draw_config_menu(menu_center: Vector2) -> void:
 	for index in labels.size():
 		var center := list_center + Vector2(0.0, (float(index) - 1.5) * CONFIG_OPTION_GAP)
 		if index == 2:
-			draw_audio_option(center, index == config_index)
+			draw_audio_option(center, index == config_index, index == hovered_config_index)
 		else:
-			draw_config_option(labels[index], center, index == config_index)
+			draw_config_option(
+				labels[index],
+				center,
+				index == config_index,
+				index == hovered_config_index
+			)
 
 
 func draw_info_menu(menu_center: Vector2) -> void:
@@ -344,7 +460,7 @@ func draw_info_menu(menu_center: Vector2) -> void:
 		18,
 		palette["text_dim"]
 	)
-	draw_config_option("BACK", panel_center + Vector2(0.0, 145.0), true)
+	draw_config_option("BACK", panel_center + Vector2(0.0, 145.0), true, info_back_hovered)
 
 
 func fullscreen_label() -> String:
@@ -353,7 +469,12 @@ func fullscreen_label() -> String:
 	return "WINDOW"
 
 
-func draw_config_option(text: String, center: Vector2, selected: bool) -> void:
+func draw_config_option(
+	text: String,
+	center: Vector2,
+	selected: bool,
+	hovered: bool = false
+) -> void:
 	var frame_color: Color = palette["hair"]
 	var text_color: Color = palette["text"]
 	var frame_width := OPTION_BOX_WIDTH
@@ -361,6 +482,9 @@ func draw_config_option(text: String, center: Vector2, selected: bool) -> void:
 		frame_color = palette["text_hi"]
 		text_color = palette["text_hi"]
 		frame_width = SELECTED_OPTION_BOX_WIDTH
+	elif hovered:
+		frame_color = palette["text"]
+		frame_width = HOVER_OPTION_BOX_WIDTH
 	draw_rect(
 		Rect2(center - CONFIG_OPTION_BOX_SIZE / 2.0, CONFIG_OPTION_BOX_SIZE),
 		frame_color,
@@ -370,7 +494,7 @@ func draw_config_option(text: String, center: Vector2, selected: bool) -> void:
 	draw_centered_text(center, text, OPTION_FONT_SIZE, text_color)
 
 
-func draw_audio_option(center: Vector2, selected: bool) -> void:
+func draw_audio_option(center: Vector2, selected: bool, hovered: bool = false) -> void:
 	var frame_color: Color = palette["hair"]
 	var text_color: Color = palette["text"]
 	var frame_width := OPTION_BOX_WIDTH
@@ -378,6 +502,9 @@ func draw_audio_option(center: Vector2, selected: bool) -> void:
 		frame_color = palette["text_hi"]
 		text_color = palette["text_hi"]
 		frame_width = SELECTED_OPTION_BOX_WIDTH
+	elif hovered:
+		frame_color = palette["text"]
+		frame_width = HOVER_OPTION_BOX_WIDTH
 	draw_rect(
 		Rect2(center - CONFIG_OPTION_BOX_SIZE / 2.0, CONFIG_OPTION_BOX_SIZE),
 		frame_color,
@@ -430,6 +557,9 @@ func draw_option(
 		color = palette["text_hi"]
 		frame_color = palette["text_hi"]
 		frame_width = SELECTED_OPTION_BOX_WIDTH
+	elif direction == hovered_direction:
+		frame_color = palette["text"]
+		frame_width = HOVER_OPTION_BOX_WIDTH
 	if not enabled:
 		color = palette["text_dim"]
 		color.a *= 0.55

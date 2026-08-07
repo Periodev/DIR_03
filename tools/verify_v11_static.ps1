@@ -607,6 +607,10 @@ $checks = @(
 	@{
 		Name = "level file contains a player start"
 		Pass = $level -match "[@+]"
+	},
+	@{
+		Name = "title screen mouse hit-testing types dictionary offsets explicitly"
+		Pass = $titleScreen -match 'func\s+main_option_rect\(direction:\s*Vector2i\)\s*->\s*Rect2:\s*\r?\n\s*var\s+offset:\s*Vector2\s*=\s*MAIN_OPTION_OFFSETS\[direction\]' -and $titleScreen -notmatch 'var\s+center\s*:=\s*compute_menu_center\(\)\s*\+\s*MAIN_OPTION_OFFSETS' -and $titleScreen -match 'func\s+handle_mouse_motion\(pos:\s*Vector2\)' -and $titleScreen -match 'func\s+handle_mouse_click\(pos:\s*Vector2\)' -and $titleScreen -match 'hovered_direction\s*:=\s*Vector2i\.ZERO' -and $titleScreen -match 'elif\s+direction\s*==\s*hovered_direction:\s*\r?\n\s*frame_color\s*=\s*palette\["text"\]'
 	}
 )
 
