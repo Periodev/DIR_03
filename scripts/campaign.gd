@@ -7,6 +7,7 @@ const LAUNCH_MODE_SINGLE_LEVEL := "single_level"
 const TITLE_SCREEN_SCENE_PATH := "res://scenes/title_screen.tscn"
 const WORLD_MAP_SCENE_PATH := "res://scenes/world_map.tscn"
 const CLASSIC_LEVEL_SELECT_SCENE_PATH := "res://scenes/classic_level_select.tscn"
+const EXTRA_MODE_SCENE_PATH := "res://scenes/extra_mode/extra_mode.tscn"
 const AREAS := LevelCatalogData.AREAS
 
 var completed_levels: Dictionary = {}

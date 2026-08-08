@@ -250,6 +250,10 @@ func confirm_selection_after_action() -> void:
 		reset_hover_state()
 		activation_locked = false
 		queue_redraw()
+	elif selected_direction == Vector2i.DOWN:
+		activation_locked = true
+		await get_tree().create_timer(CONFIRM_HOLD_SECONDS).timeout
+		SceneTransition.transition_to(Campaign.EXTRA_MODE_SCENE_PATH)
 
 
 func adjust_config(delta: int) -> void:

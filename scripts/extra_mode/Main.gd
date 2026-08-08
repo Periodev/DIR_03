@@ -1,0 +1,113 @@
+extends Node
+
+@onready var board: Node2D = $Board
+@onready var hud: CanvasLayer = $HUD
+
+func _ready() -> void:
+	board.setup_character("PLN")
+	hud.setup("PLN")
+
+	board.game_over_signal.connect(_on_game_over)
+	board.board_updated.connect(_on_board_updated)
+	board.score_manager.score_changed.connect(hud.update_score)
+	board.score_manager.combo_changed.connect(hud.update_combo)
+	board.score_manager.defeat_changed.connect(hud.update_defeats)
+
+	_on_board_updated()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+
+	var keycode: Key = event.physical_keycode if event.physical_keycode != KEY_NONE else event.keycode
+
+	if keycode == KEY_ESCAPE:
+		SceneTransition.transition_to(Campaign.TITLE_SCREEN_SCENE_PATH)
+		get_viewport().set_input_as_handled()
+		return
+
+	# Restart
+	if keycode == KEY_R:
+		board.restart()
+		hud.setup("PLN")
+		_on_board_updated()
+		get_viewport().set_input_as_handled()
+		return
+
+	# Debug: spawn dead cell adjacent to player (F3)
+	if keycode == KEY_F3:
+		board.debug_spawn_adjacent_dead()
+		get_viewport().set_input_as_handled()
+		return
+
+	# Debug: preview PLN charge visual (F6)
+	if keycode == KEY_F6:
+		board.debug_preview_charge()
+		get_viewport().set_input_as_handled()
+		return
+
+	if board.game_state.is_game_over():
+		return
+
+	# Movement
+	var dir = CharacterData.key_to_direction(keycode)
+	if dir != CharacterData.Direction.NONE:
+		if board.game_state.is_bonus_move_select():
+			board.try_bonus_move(dir)
+		elif board.game_state.is_attack_select():
+			board.try_confirm_basic_attack(dir)
+		else:
+			board.try_move(dir)
+		get_viewport().set_input_as_handled()
+		return
+
+	# Hold (Space)
+	if keycode == KEY_SPACE:
+		if board.game_state.is_attack_select():
+			board.try_begin_basic_attack()  # toggles back to IDLE
+			_on_board_updated()
+			get_viewport().set_input_as_handled()
+			return
+		if board.game_state.is_bonus_move_select():
+			board.try_bonus_stay()
+		elif board.inventory.has_charge_marker:
+			board.try_charge_action()
+		else:
+			board.inventory.toggle_hold()
+		_on_board_updated()
+		get_viewport().set_input_as_handled()
+		return
+
+	# Wait (X)
+	if keycode == KEY_X:
+		board.try_wait()
+		_on_board_updated()
+		get_viewport().set_input_as_handled()
+		return
+
+	# Basic attack / Ultimate (Z)
+	if keycode == KEY_Z:
+		if not board.try_begin_basic_attack():
+			board.try_ultimate()
+		_on_board_updated()
+		get_viewport().set_input_as_handled()
+		return
+
+	# Ultimate (Enter)
+	if keycode == KEY_ENTER:
+		board.try_ultimate()
+		_on_board_updated()
+		get_viewport().set_input_as_handled()
+		return
+
+func _on_board_updated() -> void:
+	hud.update_inventory(board.inventory)
+	hud.update_score(board.score_manager.score)
+	hud.update_combo(board.score_manager.combo_counter if board.score_manager.ENABLE_COMBO_BONUS else 0)
+	hud.update_defeats(board.score_manager.defeat_count)
+	hud.update_turns(board.survival_turns)
+	hud.update_freeze(board.freeze_steps)
+	hud.update_state(board.game_state.current_state)
+
+func _on_game_over(final_score: int) -> void:
+	hud.show_game_over(final_score)
