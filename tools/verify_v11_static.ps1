@@ -519,6 +519,14 @@ $checks = @(
 		Pass = $extraBoard -match 'var\s+hits_dead:\s*bool\s*='
 	},
 	@{
+		Name = "EXTRA resolves movement before spawning and unlocking input"
+		Pass = $extraBoard -match 'func\s+_finalize_turn_after_action\([^)]*\)(?:(?!\r?\nfunc\s)[\s\S])*?_turn_resolution_pending\s*=\s*true(?:(?!\r?\nfunc\s)[\s\S])*?_refresh_visuals\(\)(?:(?!\r?\nfunc\s)[\s\S])*?call_deferred\("_complete_turn_after_motion"\)' -and $extraBoard -notmatch 'func\s+_finalize_turn_after_action\([^)]*\)(?:(?!\r?\nfunc\s)[\s\S])*?_advance_cycle\(\)' -and $extraBoard -match 'func\s+_complete_turn_after_motion\(\)(?:(?!\r?\nfunc\s)[\s\S])*?_advance_cycle\(\)(?:(?!\r?\nfunc\s)[\s\S])*?_refresh_visuals\(\)(?:(?!\r?\nfunc\s)[\s\S])*?_finish_turn_presentation\(\)' -and $extraBoard -match 'func\s+_finish_turn_presentation\(\)(?:(?!\r?\nfunc\s)[\s\S])*?set_state\(CharacterData\.GameStateEnum\.IDLE\)(?:(?!\r?\nfunc\s)[\s\S])*?_check_game_over\(\)'
+	},
+	@{
+		Name = "EXTRA keeps input locked through enemy spawn fade"
+		Pass = $extraBoard -match 'SPAWN_FADE_SECONDS\s*:=\s*0\.\d+' -and $extraBoard -match 'func\s+_apply_candidate_spawn\([^)]*\)(?:(?!\r?\nfunc\s)[\s\S])*?_spawn_fade_pending\s*=\s*true(?:(?!\r?\nfunc\s)[\s\S])*?play_spawn_fade\(SPAWN_FADE_SECONDS\)' -and $extraBoard -match 'func\s+_complete_turn_after_motion\(\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+_spawn_hit_pending\s+or\s+_spawn_fade_pending:\s*\r?\n\s*return' -and $extraBoard -match 'func\s+_finish_spawn_stage_if_ready\(\)(?:(?!\r?\nfunc\s)[\s\S])*?_finish_turn_presentation\(\)'
+	},
+	@{
 		Name = "moving blocks reveal goals continuously beneath displacement"
 		Pass = $playerBoardView -match 'func\s+is_goal_visually_occupied\(goal_cell:\s*Vector2i\)[\s\S]*displacement_subject\s*==\s*DISPLACEMENT_BLOCK[\s\S]*block_id\s*==\s*displacement_block_id[\s\S]*continue'
 	},

@@ -59,7 +59,13 @@ func on_failed_kill(_board: Node2D, _attack_dir: int) -> void:
 
 # Called by Board when a DASH kill triggers post-kill reposition.
 # Sets state and spawns the board-level slash + deferred move timer.
-func begin_kill_anim(board: Node2D, origin: Vector2i, target: Vector2i, dir: int) -> void:
+func begin_kill_anim(
+	board: Node2D,
+	origin: Vector2i,
+	target: Vector2i,
+	dir: int,
+	slash_length_override: float = -1.0
+) -> void:
 	pending_kill_pos = target
 	defer_player_move = true
 	board.player_node.play_charge_preview(dir)
@@ -71,7 +77,8 @@ func begin_kill_anim(board: Node2D, origin: Vector2i, target: Vector2i, dir: int
 		origin.y * board.CELL_STEP + board.CELL_SIZE / 2.0
 	)
 	board.add_child(slash_fx)
-	slash_fx.setup(Vector2(dv), false, -1.0, true, 175.0)
+	var slash_length: float = 175.0 if slash_length_override < 0.0 else slash_length_override
+	slash_fx.setup(Vector2(dv), false, -1.0, true, slash_length)
 	board.get_tree().create_timer(WINDUP + 0.03 + 0.10).timeout.connect(
 		func(): trigger_move(board))
 

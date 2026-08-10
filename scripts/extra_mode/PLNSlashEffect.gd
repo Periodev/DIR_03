@@ -12,7 +12,7 @@ const MAX_WIDTH_SHORT := 12.0
 const GLOW_WIDTH := 22.0
 const SCAR_STEPS := 12
 const SLASH_COLOR := Color(0.15, 1.0, 0.55)
-const WINDUP := 0.22
+const WINDUP := 0.18
 const TAIL_FADE_ALPHA := 0.08
 const TAIL_GLOW_ALPHA := 0.02
 

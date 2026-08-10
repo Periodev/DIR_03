@@ -7,10 +7,32 @@ var cell_type: int = CharacterData.CellType.LIVE
 var grid_pos: Vector2i = Vector2i.ZERO
 var candidate_phase: int = 0  # 0=none, 1..4=spawn preview gradient
 var attack_prompt_direction: int = CharacterData.Direction.NONE
+var dead_indicator_alpha: float = 1.0
+var _spawn_fade_tween: Tween
 
 func set_type(t: int) -> void:
+	if t == CharacterData.CellType.LIVE:
+		_cancel_spawn_fade()
+		dead_indicator_alpha = 1.0
 	cell_type = t
 	queue_redraw()
+
+func play_spawn_fade(duration: float) -> void:
+	_cancel_spawn_fade()
+	dead_indicator_alpha = 0.0
+	queue_redraw()
+	_spawn_fade_tween = create_tween()
+	_spawn_fade_tween.tween_method(_set_dead_indicator_alpha, 0.0, 1.0, duration) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+func _set_dead_indicator_alpha(value: float) -> void:
+	dead_indicator_alpha = value
+	queue_redraw()
+
+func _cancel_spawn_fade() -> void:
+	if _spawn_fade_tween != null and _spawn_fade_tween.is_valid():
+		_spawn_fade_tween.kill()
+	_spawn_fade_tween = null
 
 func set_candidate(phase: int) -> void:
 	candidate_phase = phase
@@ -53,7 +75,7 @@ func _draw() -> void:
 			center + Vector2(-r, 0),
 			center + Vector2(-r * 0.7, -r * 0.7),
 		])
-		draw_polygon(octagon, PackedColorArray([Color(0.8, 0.15, 0.15)]))
+		draw_polygon(octagon, PackedColorArray([Color(0.8, 0.15, 0.15, dead_indicator_alpha)]))
 
 	# Candidate warning text
 	if candidate_phase >= 1 and candidate_phase <= 4 and cell_type == CharacterData.CellType.LIVE:

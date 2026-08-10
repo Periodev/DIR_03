@@ -13,6 +13,7 @@ const CELL_GAP := 8.0
 const CELL_STEP := CELL_SIZE + CELL_GAP
 const SPAWN_HIT_SETTLE_SECONDS := 0.08
 const SPAWN_HIT_FEEDBACK_SECONDS := 0.24
+const SPAWN_FADE_SECONDS := 0.16
 
 signal game_over_signal(final_score: int)
 signal board_updated
@@ -24,10 +25,11 @@ var player_facing_dir: int = CharacterData.Direction.UP
 var candidate_cells: Array = []  # Array of Vector2i
 var cycle_counter: int = 0
 var _spawn_hit_pending: bool = false
-var _pending_spawn_visual: Array[Vector2i] = []
-var _departing_player_cell := Vector2i(-1, -1)
+var _spawn_fade_pending: bool = false
 var _player_move_visual_pending: bool = false
-var _game_over_check_pending: bool = false
+var _action_animation_pending: bool = false
+var _turn_resolution_pending: bool = false
+var _turn_freezes_spawn: bool = false
 var _suppress_hit_effect_once: bool = false
 var _pending_kill_visual: Array[Vector2i] = []  # 正在等待延遲視覺更新的格子
 var survival_turns: int = 0
@@ -99,10 +101,11 @@ func restart() -> void:
 	cycle_counter = 0
 	cycle_resolved = false
 	_spawn_hit_pending = false
-	_pending_spawn_visual.clear()
-	_departing_player_cell = Vector2i(-1, -1)
+	_spawn_fade_pending = false
 	_player_move_visual_pending = false
-	_game_over_check_pending = false
+	_action_animation_pending = false
+	_turn_resolution_pending = false
+	_turn_freezes_spawn = false
 	_suppress_hit_effect_once = false
 	_pending_kill_visual.clear()
 	survival_turns = 0
@@ -129,6 +132,7 @@ func debug_spawn_adjacent_dead() -> void:
 
 func debug_preview_charge() -> void:
 	game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
+	_sync_player_move_ready()
 	player_node.play_attack(player_facing_dir, true, true)
 
 func try_move(dir: int) -> bool:
@@ -151,7 +155,6 @@ func try_move(dir: int) -> bool:
 	if target_type == CharacterData.CellType.LIVE:
 		# Move to live cell
 		player_facing_dir = dir
-		_departing_player_cell = player_pos
 		player_pos = target
 		if not _will_spawn_hit_target_this_turn(target):
 			inventory.push(_get_move_memory_token(dir))
@@ -167,15 +170,16 @@ func try_move(dir: int) -> bool:
 		_clear_attack_prompts()
 
 		var origin := player_pos
-		_departing_player_cell = origin
 		player_facing_dir = dir
 		_resolve_attack(dir, target, target_type)
 		if grid[target.y][target.x] == CharacterData.CellType.LIVE:
 			player_pos = target
+			_action_animation_pending = true
 			_char_impl.begin_kill_anim(self, origin, target, dir)
 			game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
 			player_node.emit_animation_done_after(player_node.get_hit_delay(true))
 		else:
+			_action_animation_pending = true
 			game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
 			player_node.play_attack(dir, false, true)
 		return _finalize_turn_after_action()
@@ -215,6 +219,7 @@ func try_charge_action() -> bool:
 		if player_pos == pos_before_attack:
 			var attack_hit: bool = (grid[target.y][target.x] == CharacterData.CellType.LIVE)
 			var was_dash := _get_attack_mode() == CharacterData.AttackMode.DASH
+			_action_animation_pending = true
 			game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
 			player_node.play_attack(dir, attack_hit, was_dash)
 	return _finalize_turn_after_action()
@@ -229,16 +234,24 @@ func try_wait() -> bool:
 	score_manager.reset_combo()
 	return _finalize_turn_after_action()
 
-func _perform_dash_kill(target: Vector2i, dir: int) -> void:
+func _perform_dash_kill(target: Vector2i, dir: int, is_ultimate: bool = false) -> void:
 	var origin := player_pos
 	var target_type: int = grid[target.y][target.x]
 	_resolve_attack(dir, target, target_type)
 	if grid[target.y][target.x] == CharacterData.CellType.LIVE:
 		player_pos = target
-		_char_impl.begin_kill_anim(self, origin, target, dir)
+		_action_animation_pending = true
+		var slash_length: float = -1.0
+		if is_ultimate:
+			slash_length = maxf(
+				175.0,
+				float(origin.distance_to(target)) * CELL_STEP + CELL_SIZE * 0.35
+			)
+		_char_impl.begin_kill_anim(self, origin, target, dir, slash_length)
 		game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
 		player_node.emit_animation_done_after(player_node.get_hit_delay(true))
 	else:
+		_action_animation_pending = true
 		game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
 		player_node.play_attack(dir, false, true)
 
@@ -284,11 +297,12 @@ func _resolve_attack(dir: int, target: Vector2i, target_type: int) -> void:
 
 func _finalize_turn_after_action(freeze_spawn_cycle: bool = false) -> bool:
 	survival_turns += 1
-	if not freeze_spawn_cycle:
-		_advance_cycle()
-	_departing_player_cell = Vector2i(-1, -1)
+	_turn_resolution_pending = true
+	_turn_freezes_spawn = freeze_spawn_cycle
+	game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
 	_refresh_visuals()
-	_check_game_over()
+	if not _player_move_visual_pending and not _action_animation_pending:
+		call_deferred("_complete_turn_after_motion")
 	return true
 
 func try_ultimate() -> bool:
@@ -346,7 +360,6 @@ func _try_ultimate_dash(dir: int) -> bool:
 		return false
 
 	var origin := player_pos
-	_departing_player_cell = origin
 	var destination := _get_ultimate_dash_destination(dir)
 	var hits_dead: bool = destination != origin and grid[destination.y][destination.x] == CharacterData.CellType.DEAD
 
@@ -358,12 +371,14 @@ func _try_ultimate_dash(dir: int) -> bool:
 	if destination == origin:
 		score_manager.reset_combo()
 		_finish_ultimate_chain()
+		_action_animation_pending = true
 		game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
 		player_node.play_attack(dir, false, true)
 		return _finalize_turn_after_action(true)
 
 	if hits_dead:
-		_perform_dash_kill(destination, dir)
+		_perform_dash_kill(destination, dir, true)
+		inventory.push(dir)
 		var ultimate_finished := ultimate_directions.is_empty()
 		_finish_ultimate_chain()
 		if ultimate_finished:
@@ -400,6 +415,7 @@ func _spawn_hit_effect(pos: Vector2i) -> void:
 		_pending_kill_visual.erase(pos)
 		cell_nodes[pos.y][pos.x].set_type(CharacterData.CellType.LIVE)
 		var fx := _hit_effect_scene.instantiate()
+		fx.configure_fast_kill()
 		fx.z_index = 5
 		fx.position = world_pos
 		add_child(fx)
@@ -408,9 +424,12 @@ func _spawn_hit_effect(pos: Vector2i) -> void:
 func _on_player_animation_done() -> void:
 	if _char_impl.pending_kill_pos != Vector2i(-1, -1):
 		_char_impl.resolve_kill_visual()
-	if game_state.current_state == CharacterData.GameStateEnum.PRESENTING:
+	_action_animation_pending = false
+	if _turn_resolution_pending:
+		call_deferred("_complete_turn_after_motion")
+	elif game_state.current_state == CharacterData.GameStateEnum.PRESENTING:
 		game_state.set_state(CharacterData.GameStateEnum.IDLE)
-	_run_pending_game_over_check()
+		_sync_player_move_ready()
 
 func _kill_flow(pos: Vector2i, attack_dir: int, cell_type: int) -> void:
 	# Set to LIVE
@@ -442,9 +461,6 @@ func _advance_cycle() -> void:
 		cycle_counter = 0
 		cycle_resolved = false
 
-	if not game_state.is_presenting():
-		game_state.set_state(CharacterData.GameStateEnum.IDLE)
-
 func _start_new_cycle() -> void:
 	candidate_cells.clear()
 	var available: Array = []
@@ -473,20 +489,11 @@ func _apply_candidate_spawn(pos: Vector2i) -> void:
 	if pos == player_pos:
 		_begin_player_spawn_hit(pos, cell_type)
 		return
-	if pos == _departing_player_cell:
-		_spawn_dead(pos, cell_type)
-		_pending_spawn_visual.append(pos)
-		get_tree().create_timer(SPAWN_HIT_SETTLE_SECONDS).timeout.connect(
-			func(): _finish_departing_cell_spawn(pos), CONNECT_ONE_SHOT)
-		return
 
 	_spawn_dead(pos, cell_type)
-
-func _finish_departing_cell_spawn(pos: Vector2i) -> void:
-	if pos not in _pending_spawn_visual:
-		return
-	_pending_spawn_visual.erase(pos)
-	cell_nodes[pos.y][pos.x].set_type(grid[pos.y][pos.x])
+	_spawn_fade_pending = true
+	cell_nodes[pos.y][pos.x].set_type(cell_type)
+	cell_nodes[pos.y][pos.x].play_spawn_fade(SPAWN_FADE_SECONDS)
 
 func _begin_player_spawn_hit(pos: Vector2i, cell_type: int) -> void:
 	if _spawn_hit_pending:
@@ -530,9 +537,8 @@ func _resolve_player_spawn_hit(pos: Vector2i, cell_type: int) -> void:
 		score_manager.on_kill(cell_type)
 	else:
 		_spawn_dead(pos, cell_type)
-	game_state.set_state(CharacterData.GameStateEnum.IDLE)
 	_refresh_visuals()
-	_check_game_over()
+	_finish_spawn_stage_if_ready()
 
 func _spawn_dead(pos: Vector2i, cell_type: int) -> void:
 	grid[pos.y][pos.x] = cell_type
@@ -547,10 +553,6 @@ func _is_spawnable_live_cell(pos: Vector2i) -> bool:
 func _check_game_over() -> void:
 	if _spawn_hit_pending:
 		return
-	if game_state.is_presenting() or _player_move_visual_pending:
-		_game_over_check_pending = true
-		return
-	_game_over_check_pending = false
 	if grid[player_pos.y][player_pos.x] != CharacterData.CellType.LIVE:
 		game_state.set_state(CharacterData.GameStateEnum.GAME_OVER)
 		game_over_signal.emit(score_manager.score)
@@ -587,9 +589,6 @@ func _refresh_visuals() -> void:
 			cell.set_attack_prompt(CharacterData.Direction.NONE)
 			if pos in _pending_kill_visual:
 				continue   # 延遲處理，保持 DEAD 外觀
-			if pos in _pending_spawn_visual:
-				cell.set_candidate(0)
-				continue
 			cell.set_type(grid[r][c])
 			cell.set_candidate(0)
 
@@ -608,6 +607,7 @@ func _refresh_visuals() -> void:
 			cell_nodes[target.y][target.x].set_attack_prompt(dir)
 
 	player_node.set_facing(player_facing_dir)
+	_sync_player_move_ready()
 
 	# Update player position (skip if move is deferred to timer)
 	if not _char_impl.defer_player_move:
@@ -626,13 +626,53 @@ func _refresh_visuals() -> void:
 
 func _finish_player_move_visual() -> void:
 	_player_move_visual_pending = false
-	_run_pending_game_over_check()
+	if _turn_resolution_pending:
+		_complete_turn_after_motion()
 
-func _run_pending_game_over_check() -> void:
-	if not _game_over_check_pending:
+func _complete_turn_after_motion() -> void:
+	if not _turn_resolution_pending:
 		return
-	_game_over_check_pending = false
+	_turn_resolution_pending = false
+	var freeze_spawn_cycle: bool = _turn_freezes_spawn
+	_turn_freezes_spawn = false
+	if not freeze_spawn_cycle:
+		_advance_cycle()
+	_refresh_visuals()
+	if _spawn_fade_pending:
+		get_tree().create_timer(SPAWN_FADE_SECONDS).timeout.connect(
+			_finish_spawn_fade, CONNECT_ONE_SHOT)
+	if _spawn_hit_pending or _spawn_fade_pending:
+		return
+	_finish_turn_presentation()
+
+func _finish_spawn_fade() -> void:
+	if not _spawn_fade_pending:
+		return
+	_spawn_fade_pending = false
+	_finish_spawn_stage_if_ready()
+
+func _finish_spawn_stage_if_ready() -> void:
+	if _spawn_hit_pending or _spawn_fade_pending:
+		return
+	_finish_turn_presentation()
+
+func _finish_turn_presentation() -> void:
+	if game_state.current_state == CharacterData.GameStateEnum.GAME_OVER:
+		return
+	game_state.set_state(CharacterData.GameStateEnum.IDLE)
 	_check_game_over()
+	_sync_player_move_ready()
+
+func _sync_player_move_ready() -> void:
+	var ready_directions: Array[int] = []
+	if game_state.is_idle() and ultimate_directions.is_empty():
+		for direction in CharacterData.DIR_VECTOR:
+			var target: Vector2i = player_pos + CharacterData.DIR_VECTOR[direction]
+			if not _is_inside_board(target):
+				continue
+			if grid[target.y][target.x] == CharacterData.CellType.LIVE:
+				ready_directions.append(direction)
+	player_node.set_move_ready_directions(ready_directions)
 
 func _clear_attack_prompts() -> void:
 	for row_value in cell_nodes:

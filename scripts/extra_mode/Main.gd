@@ -57,12 +57,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
-	# Hold (Space)
+	# Wait / character utility (Space)
 	if keycode == KEY_SPACE:
 		if board.inventory.has_charge_marker:
 			board.try_charge_action()
-		else:
+		elif board.inventory.has_hold:
 			board.inventory.toggle_hold()
+		else:
+			board.try_wait()
 		_on_board_updated()
 		get_viewport().set_input_as_handled()
 		return

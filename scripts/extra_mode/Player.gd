@@ -8,6 +8,7 @@ var character_name: String = "PLN"
 var character_color: Color = Color(0.2, 0.8, 0.3)
 var character_shape: String = "blade_diamond"
 var facing_dir: int = CharacterData.Direction.UP
+var move_ready_directions: Array[int] = []
 var _char_impl  # CharacterImpl_PLN
 var _feedback_tween: Tween
 
@@ -27,7 +28,15 @@ func set_facing(dir: int) -> void:
 	facing_dir = dir
 	queue_redraw()
 
+func set_move_ready_directions(directions: Array[int]) -> void:
+	if move_ready_directions == directions:
+		return
+	move_ready_directions = directions.duplicate()
+	queue_redraw()
+
 func _draw() -> void:
+	if not move_ready_directions.is_empty():
+		_draw_move_ready_arrows()
 	var points: PackedVector2Array
 	match character_shape:
 		"blade_diamond":
@@ -46,6 +55,26 @@ func _draw() -> void:
 
 	draw_polygon(points, PackedColorArray([character_color]))
 	draw_polyline(points + PackedVector2Array([points[0]]), Color.WHITE, 2.0)
+
+func _draw_move_ready_arrows() -> void:
+	const ARROW_DISTANCE := 70.0
+	const ARROW_FRONT_DEPTH := 5.0
+	const ARROW_REAR_DEPTH := 3.0
+	const ARROW_HALF_HEIGHT := 4.0
+	const ARROW_WIDTH := 2.0
+	var arrow_color := Color(1.0, 1.0, 1.0, 0.72)
+	for direction in move_ready_directions:
+		var forward := Vector2(CharacterData.DIR_VECTOR[direction])
+		var side := Vector2(-forward.y, forward.x)
+		var center := forward * ARROW_DISTANCE
+		var tip := center + forward * ARROW_FRONT_DEPTH
+		var rear := center - forward * ARROW_REAR_DEPTH
+		var arrow := PackedVector2Array([
+			rear + side * ARROW_HALF_HEIGHT,
+			tip,
+			rear - side * ARROW_HALF_HEIGHT,
+		])
+		draw_polyline(arrow, arrow_color, ARROW_WIDTH, true)
 
 func play_move(from_pos: Vector2) -> void:
 	var to_pos := position          # already set by Board

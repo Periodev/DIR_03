@@ -101,7 +101,7 @@ func _ready() -> void:
 	add_child(ultimate_label)
 
 	message_label = Label.new()
-	message_label.text = "WASD: Move | Space: Hold | X: Wait | R: Restart"
+	message_label.text = "WASD: Move | Space/X: Wait | R: Restart"
 	message_label.add_theme_font_size_override("font_size", 14)
 	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	message_label.position = Vector2(0, 770)
@@ -239,7 +239,7 @@ func _cancel_slot_flashes() -> void:
 		slot.modulate = Color.WHITE
 
 func update_state(_state: int) -> void:
-	message_label.text = "WASD: Move | Space: Hold | X: Wait | R: Restart"
+	message_label.text = "WASD: Move | Space/X: Wait | R: Restart"
 
 func show_game_over(final_score: int) -> void:
 	gameover_score.text = str(final_score)
