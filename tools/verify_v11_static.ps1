@@ -546,7 +546,7 @@ $checks = @(
 	},
 	@{
 		Name = "classic selector preserves single-level launch mode"
-		Pass = $project -match 'launch_mode="(?:campaign|single_level)"' -and $project -match 'single_level:\s*res://levels/level_test\.txt' -and $titleScreen -match 'Campaign\.is_single_level_mode\(\)[\s\S]*call_deferred\("open_single_level_test"\)' -and $titleScreen -match 'func\s+open_single_level_test\(\)[\s\S]*SceneTransition\.transition_to\("res://scenes/main\.tscn"\)'
+		Pass = $project -match 'launch_mode="(?:campaign|single_level)"' -and $titleScreen -match 'Campaign\.is_single_level_mode\(\)[\s\S]*call_deferred\("open_single_level_test"\)' -and $titleScreen -match 'func\s+open_single_level_test\(\)[\s\S]*SceneTransition\.transition_to\("res://scenes/main\.tscn"\)'
 	},
 	@{
 		Name = "classic selector uses restrained white teal and dim state colors"

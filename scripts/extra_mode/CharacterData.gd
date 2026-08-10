@@ -33,7 +33,7 @@ const DIR_ARROWS := {
 
 const CHARACTERS := {
 	"PLN": {
-		"seq":       3,
+		"seq":       4,
 		"has_hold":  false,
 		"has_charge_marker": false,
 		"charge_max": 0,

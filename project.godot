@@ -21,15 +21,13 @@ SceneTransition="*res://scripts/scene_transition.gd"
 
 [dir]
 
-; campaign: classic level select. single_level: res://levels/level_test.txt.
-;launch_mode="single_level"
 launch_mode="campaign"
+
 [display]
 
 window/size/viewport_width=1280
 window/size/viewport_height=800
 window/stretch/mode="canvas_items"
-window/stretch/aspect="keep"
 
 [input]
 

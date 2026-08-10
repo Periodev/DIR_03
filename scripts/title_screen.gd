@@ -91,6 +91,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif menu_mode == MenuMode.INFO:
 			play_config_action(leave_info)
 		return
+	if is_unlock_extra_key(event):
+		Campaign.unlock_all_levels()
+		queue_redraw()
+		return
 	if menu_mode == MenuMode.CONFIG:
 		handle_config_input(event)
 		return
@@ -353,7 +357,16 @@ func is_cancel_key(event: InputEvent) -> bool:
 	return key_event.pressed and key_event.keycode == KEY_ESCAPE
 
 
+func is_unlock_extra_key(event: InputEvent) -> bool:
+	if not event is InputEventKey:
+		return false
+	var key_event: InputEventKey = event
+	return key_event.pressed and not key_event.echo and key_event.keycode == KEY_F2
+
+
 func extra_unlocked() -> bool:
+	if Campaign.all_levels_unlocked:
+		return true
 	for area_value in Campaign.AREAS.values():
 		var area: Dictionary = area_value
 		var levels: Array = area["levels"]
