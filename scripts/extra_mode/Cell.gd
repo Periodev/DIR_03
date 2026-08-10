@@ -6,8 +6,7 @@ const DIAMOND_RADIUS := 30.0
 var cell_type: int = CharacterData.CellType.LIVE
 var grid_pos: Vector2i = Vector2i.ZERO
 var candidate_phase: int = 0  # 0=none, 1..4=spawn preview gradient
-var bonus_option: int = 0  # 0=none, 10=bonus move, 20=bonus chain attack
-var bonus_direction: int = CharacterData.Direction.NONE
+var attack_prompt_direction: int = CharacterData.Direction.NONE
 
 func set_type(t: int) -> void:
 	cell_type = t
@@ -17,9 +16,8 @@ func set_candidate(phase: int) -> void:
 	candidate_phase = phase
 	queue_redraw()
 
-func set_bonus_option(option: int, direction: int = CharacterData.Direction.NONE) -> void:
-	bonus_option = option
-	bonus_direction = direction
+func set_attack_prompt(direction: int) -> void:
+	attack_prompt_direction = direction
 	queue_redraw()
 
 func _draw() -> void:
@@ -67,19 +65,16 @@ func _draw() -> void:
 		}
 		draw_circle(center + Vector2(0, -CELL_SIZE * 0.3), 6.0, preview_dot_colors[candidate_phase])
 
-	if bonus_option != 0 and bonus_direction != CharacterData.Direction.NONE:
-		_draw_bonus_chevron(center, bonus_direction, bonus_option == 20)
+	if attack_prompt_direction != CharacterData.Direction.NONE:
+		_draw_attack_chevron(center, attack_prompt_direction)
 
 
-func _draw_bonus_chevron(center: Vector2, direction: int, chain_attack: bool) -> void:
+func _draw_attack_chevron(center: Vector2, direction: int) -> void:
 	var forward := Vector2(CharacterData.DIR_VECTOR[direction])
 	var side := Vector2(-forward.y, forward.x)
-	var edge_center := center - forward * (CELL_SIZE * 0.27)
-	if chain_attack:
-		var chain_color := Color(0.28, 0.92, 0.48)
-		_draw_chevron(edge_center, forward, side, 10.0, 8.0, 8.0, 7.0, 3.5, chain_color)
-	else:
-		_draw_chevron(edge_center, forward, side, 9.0, 7.0, 7.0, 6.0, 3.0, Color(0.98, 0.98, 0.99))
+	var edge_center := center - forward * (CELL_SIZE * 0.38)
+	var attack_color := Color(0.28, 0.92, 0.48)
+	_draw_chevron(edge_center, forward, side, 10.0, 8.0, 8.0, 7.0, 3.5, attack_color)
 
 
 func _draw_chevron(

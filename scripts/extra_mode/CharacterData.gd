@@ -6,7 +6,7 @@ enum CellType { LIVE, DEAD }
 
 enum AttackMode { DASH, STRIKE }
 
-enum GameStateEnum { IDLE, PRESENTING, BONUS_MOVE_SELECT, GAME_OVER }
+enum GameStateEnum { IDLE, PRESENTING, GAME_OVER }
 
 const DIR_VECTOR := {
 	Direction.UP:    Vector2i(0, -1),
@@ -40,7 +40,6 @@ const CHARACTERS := {
 		"has_ult":   true,
 		"attack_mode": AttackMode.DASH,
 		"has_pierce": false,
-		"has_post_kill_reposition": true,
 		"color":     Color(0.2, 0.8, 0.3),
 		"shape":     "blade_diamond",
 	},

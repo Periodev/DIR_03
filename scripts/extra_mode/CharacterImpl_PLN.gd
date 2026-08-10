@@ -5,6 +5,7 @@ const PLNChargeGlow  = preload("res://scripts/extra_mode/PLNChargeGlow.gd")
 const PLNMoveTrail   = preload("res://scripts/extra_mode/PLNMoveTrail.gd")
 
 const WINDUP := PLNSlashEffect.WINDUP
+const MOVE_DURATION := 0.07
 
 var pending_kill_pos: Vector2i = Vector2i(-1, -1)
 var defer_player_move: bool = false
@@ -15,7 +16,7 @@ func play_move(player: Node2D, from_pos: Vector2, to_pos: Vector2) -> void:
 	player.get_parent().add_child(trail)
 	trail.setup(from_pos, to_pos)
 	var tw := player.create_tween()
-	tw.tween_property(player, "position", to_pos, 0.07)\
+	tw.tween_property(player, "position", to_pos, MOVE_DURATION)\
 	  .set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
 
 func play_attack(player: Node2D, dir: int, success: bool, is_dash: bool) -> void:
@@ -39,8 +40,10 @@ func play_attack(player: Node2D, dir: int, success: bool, is_dash: bool) -> void
 		tw.tween_property(player, "position", origin, back_dur)\
 		  .set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
-func get_hit_delay(_is_dash: bool) -> float:
-	return 0.25  # windup(0.22) + tip_extend(0.03)
+func get_hit_delay(is_dash: bool) -> float:
+	if is_dash:
+		return WINDUP + 0.03 + 0.10 + MOVE_DURATION
+	return 0.25
 
 func play_charge_preview(player: Node2D, dir: int) -> void:
 	var glow: Node2D = Node2D.new()

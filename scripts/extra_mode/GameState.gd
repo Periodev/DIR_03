@@ -18,8 +18,5 @@ func is_game_over() -> bool:
 func is_presenting() -> bool:
 	return current_state == CharacterData.GameStateEnum.PRESENTING
 
-func is_bonus_move_select() -> bool:
-	return current_state == CharacterData.GameStateEnum.BONUS_MOVE_SELECT
-
 func reset() -> void:
 	set_state(CharacterData.GameStateEnum.IDLE)

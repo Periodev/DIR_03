@@ -53,18 +53,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Movement
 	var dir = CharacterData.key_to_direction(keycode)
 	if dir != CharacterData.Direction.NONE:
-		if board.game_state.is_bonus_move_select():
-			board.try_bonus_move(dir)
-		else:
-			board.try_move(dir)
+		board.try_move(dir)
 		get_viewport().set_input_as_handled()
 		return
 
 	# Hold (Space)
 	if keycode == KEY_SPACE:
-		if board.game_state.is_bonus_move_select():
-			board.try_bonus_stay()
-		elif board.inventory.has_charge_marker:
+		if board.inventory.has_charge_marker:
 			board.try_charge_action()
 		else:
 			board.inventory.toggle_hold()

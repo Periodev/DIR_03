@@ -28,6 +28,7 @@ $editorPath = Join-Path $root "tools/level_editor.html"
 $playerAnimationCheckPath = Join-Path $root "tools/verify_player_animation.gd"
 $pyprojectPath = Join-Path $root "pyproject.toml"
 $solverCliPath = Join-Path $root "solver/cli.py"
+$extraBoardPath = Join-Path $root "scripts/extra_mode/Board.gd"
 
 $mainEntry = Get-Content -LiteralPath $mainPath -Raw
 $gameBoard = Get-Content -LiteralPath $gameBoardPath -Raw
@@ -57,6 +58,7 @@ $editor = Get-Content -LiteralPath $editorPath -Raw
 $playerAnimationCheck = Get-Content -LiteralPath $playerAnimationCheckPath -Raw
 $pyproject = Get-Content -LiteralPath $pyprojectPath -Raw
 $solverCli = Get-Content -LiteralPath $solverCliPath -Raw
+$extraBoard = Get-Content -LiteralPath $extraBoardPath -Raw
 $legacyProductName = "DIR" + "3"
 
 $checks = @(
@@ -511,6 +513,10 @@ $checks = @(
 	@{
 		Name = "GDScript warning-prone names and integer division stay explicit"
 		Pass = $gameBoard -notmatch 'const\s+AsciiMapParser\s*=' -and $playerBoardView -notmatch 'func\s+set_grid_lines_visible\(visible:' -and $playerBoardView -notmatch 'start_displacement_tween\([^)]*\bease:' -and $classicLevelSelect -notmatch '\b(?:selected_index|index)\s*/\s*GRID_COLUMNS'
+	},
+	@{
+		Name = "EXTRA dash result keeps an explicit bool across dynamic grid data"
+		Pass = $extraBoard -match 'var\s+hits_dead:\s*bool\s*='
 	},
 	@{
 		Name = "moving blocks reveal goals continuously beneath displacement"
