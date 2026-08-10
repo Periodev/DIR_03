@@ -361,7 +361,7 @@ func _begin_post_kill_reposition_if_needed(target: Vector2i, entry_dir: int) -> 
 	bonus_move_can_stay = true
 	bonus_move_advances_turn = true
 	bonus_move_stores_memory = false
-	bonus_move_stores_directional_memory = false
+	bonus_move_stores_directional_memory = true
 	for dir in CharacterData.DIR_VECTOR:
 		var pos = player_pos + CharacterData.DIR_VECTOR[dir]
 		if pos.x < 0 or pos.x >= COLS or pos.y < 0 or pos.y >= ROWS:
@@ -543,6 +543,7 @@ func _refresh_visuals() -> void:
 			var cell = cell_nodes[r][c]
 			cell.set_type(grid[r][c])
 			cell.set_candidate(0)
+			cell.set_bonus_option(0)
 
 	# Mark candidates
 	if cycle_counter >= 1:
@@ -552,11 +553,11 @@ func _refresh_visuals() -> void:
 			cell_nodes[pos.y][pos.x].set_candidate(phase)
 
 	for pos in bonus_move_options.values():
-		cell_nodes[pos.y][pos.x].set_candidate(10)
+		cell_nodes[pos.y][pos.x].set_bonus_option(10)
 	for pos in bonus_attack_options.values():
-		cell_nodes[pos.y][pos.x].set_candidate(20)
+		cell_nodes[pos.y][pos.x].set_bonus_option(20)
 	if bonus_move_can_stay:
-		cell_nodes[player_pos.y][player_pos.x].set_candidate(10)
+		cell_nodes[player_pos.y][player_pos.x].set_bonus_option(10)
 
 	player_node.set_facing(player_facing_dir)
 
