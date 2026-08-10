@@ -4,7 +4,7 @@ const CharacterImpl_PLN = preload("res://scripts/extra_mode/CharacterImpl_PLN.gd
 
 const COLS := 5
 const ROWS := 5
-const SPAWN_CYCLE_STEPS := 3
+const SPAWN_CYCLE_STEPS := 2
 const SPAWNS_PER_CYCLE := 2
 const SPAWN_CELL_TYPE := CharacterData.CellType.DEAD
 const BLOCK_OUTER_RING_SPAWN := false
@@ -19,15 +19,14 @@ var grid: Array = []  # grid[row][col] = CellType
 var player_pos: Vector2i = Vector2i(COLS / 2, ROWS / 2)
 var player_facing_dir: int = CharacterData.Direction.UP
 var candidate_cells: Array = []  # Array of Vector2i
-var bonus_move_options: Dictionary = {}  # Direction -> Vector2i
+var bonus_move_options: Dictionary = {}  # Direction -> Vector2i (adjacent LIVE cells)
+var bonus_attack_options: Dictionary = {}  # Direction -> Vector2i (adjacent DEAD cells, chain attack)
 var bonus_move_can_stay: bool = false
 var bonus_move_advances_turn: bool = false
 var bonus_move_stores_memory: bool = false
 var bonus_move_stores_directional_memory: bool = false
-var bonus_move_is_attack: bool = false
 var cycle_counter: int = 0
 var freeze_steps: int = 0
-var _basic_attack_used: bool = false
 var _suppress_hit_effect_once: bool = false
 var _pending_kill_visual: Array[Vector2i] = []  # 正在等待延遲視覺更新的格子
 var survival_turns: int = 0
@@ -94,15 +93,14 @@ func restart() -> void:
 	player_facing_dir = CharacterData.Direction.UP
 	candidate_cells.clear()
 	bonus_move_options.clear()
+	bonus_attack_options.clear()
 	bonus_move_can_stay = false
 	bonus_move_advances_turn = false
 	bonus_move_stores_memory = false
 	bonus_move_stores_directional_memory = false
-	bonus_move_is_attack = false
 	cycle_counter = 0
 	cycle_resolved = false
 	freeze_steps = 0
-	_basic_attack_used = false
 	_suppress_hit_effect_once = false
 	_pending_kill_visual.clear()
 	survival_turns = 0
@@ -234,42 +232,34 @@ func try_wait() -> bool:
 func try_bonus_move(dir: int) -> bool:
 	if not game_state.is_bonus_move_select():
 		return false
+
+	if bonus_attack_options.has(dir):
+		var match_idx := inventory.find_direction(dir)
+		if match_idx < 0:
+			return false  # Queue no longer holds this direction
+		var target: Vector2i = bonus_attack_options[dir]
+		bonus_move_options.clear()
+		bonus_attack_options.clear()
+		bonus_move_can_stay = false
+		bonus_move_advances_turn = false
+		player_facing_dir = dir
+		inventory.remove_at(match_idx)
+		_perform_chain_kill(target, dir)
+		if _begin_post_kill_reposition_if_needed(target, dir):
+			_refresh_visuals()
+			return true
+		return _finalize_turn_after_action()
+
 	if not bonus_move_options.has(dir):
 		return false
 
 	player_facing_dir = dir
-	if bonus_move_is_attack:
-		var target: Vector2i = bonus_move_options[dir]
-		var target_type: int = grid[target.y][target.x]
-		bonus_move_options.clear()
-		bonus_move_can_stay = false
-		bonus_move_advances_turn = false
-		bonus_move_stores_memory = false
-		bonus_move_stores_directional_memory = false
-		bonus_move_is_attack = false
-		if not _consume_neutral_memory():
-			game_state.set_state(CharacterData.GameStateEnum.IDLE)
-			_refresh_visuals()
-			_check_game_over()
-			return false
-		var _did_bonus_attack := false
-		if target_type != CharacterData.CellType.LIVE:
-			_resolve_attack(dir, target, target_type)
-			var attack_hit: bool = (grid[target.y][target.x] == CharacterData.CellType.LIVE)
-			game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
-			player_node.play_attack(dir, attack_hit)
-			_did_bonus_attack = true
-		if not _did_bonus_attack:
-			game_state.set_state(CharacterData.GameStateEnum.IDLE)
-		_refresh_visuals()
-		_check_game_over()
-		return true
-
 	player_pos = bonus_move_options[dir]
 	if _char_impl.pending_kill_pos != Vector2i(-1, -1):
 		inventory.register_move(dir)
 		_char_impl.resolve_kill_visual()
 	bonus_move_options.clear()
+	bonus_attack_options.clear()
 	bonus_move_can_stay = false
 	if bonus_move_stores_directional_memory:
 		inventory.push(dir)
@@ -277,7 +267,6 @@ func try_bonus_move(dir: int) -> bool:
 		inventory.push(_get_move_memory_token(dir))
 	bonus_move_stores_memory = false
 	bonus_move_stores_directional_memory = false
-	bonus_move_is_attack = false
 	if bonus_move_advances_turn:
 		bonus_move_advances_turn = false
 		return _finalize_turn_after_action()
@@ -286,6 +275,22 @@ func try_bonus_move(dir: int) -> bool:
 	_refresh_visuals()
 	_check_game_over()
 	return true
+
+# Free chain-attack from the bonus step: resolves a kill on an adjacent DEAD
+# cell without consuming an inventory slot, occupying it exactly like a
+# normal dash-kill so it can chain into another bonus step.
+func _perform_chain_kill(target: Vector2i, dir: int) -> void:
+	var origin := player_pos
+	var target_type: int = grid[target.y][target.x]
+	_resolve_attack(dir, target, target_type)
+	if grid[target.y][target.x] == CharacterData.CellType.LIVE:
+		player_pos = target
+		_char_impl.begin_kill_anim(self, origin, target, dir)
+		game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
+		player_node.emit_animation_done_after(player_node.get_hit_delay(true))
+	else:
+		game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
+		player_node.play_attack(dir, false, true)
 
 func try_bonus_stay() -> bool:
 	if not game_state.is_bonus_move_select():
@@ -294,59 +299,16 @@ func try_bonus_stay() -> bool:
 		return false
 
 	bonus_move_options.clear()
+	bonus_attack_options.clear()
 	bonus_move_can_stay = false
 	bonus_move_stores_memory = false
 	bonus_move_stores_directional_memory = false
-	bonus_move_is_attack = false
 	_char_impl.resolve_kill_visual()
 	if bonus_move_advances_turn:
 		bonus_move_advances_turn = false
 		return _finalize_turn_after_action()
 	bonus_move_advances_turn = false
 	game_state.set_state(CharacterData.GameStateEnum.IDLE)
-	_refresh_visuals()
-	_check_game_over()
-	return true
-
-func try_begin_basic_attack() -> bool:
-	# Toggle: cancel if already in ATTACK_SELECT
-	if game_state.is_attack_select():
-		game_state.set_state(CharacterData.GameStateEnum.IDLE)
-		_refresh_visuals()
-		return true
-	if not game_state.is_idle():
-		return false
-	if _basic_attack_used:
-		return false
-	# Check for at least one adjacent plain DEAD cell
-	var has_target := false
-	for dv: Vector2i in CharacterData.DIR_VECTOR.values():
-		var neighbor: Vector2i = player_pos + dv
-		if neighbor.x < 0 or neighbor.x >= COLS or neighbor.y < 0 or neighbor.y >= ROWS:
-			continue
-		if grid[neighbor.y][neighbor.x] == CharacterData.CellType.DEAD:
-			has_target = true
-			break
-	if not has_target:
-		return false
-	game_state.set_state(CharacterData.GameStateEnum.ATTACK_SELECT)
-	_refresh_visuals()
-	return true
-
-func try_confirm_basic_attack(dir: int) -> bool:
-	if not game_state.is_attack_select():
-		return false
-	var dv: Vector2i = CharacterData.DIR_VECTOR[dir]
-	var target: Vector2i = player_pos + dv
-	if target.x < 0 or target.x >= COLS or target.y < 0 or target.y >= ROWS:
-		return false
-	if grid[target.y][target.x] != CharacterData.CellType.DEAD:
-		return false
-	player_facing_dir = dir
-	_kill_flow(target, dir, CharacterData.CellType.DEAD)
-	_basic_attack_used = true
-	game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
-	player_node.play_attack(dir, true, false)
 	_refresh_visuals()
 	_check_game_over()
 	return true
@@ -369,13 +331,6 @@ func _get_move_memory_token(dir: int) -> int:
 func _has_post_kill_reposition() -> bool:
 	var data = CharacterData.CHARACTERS[current_character]
 	return data.get("has_post_kill_reposition", false)
-
-func _consume_neutral_memory() -> bool:
-	var neutral_idx: int = inventory.find_direction(CharacterData.Direction.NEUTRAL)
-	if neutral_idx < 0:
-		return false
-	inventory.remove_at(neutral_idx)
-	return true
 
 func _resolve_attack(dir: int, target: Vector2i, target_type: int) -> void:
 	_kill_flow(target, dir, target_type)
@@ -402,27 +357,28 @@ func _begin_post_kill_reposition_if_needed(target: Vector2i, entry_dir: int) -> 
 		return false
 
 	bonus_move_options.clear()
+	bonus_attack_options.clear()
 	bonus_move_can_stay = true
 	bonus_move_advances_turn = true
 	bonus_move_stores_memory = false
 	bonus_move_stores_directional_memory = false
-	bonus_move_is_attack = false
 	for dir in CharacterData.DIR_VECTOR:
 		var pos = player_pos + CharacterData.DIR_VECTOR[dir]
 		if pos.x < 0 or pos.x >= COLS or pos.y < 0 or pos.y >= ROWS:
 			continue
-		if grid[pos.y][pos.x] != CharacterData.CellType.LIVE:
-			continue
-		bonus_move_options[dir] = pos
+		var neighbor_type: int = grid[pos.y][pos.x]
+		if neighbor_type == CharacterData.CellType.LIVE:
+			bonus_move_options[dir] = pos
+		elif neighbor_type == CharacterData.CellType.DEAD and inventory.find_direction(dir) >= 0:
+			bonus_attack_options[dir] = pos
 
-	if bonus_move_options.is_empty() and not bonus_move_can_stay:
+	if bonus_move_options.is_empty() and bonus_attack_options.is_empty() and not bonus_move_can_stay:
 		return false
 
 	game_state.set_state(CharacterData.GameStateEnum.BONUS_MOVE_SELECT)
 	return true
 
 func _finalize_turn_after_action() -> bool:
-	_basic_attack_used = false
 	survival_turns += 1
 	_advance_cycle()
 	_refresh_visuals()
@@ -597,16 +553,10 @@ func _refresh_visuals() -> void:
 
 	for pos in bonus_move_options.values():
 		cell_nodes[pos.y][pos.x].set_candidate(10)
+	for pos in bonus_attack_options.values():
+		cell_nodes[pos.y][pos.x].set_candidate(20)
 	if bonus_move_can_stay:
 		cell_nodes[player_pos.y][player_pos.x].set_candidate(10)
-
-	if game_state.is_attack_select():
-		for dv: Vector2i in CharacterData.DIR_VECTOR.values():
-			var neighbor: Vector2i = player_pos + dv
-			if neighbor.x < 0 or neighbor.x >= COLS or neighbor.y < 0 or neighbor.y >= ROWS:
-				continue
-			if grid[neighbor.y][neighbor.x] == CharacterData.CellType.DEAD:
-				cell_nodes[neighbor.y][neighbor.x].set_candidate(20)
 
 	player_node.set_facing(player_facing_dir)
 

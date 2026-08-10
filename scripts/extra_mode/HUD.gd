@@ -208,11 +208,8 @@ func update_freeze(steps: int) -> void:
 	else:
 		freeze_label.text = ""
 
-func update_state(state: int) -> void:
-	if state == CharacterData.GameStateEnum.ATTACK_SELECT:
-		message_label.text = "ATTACK — 選擇方向攻擊 | Z/Space: 取消"
-	else:
-		message_label.text = "WASD: Move | Space: Hold | X: Wait | R: Restart"
+func update_state(_state: int) -> void:
+	message_label.text = "WASD: Move | Space: Hold | X: Wait | R: Restart"
 
 func show_game_over(final_score: int) -> void:
 	gameover_score.text = str(final_score)

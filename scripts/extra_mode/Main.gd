@@ -54,8 +54,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	if dir != CharacterData.Direction.NONE:
 		if board.game_state.is_bonus_move_select():
 			board.try_bonus_move(dir)
-		elif board.game_state.is_attack_select():
-			board.try_confirm_basic_attack(dir)
 		else:
 			board.try_move(dir)
 		get_viewport().set_input_as_handled()
@@ -63,11 +61,6 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	# Hold (Space)
 	if keycode == KEY_SPACE:
-		if board.game_state.is_attack_select():
-			board.try_begin_basic_attack()  # toggles back to IDLE
-			_on_board_updated()
-			get_viewport().set_input_as_handled()
-			return
 		if board.game_state.is_bonus_move_select():
 			board.try_bonus_stay()
 		elif board.inventory.has_charge_marker:
@@ -85,10 +78,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
-	# Basic attack / Ultimate (Z)
+	# Ultimate (Z)
 	if keycode == KEY_Z:
-		if not board.try_begin_basic_attack():
-			board.try_ultimate()
+		board.try_ultimate()
 		_on_board_updated()
 		get_viewport().set_input_as_handled()
 		return

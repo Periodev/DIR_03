@@ -1,6 +1,6 @@
 class_name ScoreManager
 
-const ENABLE_COMBO_BONUS := false
+const ENABLE_COMBO_BONUS := true
 
 signal score_changed(new_score: int)
 signal combo_changed(new_combo: int)
