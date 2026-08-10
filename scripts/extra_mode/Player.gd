@@ -1,6 +1,8 @@
 extends Node2D
 
 signal animation_done
+signal movement_started
+signal movement_finished
 
 const CharacterImpl_PLN = preload("res://scripts/extra_mode/CharacterImpl_PLN.gd")
 
@@ -11,6 +13,7 @@ var facing_dir: int = CharacterData.Direction.UP
 var move_ready_directions: Array[int] = []
 var _char_impl  # CharacterImpl_PLN
 var _feedback_tween: Tween
+var _move_tween: Tween
 
 func set_character(char_name: String) -> void:
 	character_name = char_name
@@ -77,9 +80,17 @@ func _draw_move_ready_arrows() -> void:
 		draw_polyline(arrow, arrow_color, ARROW_WIDTH, true)
 
 func play_move(from_pos: Vector2) -> void:
+	if _move_tween != null and _move_tween.is_valid():
+		_move_tween.kill()
 	var to_pos := position          # already set by Board
 	position = from_pos             # snap back to start
-	_char_impl.play_move(self, from_pos, to_pos)
+	_move_tween = _char_impl.play_move(self, from_pos, to_pos)
+	movement_started.emit()
+	_move_tween.finished.connect(_finish_move, CONNECT_ONE_SHOT)
+
+func _finish_move() -> void:
+	_move_tween = null
+	movement_finished.emit()
 
 func play_attack(dir: int, success: bool, is_dash: bool = false) -> void:
 	_char_impl.play_attack(self, dir, success, is_dash)
@@ -107,6 +118,9 @@ func play_spawn_hit() -> void:
 	_feedback_tween.tween_property(self, "position", origin, 0.04)
 
 func cancel_feedback() -> void:
+	if _move_tween != null and _move_tween.is_valid():
+		_move_tween.kill()
+	_move_tween = null
 	if _feedback_tween != null and _feedback_tween.is_valid():
 		_feedback_tween.kill()
 	_feedback_tween = null

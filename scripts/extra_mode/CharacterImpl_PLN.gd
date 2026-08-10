@@ -10,7 +10,7 @@ const MOVE_DURATION := 0.07
 var pending_kill_pos: Vector2i = Vector2i(-1, -1)
 var defer_player_move: bool = false
 
-func play_move(player: Node2D, from_pos: Vector2, to_pos: Vector2) -> void:
+func play_move(player: Node2D, from_pos: Vector2, to_pos: Vector2) -> Tween:
 	var trail := Node2D.new()
 	trail.set_script(PLNMoveTrail)
 	player.get_parent().add_child(trail)
@@ -18,6 +18,7 @@ func play_move(player: Node2D, from_pos: Vector2, to_pos: Vector2) -> void:
 	var tw := player.create_tween()
 	tw.tween_property(player, "position", to_pos, MOVE_DURATION)\
 	  .set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	return tw
 
 func play_attack(player: Node2D, dir: int, success: bool, is_dash: bool) -> void:
 	if is_dash:

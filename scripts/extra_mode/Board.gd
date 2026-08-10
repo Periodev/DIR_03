@@ -77,6 +77,8 @@ func _ready() -> void:
 	player_node = player_scene.instantiate()
 	add_child(player_node)
 	player_node.animation_done.connect(_on_player_animation_done)
+	player_node.movement_started.connect(_on_player_movement_started)
+	player_node.movement_finished.connect(_finish_player_move_visual)
 
 	get_viewport().size_changed.connect(_update_board_offset)
 	_update_board_offset()
@@ -424,7 +426,8 @@ func _on_player_animation_done() -> void:
 		_char_impl.resolve_kill_visual()
 	_action_animation_pending = false
 	if _turn_resolution_pending:
-		call_deferred("_complete_turn_after_motion")
+		if not _player_move_visual_pending:
+			call_deferred("_complete_turn_after_motion")
 	elif game_state.current_state == CharacterData.GameStateEnum.PRESENTING:
 		game_state.set_state(CharacterData.GameStateEnum.IDLE)
 		_sync_player_move_ready()
@@ -584,7 +587,6 @@ func _refresh_visuals() -> void:
 		for c in COLS:
 			var pos := Vector2i(c, r)
 			var cell = cell_nodes[r][c]
-			cell.set_attack_prompt(CharacterData.Direction.NONE)
 			if pos in _pending_kill_visual:
 				continue   # 延遲處理，保持 DEAD 外觀
 			cell.set_type(grid[r][c])
@@ -597,12 +599,7 @@ func _refresh_visuals() -> void:
 			var phase: int = _get_candidate_preview_phase()
 			cell_nodes[pos.y][pos.x].set_candidate(phase)
 
-	for dir in CharacterData.DIR_VECTOR:
-		var target: Vector2i = player_pos + CharacterData.DIR_VECTOR[dir]
-		if not _is_inside_board(target):
-			continue
-		if grid[target.y][target.x] == CharacterData.CellType.DEAD and _has_attack_direction(dir):
-			cell_nodes[target.y][target.x].set_attack_prompt(dir)
+	_refresh_attack_prompts()
 
 	player_node.set_facing(player_facing_dir)
 	_sync_player_move_ready()
@@ -615,16 +612,16 @@ func _refresh_visuals() -> void:
 			player_pos.y * CELL_STEP + CELL_SIZE / 2.0
 		)
 		if player_node.position != old_player_visual_pos:
-			_player_move_visual_pending = true
 			player_node.play_move(old_player_visual_pos)
-			get_tree().create_timer(SPAWN_HIT_SETTLE_SECONDS).timeout.connect(
-				_finish_player_move_visual, CONNECT_ONE_SHOT)
 
 	board_updated.emit()
 
+func _on_player_movement_started() -> void:
+	_player_move_visual_pending = true
+
 func _finish_player_move_visual() -> void:
 	_player_move_visual_pending = false
-	if _turn_resolution_pending:
+	if _turn_resolution_pending and not _action_animation_pending:
 		_complete_turn_after_motion()
 
 func _complete_turn_after_motion() -> void:
@@ -662,6 +659,7 @@ func _finish_turn_presentation() -> void:
 		return
 	game_state.set_state(CharacterData.GameStateEnum.IDLE)
 	_check_game_over()
+	_refresh_attack_prompts()
 	_sync_player_move_ready()
 
 func _sync_player_move_ready() -> void:
@@ -681,6 +679,17 @@ func _clear_attack_prompts() -> void:
 		for cell_value in row:
 			var cell: Node2D = cell_value
 			cell.set_attack_prompt(CharacterData.Direction.NONE)
+
+func _refresh_attack_prompts() -> void:
+	_clear_attack_prompts()
+	if not game_state.is_idle():
+		return
+	for direction in CharacterData.DIR_VECTOR:
+		var target: Vector2i = player_pos + CharacterData.DIR_VECTOR[direction]
+		if not _is_inside_board(target):
+			continue
+		if grid[target.y][target.x] == CharacterData.CellType.DEAD and _has_attack_direction(direction):
+			cell_nodes[target.y][target.x].set_attack_prompt(direction)
 
 func _update_board_offset() -> void:
 	var board_width: float = float(COLS - 1) * CELL_STEP + CELL_SIZE

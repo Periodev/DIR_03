@@ -531,6 +531,10 @@ $checks = @(
 		Pass = $extraBoard -match 'func\s+_finalize_turn_after_action\([^)]*\)(?:(?!\r?\nfunc\s)[\s\S])*?_turn_resolution_pending\s*=\s*true(?:(?!\r?\nfunc\s)[\s\S])*?_refresh_visuals\(\)(?:(?!\r?\nfunc\s)[\s\S])*?call_deferred\("_complete_turn_after_motion"\)' -and $extraBoard -notmatch 'func\s+_finalize_turn_after_action\([^)]*\)(?:(?!\r?\nfunc\s)[\s\S])*?_advance_cycle\(\)' -and $extraBoard -match 'func\s+_complete_turn_after_motion\(\)(?:(?!\r?\nfunc\s)[\s\S])*?_advance_cycle\(\)(?:(?!\r?\nfunc\s)[\s\S])*?_refresh_visuals\(\)(?:(?!\r?\nfunc\s)[\s\S])*?_finish_turn_presentation\(\)' -and $extraBoard -match 'func\s+_finish_turn_presentation\(\)(?:(?!\r?\nfunc\s)[\s\S])*?set_state\(CharacterData\.GameStateEnum\.IDLE\)(?:(?!\r?\nfunc\s)[\s\S])*?_check_game_over\(\)'
 	},
 	@{
+		Name = "EXTRA waits for real movement completion before showing ready arrows"
+		Pass = $extraBoard -match 'movement_started\.connect\(_on_player_movement_started\)' -and $extraBoard -match 'movement_finished\.connect\(_finish_player_move_visual\)' -and $extraBoard -match 'func\s+_on_player_animation_done\(\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+not\s+_player_move_visual_pending:' -and $extraBoard -match 'func\s+_finish_player_move_visual\(\)(?:(?!\r?\nfunc\s)[\s\S])*?_turn_resolution_pending\s+and\s+not\s+_action_animation_pending' -and $extraBoard -match 'func\s+_refresh_attack_prompts\(\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+not\s+game_state\.is_idle\(\):\s*\r?\n\s*return'
+	},
+	@{
 		Name = "EXTRA keeps input locked through enemy spawn fade"
 		Pass = $extraBoard -match 'SPAWN_FADE_SECONDS\s*:=\s*0\.\d+' -and $extraBoard -match 'func\s+_apply_candidate_spawn\([^)]*\)(?:(?!\r?\nfunc\s)[\s\S])*?_spawn_fade_pending\s*=\s*true(?:(?!\r?\nfunc\s)[\s\S])*?play_spawn_fade\(SPAWN_FADE_SECONDS\)' -and $extraBoard -match 'func\s+_complete_turn_after_motion\(\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+_spawn_hit_pending\s+or\s+_spawn_fade_pending:\s*\r?\n\s*return' -and $extraBoard -match 'func\s+_finish_spawn_stage_if_ready\(\)(?:(?!\r?\nfunc\s)[\s\S])*?_finish_turn_presentation\(\)'
 	},
