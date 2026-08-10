@@ -9,7 +9,7 @@ var inventory_panel: PanelContainer
 var hold_container: HBoxContainer
 var hold_label: Label
 var hold_slot: Label
-var freeze_label: Label
+var ultimate_label: Label
 var gameover_panel: PanelContainer
 var gameover_score: Label
 var message_label: Label
@@ -19,6 +19,7 @@ var _max_slots: int = 3
 var _has_hold: bool = false
 var _has_charge_marker: bool = false
 var _charge_max: int = 0
+var _slot_flash_tweens: Array[Tween] = []
 
 func _ready() -> void:
 	# Score - top right
@@ -91,13 +92,13 @@ func _ready() -> void:
 
 	hold_container = inv_hbox
 
-	freeze_label = Label.new()
-	freeze_label.text = ""
-	freeze_label.add_theme_font_size_override("font_size", 24)
-	freeze_label.add_theme_color_override("font_color", Color(0.2, 0.9, 0.9))
-	freeze_label.position = Vector2(20, 10)
-	freeze_label.size = Vector2(200, 30)
-	add_child(freeze_label)
+	ultimate_label = Label.new()
+	ultimate_label.text = ""
+	ultimate_label.add_theme_font_size_override("font_size", 24)
+	ultimate_label.add_theme_color_override("font_color", Color(0.28, 0.92, 0.48))
+	ultimate_label.position = Vector2(20, 10)
+	ultimate_label.size = Vector2(320, 30)
+	add_child(ultimate_label)
 
 	message_label = Label.new()
 	message_label.text = "WASD: Move | Space: Hold | X: Wait | R: Restart"
@@ -141,6 +142,7 @@ func _ready() -> void:
 	_layout_ui()
 
 func setup(char_name: String) -> void:
+	_cancel_slot_flashes()
 	var data = CharacterData.CHARACTERS[char_name]
 	_max_slots = data["seq"]
 	_has_hold = data["has_hold"]
@@ -202,11 +204,39 @@ func update_defeats(defeats: int) -> void:
 func update_turns(turns: int) -> void:
 	turns_label.text = "TURN %d" % turns
 
-func update_freeze(steps: int) -> void:
-	if steps > 0:
-		freeze_label.text = "FREEZE: %d" % steps
-	else:
-		freeze_label.text = ""
+func update_ultimate(ready: bool, active_directions: Array[int]) -> void:
+	if ready:
+		ultimate_label.text = "ULT READY [Z]"
+		return
+	if active_directions.is_empty():
+		ultimate_label.text = ""
+		return
+	var arrows: Array[String] = []
+	for direction in active_directions:
+		arrows.append(CharacterData.DIR_ARROWS[direction])
+	ultimate_label.text = "ULT  %s" % " ".join(arrows)
+
+func play_inventory_hit(slot_count: int) -> void:
+	_cancel_slot_flashes()
+	var count: int = mini(slot_count, slot_labels.size())
+	for i in count:
+		var slot: Label = slot_labels[i]
+		slot.modulate = Color.WHITE
+		var tween := create_tween()
+		_slot_flash_tweens.append(tween)
+		tween.tween_property(slot, "modulate", Color(1.0, 0.18, 0.18), 0.04)
+		tween.tween_property(slot, "modulate", Color.WHITE, 0.055)
+		tween.tween_property(slot, "modulate", Color(1.0, 0.18, 0.18), 0.045)
+		tween.tween_property(slot, "modulate", Color.WHITE, 0.07)
+
+func _cancel_slot_flashes() -> void:
+	for tween in _slot_flash_tweens:
+		if tween != null and tween.is_valid():
+			tween.kill()
+	_slot_flash_tweens.clear()
+	for slot_value in slot_labels:
+		var slot: Label = slot_value
+		slot.modulate = Color.WHITE
 
 func update_state(_state: int) -> void:
 	message_label.text = "WASD: Move | Space: Hold | X: Wait | R: Restart"
@@ -226,8 +256,8 @@ func _layout_ui() -> void:
 	combo_label.position = Vector2(viewport_size.x - 200, 55)
 	combo_label.size = Vector2(180, 30)
 
-	freeze_label.position = Vector2(20, 10)
-	freeze_label.size = Vector2(200, 30)
+	ultimate_label.position = Vector2(20, 10)
+	ultimate_label.size = Vector2(320, 30)
 
 	defeats_label.position = Vector2(20, 44)
 	defeats_label.size = Vector2(180, 26)

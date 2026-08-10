@@ -23,6 +23,9 @@ func on_kill(_cell_type: int, count_defeat: bool = true) -> int:
 	return points
 
 func on_move_to_live() -> void:
+	reset_combo()
+
+func reset_combo() -> void:
 	combo_counter = 0
 	combo_changed.emit(combo_counter if ENABLE_COMBO_BONUS else 0)
 

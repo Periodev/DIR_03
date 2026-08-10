@@ -11,9 +11,12 @@ const BLOCK_OUTER_RING_SPAWN := false
 const CELL_SIZE := 100.0
 const CELL_GAP := 8.0
 const CELL_STEP := CELL_SIZE + CELL_GAP
+const SPAWN_HIT_SETTLE_SECONDS := 0.08
+const SPAWN_HIT_FEEDBACK_SECONDS := 0.24
 
 signal game_over_signal(final_score: int)
 signal board_updated
+signal spawn_hit_started(slot_count: int)
 
 var grid: Array = []  # grid[row][col] = CellType
 var player_pos: Vector2i = Vector2i(COLS / 2, ROWS / 2)
@@ -26,10 +29,13 @@ var bonus_move_advances_turn: bool = false
 var bonus_move_stores_memory: bool = false
 var bonus_move_stores_directional_memory: bool = false
 var cycle_counter: int = 0
-var freeze_steps: int = 0
+var _spawn_hit_pending: bool = false
 var _suppress_hit_effect_once: bool = false
 var _pending_kill_visual: Array[Vector2i] = []  # 正在等待延遲視覺更新的格子
 var survival_turns: int = 0
+var ultimate_ready: bool = false
+var ultimate_directions: Array[int] = []
+var _ultimate_chain_started: bool = false
 
 var inventory: Inventory
 var score_manager: ScoreManager
@@ -100,10 +106,14 @@ func restart() -> void:
 	bonus_move_stores_directional_memory = false
 	cycle_counter = 0
 	cycle_resolved = false
-	freeze_steps = 0
+	_spawn_hit_pending = false
 	_suppress_hit_effect_once = false
 	_pending_kill_visual.clear()
 	survival_turns = 0
+	ultimate_ready = false
+	ultimate_directions.clear()
+	_ultimate_chain_started = false
+	player_node.cancel_feedback()
 
 	setup_character(current_character, current_attack_mode_override)
 	score_manager.reset()
@@ -142,22 +152,20 @@ func try_move(dir: int) -> bool:
 		# Move to live cell
 		player_facing_dir = dir
 		player_pos = target
-		inventory.push(_get_move_memory_token(dir))
-		inventory.register_move(dir)
+		if not _will_spawn_hit_target_this_turn(target):
+			inventory.push(_get_move_memory_token(dir))
+			inventory.register_move(dir)
 		score_manager.on_move_to_live()
 
 		return _finalize_turn_after_action()
 
 	else:
 		# Dead cell - check inventory for matching direction (any position)
-		var match_idx := inventory.find_direction(dir)
-		if match_idx < 0:
+		if not _consume_attack_direction(dir):
 			return false  # No matching direction in queue
 
 		var origin := player_pos
 
-		# Remove matched direction (first occurrence)
-		inventory.remove_at(match_idx)
 		player_facing_dir = dir
 		if _get_attack_mode() == CharacterData.AttackMode.DASH:
 			_resolve_attack(dir, target, target_type)
@@ -234,8 +242,7 @@ func try_bonus_move(dir: int) -> bool:
 		return false
 
 	if bonus_attack_options.has(dir):
-		var match_idx := inventory.find_direction(dir)
-		if match_idx < 0:
+		if not _consume_attack_direction(dir):
 			return false  # Queue no longer holds this direction
 		var target: Vector2i = bonus_attack_options[dir]
 		bonus_move_options.clear()
@@ -243,7 +250,6 @@ func try_bonus_move(dir: int) -> bool:
 		bonus_move_can_stay = false
 		bonus_move_advances_turn = false
 		player_facing_dir = dir
-		inventory.remove_at(match_idx)
 		_perform_chain_kill(target, dir)
 		if _begin_post_kill_reposition_if_needed(target, dir):
 			_refresh_visuals()
@@ -269,6 +275,8 @@ func try_bonus_move(dir: int) -> bool:
 	bonus_move_stores_directional_memory = false
 	if bonus_move_advances_turn:
 		bonus_move_advances_turn = false
+		_finish_ultimate_chain()
+		score_manager.reset_combo()
 		return _finalize_turn_after_action()
 	bonus_move_advances_turn = false
 	game_state.set_state(CharacterData.GameStateEnum.IDLE)
@@ -306,6 +314,8 @@ func try_bonus_stay() -> bool:
 	_char_impl.resolve_kill_visual()
 	if bonus_move_advances_turn:
 		bonus_move_advances_turn = false
+		_finish_ultimate_chain()
+		score_manager.reset_combo()
 		return _finalize_turn_after_action()
 	bonus_move_advances_turn = false
 	game_state.set_state(CharacterData.GameStateEnum.IDLE)
@@ -327,6 +337,13 @@ func _has_pierce_passive() -> bool:
 
 func _get_move_memory_token(dir: int) -> int:
 	return dir
+
+func _will_spawn_hit_target_this_turn(target: Vector2i) -> bool:
+	if cycle_resolved:
+		return false
+	if cycle_counter + 1 < SPAWN_CYCLE_STEPS:
+		return false
+	return target in candidate_cells
 
 func _has_post_kill_reposition() -> bool:
 	var data = CharacterData.CHARACTERS[current_character]
@@ -369,7 +386,7 @@ func _begin_post_kill_reposition_if_needed(target: Vector2i, entry_dir: int) -> 
 		var neighbor_type: int = grid[pos.y][pos.x]
 		if neighbor_type == CharacterData.CellType.LIVE:
 			bonus_move_options[dir] = pos
-		elif neighbor_type == CharacterData.CellType.DEAD and inventory.find_direction(dir) >= 0:
+		elif neighbor_type == CharacterData.CellType.DEAD and _has_attack_direction(dir):
 			bonus_attack_options[dir] = pos
 
 	if bonus_move_options.is_empty() and bonus_attack_options.is_empty() and not bonus_move_can_stay:
@@ -391,13 +408,43 @@ func try_ultimate() -> bool:
 	var data = CharacterData.CHARACTERS[current_character]
 	if not data["has_ult"]:
 		return false
-	if not inventory.is_full():
+	if not ultimate_ready:
 		return false
-
-	inventory.queue.clear()
-	freeze_steps = 3
+	ultimate_ready = false
+	ultimate_directions.assign([
+		CharacterData.Direction.UP,
+		CharacterData.Direction.DOWN,
+		CharacterData.Direction.LEFT,
+		CharacterData.Direction.RIGHT,
+	])
+	_ultimate_chain_started = false
+	score_manager.reset_combo()
 	_refresh_visuals()
 	return true
+
+func get_ultimate_directions() -> Array[int]:
+	return ultimate_directions.duplicate()
+
+func _has_attack_direction(dir: int) -> bool:
+	return dir in ultimate_directions or inventory.find_direction(dir) >= 0
+
+func _consume_attack_direction(dir: int) -> bool:
+	var ultimate_index: int = ultimate_directions.find(dir)
+	if ultimate_index >= 0:
+		ultimate_directions.remove_at(ultimate_index)
+		_ultimate_chain_started = true
+		return true
+	var inventory_index: int = inventory.find_direction(dir)
+	if inventory_index < 0:
+		return false
+	inventory.remove_at(inventory_index)
+	return true
+
+func _finish_ultimate_chain() -> void:
+	if not _ultimate_chain_started:
+		return
+	ultimate_directions.clear()
+	_ultimate_chain_started = false
 
 func _on_failed_kill(attack_dir: int) -> void:
 	_char_impl.on_failed_kill(self, attack_dir)
@@ -424,19 +471,14 @@ func _kill_flow(pos: Vector2i, attack_dir: int, cell_type: int) -> void:
 	grid[pos.y][pos.x] = CharacterData.CellType.LIVE
 	score_manager.combo_counter += 1
 	score_manager.on_kill(cell_type)
+	if score_manager.combo_counter >= 4 and not _ultimate_chain_started:
+		ultimate_ready = true
 	_spawn_hit_effect(pos)
 	_char_impl.on_kill(self, pos, attack_dir)
 
 var cycle_resolved: bool = false  # true = this cycle already spawned, remaining turns idle
 
 func _advance_cycle() -> void:
-	if freeze_steps > 0:
-		freeze_steps -= 1
-		if freeze_steps > 0:
-			game_state.set_state(CharacterData.GameStateEnum.IDLE)
-			return
-		# freeze just ended, proceed with normal cycle
-
 	cycle_counter += 1
 
 	if cycle_resolved:
@@ -483,17 +525,56 @@ func _apply_candidate_spawn(pos: Vector2i) -> void:
 	var cell_type: int = SPAWN_CELL_TYPE
 
 	if pos == player_pos:
-		var first := inventory.pop()
-		if first == CharacterData.Direction.NONE:
-			_spawn_dead(pos, cell_type)
-			return
-		var second := inventory.pop()
-		if second != CharacterData.Direction.NONE:
-			score_manager.combo_counter += 1
-			score_manager.on_kill(cell_type)
-			return
+		_begin_player_spawn_hit(pos, cell_type)
+		return
 
 	_spawn_dead(pos, cell_type)
+
+func _begin_player_spawn_hit(pos: Vector2i, cell_type: int) -> void:
+	if _spawn_hit_pending:
+		return
+	_spawn_hit_pending = true
+	game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
+	get_tree().create_timer(SPAWN_HIT_SETTLE_SECONDS).timeout.connect(
+		func(): _play_player_spawn_hit_feedback(pos, cell_type), CONNECT_ONE_SHOT)
+
+func _play_player_spawn_hit_feedback(pos: Vector2i, cell_type: int) -> void:
+	if not _spawn_hit_pending:
+		return
+	var slot_count: int = mini(2, inventory.queue.size())
+	spawn_hit_started.emit(slot_count)
+	player_node.play_spawn_hit()
+	if slot_count >= 2:
+		_show_spawn_block_effect(pos)
+	else:
+		cell_nodes[pos.y][pos.x].set_type(cell_type)
+	get_tree().create_timer(SPAWN_HIT_FEEDBACK_SECONDS).timeout.connect(
+		func(): _resolve_player_spawn_hit(pos, cell_type), CONNECT_ONE_SHOT)
+
+func _show_spawn_block_effect(pos: Vector2i) -> void:
+	var effect := _hit_effect_scene.instantiate()
+	effect.z_index = 5
+	effect.position = Vector2(
+		pos.x * CELL_STEP + CELL_SIZE / 2.0,
+		pos.y * CELL_STEP + CELL_SIZE / 2.0
+	)
+	add_child(effect)
+
+func _resolve_player_spawn_hit(pos: Vector2i, cell_type: int) -> void:
+	if not _spawn_hit_pending:
+		return
+	_spawn_hit_pending = false
+	var consumed_count := 0
+	for i in mini(2, inventory.queue.size()):
+		inventory.pop()
+		consumed_count += 1
+	if consumed_count >= 2:
+		score_manager.on_kill(cell_type)
+		game_state.set_state(CharacterData.GameStateEnum.IDLE)
+	else:
+		_spawn_dead(pos, cell_type)
+	_refresh_visuals()
+	_check_game_over()
 
 func _spawn_dead(pos: Vector2i, cell_type: int) -> void:
 	grid[pos.y][pos.x] = cell_type
@@ -506,6 +587,8 @@ func _is_spawnable_live_cell(pos: Vector2i) -> bool:
 	return pos.x > 0 and pos.x < COLS - 1 and pos.y > 0 and pos.y < ROWS - 1
 
 func _check_game_over() -> void:
+	if _spawn_hit_pending:
+		return
 	if grid[player_pos.y][player_pos.x] != CharacterData.CellType.LIVE:
 		game_state.set_state(CharacterData.GameStateEnum.GAME_OVER)
 		game_over_signal.emit(score_manager.score)

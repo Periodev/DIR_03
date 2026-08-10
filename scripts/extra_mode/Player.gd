@@ -9,6 +9,7 @@ var character_color: Color = Color(0.2, 0.8, 0.3)
 var character_shape: String = "blade_diamond"
 var facing_dir: int = CharacterData.Direction.UP
 var _char_impl  # CharacterImpl_PLN
+var _feedback_tween: Tween
 
 func set_character(char_name: String) -> void:
 	character_name = char_name
@@ -64,6 +65,22 @@ func play_charge_preview(dir: int) -> void:
 
 func get_hit_delay(is_dash: bool = false) -> float:
 	return _char_impl.get_hit_delay(is_dash)
+
+func play_spawn_hit() -> void:
+	if _feedback_tween != null and _feedback_tween.is_valid():
+		_feedback_tween.kill()
+	var origin := position
+	_feedback_tween = create_tween()
+	_feedback_tween.tween_property(self, "position", origin + Vector2(-7.0, 0.0), 0.035)
+	_feedback_tween.tween_property(self, "position", origin + Vector2(7.0, 0.0), 0.05)
+	_feedback_tween.tween_property(self, "position", origin + Vector2(-5.0, 0.0), 0.045)
+	_feedback_tween.tween_property(self, "position", origin + Vector2(4.0, 0.0), 0.04)
+	_feedback_tween.tween_property(self, "position", origin, 0.04)
+
+func cancel_feedback() -> void:
+	if _feedback_tween != null and _feedback_tween.is_valid():
+		_feedback_tween.kill()
+	_feedback_tween = null
 
 func _facing_to_angle(dir: int) -> float:
 	match dir:

@@ -9,6 +9,7 @@ func _ready() -> void:
 
 	board.game_over_signal.connect(_on_game_over)
 	board.board_updated.connect(_on_board_updated)
+	board.spawn_hit_started.connect(_on_spawn_hit_started)
 	board.score_manager.score_changed.connect(hud.update_score)
 	board.score_manager.combo_changed.connect(hud.update_combo)
 	board.score_manager.defeat_changed.connect(hud.update_defeats)
@@ -98,8 +99,11 @@ func _on_board_updated() -> void:
 	hud.update_combo(board.score_manager.combo_counter if board.score_manager.ENABLE_COMBO_BONUS else 0)
 	hud.update_defeats(board.score_manager.defeat_count)
 	hud.update_turns(board.survival_turns)
-	hud.update_freeze(board.freeze_steps)
+	hud.update_ultimate(board.ultimate_ready, board.get_ultimate_directions())
 	hud.update_state(board.game_state.current_state)
+
+func _on_spawn_hit_started(slot_count: int) -> void:
+	hud.play_inventory_hit(slot_count)
 
 func _on_game_over(final_score: int) -> void:
 	hud.show_game_over(final_score)
