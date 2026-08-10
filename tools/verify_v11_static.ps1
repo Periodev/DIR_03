@@ -519,6 +519,14 @@ $checks = @(
 		Pass = $extraBoard -match 'var\s+hits_dead:\s*bool\s*='
 	},
 	@{
+		Name = "EXTRA ultimate provides four unrestricted directional dashes"
+		Pass = $extraBoard -match 'ULT_DASH_COUNT\s*:=\s*4' -and $extraBoard -match 'var\s+ultimate_dashes_remaining:\s*int\s*=\s*0' -and $extraBoard -match 'func\s+_consume_attack_direction\([^)]*\)(?:(?!\r?\nfunc\s)[\s\S])*?ultimate_dashes_remaining\s*-=' -and $extraBoard -match 'func\s+_try_ultimate_dash\([^)]*\)(?:(?!\r?\nfunc\s)[\s\S])*?ultimate_dashes_remaining\s*<=\s*0' -and $extraBoard -notmatch 'ultimate_directions'
+	},
+	@{
+		Name = "EXTRA grants one opening charge turn before spawn progression"
+		Pass = $extraBoard -match 'OPENING_GRACE_TURNS\s*:=\s*1' -and $extraBoard -match '_opening_grace_turns_remaining\s*=\s*OPENING_GRACE_TURNS' -and $extraBoard -match 'func\s+_complete_turn_after_motion\(\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+_opening_grace_turns_remaining\s*>\s*0:(?:(?!\r?\nfunc\s)[\s\S])*?_opening_grace_turns_remaining\s*-=\s*1(?:(?!\r?\nfunc\s)[\s\S])*?else:\s*\r?\n\s*_advance_cycle\(\)'
+	},
+	@{
 		Name = "EXTRA resolves movement before spawning and unlocking input"
 		Pass = $extraBoard -match 'func\s+_finalize_turn_after_action\([^)]*\)(?:(?!\r?\nfunc\s)[\s\S])*?_turn_resolution_pending\s*=\s*true(?:(?!\r?\nfunc\s)[\s\S])*?_refresh_visuals\(\)(?:(?!\r?\nfunc\s)[\s\S])*?call_deferred\("_complete_turn_after_motion"\)' -and $extraBoard -notmatch 'func\s+_finalize_turn_after_action\([^)]*\)(?:(?!\r?\nfunc\s)[\s\S])*?_advance_cycle\(\)' -and $extraBoard -match 'func\s+_complete_turn_after_motion\(\)(?:(?!\r?\nfunc\s)[\s\S])*?_advance_cycle\(\)(?:(?!\r?\nfunc\s)[\s\S])*?_refresh_visuals\(\)(?:(?!\r?\nfunc\s)[\s\S])*?_finish_turn_presentation\(\)' -and $extraBoard -match 'func\s+_finish_turn_presentation\(\)(?:(?!\r?\nfunc\s)[\s\S])*?set_state\(CharacterData\.GameStateEnum\.IDLE\)(?:(?!\r?\nfunc\s)[\s\S])*?_check_game_over\(\)'
 	},

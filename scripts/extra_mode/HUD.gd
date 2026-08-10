@@ -204,17 +204,14 @@ func update_defeats(defeats: int) -> void:
 func update_turns(turns: int) -> void:
 	turns_label.text = "TURN %d" % turns
 
-func update_ultimate(ready: bool, active_directions: Array[int]) -> void:
+func update_ultimate(ready: bool, remaining_dashes: int) -> void:
 	if ready:
 		ultimate_label.text = "ULT READY [Z]"
 		return
-	if active_directions.is_empty():
+	if remaining_dashes <= 0:
 		ultimate_label.text = ""
 		return
-	var arrows: Array[String] = []
-	for direction in active_directions:
-		arrows.append(CharacterData.DIR_ARROWS[direction])
-	ultimate_label.text = "ULT  %s" % " ".join(arrows)
+	ultimate_label.text = "ULT  %d" % remaining_dashes
 
 func play_inventory_hit(slot_count: int) -> void:
 	_cancel_slot_flashes()

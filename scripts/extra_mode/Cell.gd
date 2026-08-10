@@ -5,7 +5,7 @@ const DIAMOND_RADIUS := 30.0
 
 var cell_type: int = CharacterData.CellType.LIVE
 var grid_pos: Vector2i = Vector2i.ZERO
-var candidate_phase: int = 0  # 0=none, 1..4=spawn preview gradient
+var candidate_phase: int = 0  # 0=none, positive=spawn warning visible
 var attack_prompt_direction: int = CharacterData.Direction.NONE
 var dead_indicator_alpha: float = 1.0
 var _spawn_fade_tween: Tween
@@ -49,17 +49,10 @@ func _draw() -> void:
 	var rect = Rect2(0, 0, CELL_SIZE, CELL_SIZE)
 	draw_rect(rect, bg_color)
 
-	# Outer border: spawn-preview danger gradient (independent of bonus options)
-	if candidate_phase >= 1 and candidate_phase <= 4:
-		var preview_colors: Dictionary = {
-			1: Color(0.78, 0.88, 0.28),
-			2: Color(0.95, 0.85, 0.18),
-			3: Color(0.98, 0.63, 0.14),
-			4: Color(0.94, 0.30, 0.18),
-		}
-		draw_rect(rect, preview_colors[candidate_phase], false, 3.0)
-	else:
-		draw_rect(rect, Color(0.25, 0.25, 0.30), false, 1.0)
+	# Base border remains stable; spawn warnings use separate red corner brackets.
+	draw_rect(rect, Color(0.25, 0.25, 0.30), false, 1.0)
+	if candidate_phase > 0:
+		_draw_spawn_warning_corners()
 
 	# Dead indicator - red octagon
 	var center = Vector2(CELL_SIZE / 2.0, CELL_SIZE / 2.0)
@@ -77,18 +70,26 @@ func _draw() -> void:
 		])
 		draw_polygon(octagon, PackedColorArray([Color(0.8, 0.15, 0.15, dead_indicator_alpha)]))
 
-	# Candidate warning text
-	if candidate_phase >= 1 and candidate_phase <= 4 and cell_type == CharacterData.CellType.LIVE:
-		var preview_dot_colors: Dictionary = {
-			1: Color(0.78, 0.88, 0.28),
-			2: Color(0.95, 0.85, 0.18),
-			3: Color(0.98, 0.63, 0.14),
-			4: Color(0.94, 0.30, 0.18),
-		}
-		draw_circle(center + Vector2(0, -CELL_SIZE * 0.3), 6.0, preview_dot_colors[candidate_phase])
-
 	if attack_prompt_direction != CharacterData.Direction.NONE:
 		_draw_attack_chevron(center, attack_prompt_direction)
+
+func _draw_spawn_warning_corners() -> void:
+	const INSET := 10.0
+	const ARM_LENGTH := 17.0
+	const LINE_WIDTH := 3.5
+	var warning_color := Color(0.94, 0.24, 0.20, 0.95)
+	var left := INSET
+	var right := CELL_SIZE - INSET
+	var top := INSET
+	var bottom := CELL_SIZE - INSET
+	var segments: Array[PackedVector2Array] = [
+		PackedVector2Array([Vector2(left, top + ARM_LENGTH), Vector2(left, top), Vector2(left + ARM_LENGTH, top)]),
+		PackedVector2Array([Vector2(right - ARM_LENGTH, top), Vector2(right, top), Vector2(right, top + ARM_LENGTH)]),
+		PackedVector2Array([Vector2(left, bottom - ARM_LENGTH), Vector2(left, bottom), Vector2(left + ARM_LENGTH, bottom)]),
+		PackedVector2Array([Vector2(right - ARM_LENGTH, bottom), Vector2(right, bottom), Vector2(right, bottom - ARM_LENGTH)]),
+	]
+	for segment: PackedVector2Array in segments:
+		draw_polyline(segment, warning_color, LINE_WIDTH, true)
 
 
 func _draw_attack_chevron(center: Vector2, direction: int) -> void:

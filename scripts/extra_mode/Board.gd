@@ -6,6 +6,8 @@ const COLS := 5
 const ROWS := 5
 const SPAWN_CYCLE_STEPS := 2
 const SPAWNS_PER_CYCLE := 2
+const OPENING_GRACE_TURNS := 1
+const ULT_DASH_COUNT := 4
 const SPAWN_CELL_TYPE := CharacterData.CellType.DEAD
 const BLOCK_OUTER_RING_SPAWN := false
 const CELL_SIZE := 100.0
@@ -24,6 +26,7 @@ var player_pos: Vector2i = Vector2i(COLS / 2, ROWS / 2)
 var player_facing_dir: int = CharacterData.Direction.UP
 var candidate_cells: Array = []  # Array of Vector2i
 var cycle_counter: int = 0
+var _opening_grace_turns_remaining: int = OPENING_GRACE_TURNS
 var _spawn_hit_pending: bool = false
 var _spawn_fade_pending: bool = false
 var _player_move_visual_pending: bool = false
@@ -34,7 +37,7 @@ var _suppress_hit_effect_once: bool = false
 var _pending_kill_visual: Array[Vector2i] = []  # 正在等待延遲視覺更新的格子
 var survival_turns: int = 0
 var ultimate_ready: bool = false
-var ultimate_directions: Array[int] = []
+var ultimate_dashes_remaining: int = 0
 var _ultimate_chain_started: bool = false
 
 var inventory: Inventory
@@ -99,6 +102,7 @@ func restart() -> void:
 	player_facing_dir = CharacterData.Direction.UP
 	candidate_cells.clear()
 	cycle_counter = 0
+	_opening_grace_turns_remaining = OPENING_GRACE_TURNS
 	cycle_resolved = false
 	_spawn_hit_pending = false
 	_spawn_fade_pending = false
@@ -110,7 +114,7 @@ func restart() -> void:
 	_pending_kill_visual.clear()
 	survival_turns = 0
 	ultimate_ready = false
-	ultimate_directions.clear()
+	ultimate_dashes_remaining = 0
 	_ultimate_chain_started = false
 	player_node.cancel_feedback()
 
@@ -140,7 +144,7 @@ func try_move(dir: int) -> bool:
 		return false
 	if _player_move_visual_pending:
 		return false
-	if not ultimate_directions.is_empty():
+	if ultimate_dashes_remaining > 0:
 		return _try_ultimate_dash(dir)
 
 	var dv = CharacterData.DIR_VECTOR[dir]
@@ -229,7 +233,7 @@ func try_wait() -> bool:
 		return false
 	if _player_move_visual_pending:
 		return false
-	if not ultimate_directions.is_empty():
+	if ultimate_dashes_remaining > 0:
 		return false
 	score_manager.reset_combo()
 	return _finalize_turn_after_action()
@@ -316,31 +320,25 @@ func try_ultimate() -> bool:
 	if not ultimate_ready:
 		return false
 	ultimate_ready = false
-	ultimate_directions.assign([
-		CharacterData.Direction.UP,
-		CharacterData.Direction.DOWN,
-		CharacterData.Direction.LEFT,
-		CharacterData.Direction.RIGHT,
-	])
+	ultimate_dashes_remaining = ULT_DASH_COUNT
 	_ultimate_chain_started = false
 	score_manager.reset_combo()
 	_refresh_visuals()
 	return true
 
-func get_ultimate_directions() -> Array[int]:
-	return ultimate_directions.duplicate()
+func get_ultimate_dashes_remaining() -> int:
+	return ultimate_dashes_remaining
 
 func _has_attack_direction(dir: int) -> bool:
-	if not ultimate_directions.is_empty():
-		return dir in ultimate_directions
+	if ultimate_dashes_remaining > 0:
+		return CharacterData.DIR_VECTOR.has(dir)
 	return inventory.find_direction(dir) >= 0
 
 func _consume_attack_direction(dir: int) -> bool:
-	if not ultimate_directions.is_empty():
-		var ultimate_index: int = ultimate_directions.find(dir)
-		if ultimate_index < 0:
+	if ultimate_dashes_remaining > 0:
+		if not CharacterData.DIR_VECTOR.has(dir):
 			return false
-		ultimate_directions.remove_at(ultimate_index)
+		ultimate_dashes_remaining -= 1
 		_ultimate_chain_started = true
 		return true
 	var inventory_index: int = inventory.find_direction(dir)
@@ -352,11 +350,11 @@ func _consume_attack_direction(dir: int) -> bool:
 func _finish_ultimate_chain() -> void:
 	if not _ultimate_chain_started:
 		return
-	if ultimate_directions.is_empty():
+	if ultimate_dashes_remaining == 0:
 		_ultimate_chain_started = false
 
 func _try_ultimate_dash(dir: int) -> bool:
-	if dir not in ultimate_directions:
+	if ultimate_dashes_remaining <= 0 or not CharacterData.DIR_VECTOR.has(dir):
 		return false
 
 	var origin := player_pos
@@ -379,7 +377,7 @@ func _try_ultimate_dash(dir: int) -> bool:
 	if hits_dead:
 		_perform_dash_kill(destination, dir, true)
 		inventory.push(dir)
-		var ultimate_finished := ultimate_directions.is_empty()
+		var ultimate_finished := ultimate_dashes_remaining == 0
 		_finish_ultimate_chain()
 		if ultimate_finished:
 			score_manager.reset_combo()
@@ -636,7 +634,10 @@ func _complete_turn_after_motion() -> void:
 	var freeze_spawn_cycle: bool = _turn_freezes_spawn
 	_turn_freezes_spawn = false
 	if not freeze_spawn_cycle:
-		_advance_cycle()
+		if _opening_grace_turns_remaining > 0:
+			_opening_grace_turns_remaining -= 1
+		else:
+			_advance_cycle()
 	_refresh_visuals()
 	if _spawn_fade_pending:
 		get_tree().create_timer(SPAWN_FADE_SECONDS).timeout.connect(
@@ -665,7 +666,7 @@ func _finish_turn_presentation() -> void:
 
 func _sync_player_move_ready() -> void:
 	var ready_directions: Array[int] = []
-	if game_state.is_idle() and ultimate_directions.is_empty():
+	if game_state.is_idle() and ultimate_dashes_remaining == 0:
 		for direction in CharacterData.DIR_VECTOR:
 			var target: Vector2i = player_pos + CharacterData.DIR_VECTOR[direction]
 			if not _is_inside_board(target):

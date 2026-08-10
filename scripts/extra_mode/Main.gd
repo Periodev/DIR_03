@@ -96,7 +96,7 @@ func _on_board_updated() -> void:
 	hud.update_combo(board.score_manager.combo_counter if board.score_manager.ENABLE_COMBO_BONUS else 0)
 	hud.update_defeats(board.score_manager.defeat_count)
 	hud.update_turns(board.survival_turns)
-	hud.update_ultimate(board.ultimate_ready, board.get_ultimate_directions())
+	hud.update_ultimate(board.ultimate_ready, board.get_ultimate_dashes_remaining())
 	hud.update_state(board.game_state.current_state)
 
 func _on_spawn_hit_started(slot_count: int) -> void:
