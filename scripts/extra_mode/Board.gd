@@ -552,10 +552,12 @@ func _refresh_visuals() -> void:
 			var phase: int = _get_candidate_preview_phase()
 			cell_nodes[pos.y][pos.x].set_candidate(phase)
 
-	for pos in bonus_move_options.values():
-		cell_nodes[pos.y][pos.x].set_bonus_option(10)
-	for pos in bonus_attack_options.values():
-		cell_nodes[pos.y][pos.x].set_bonus_option(20)
+	for dir in bonus_move_options:
+		var pos: Vector2i = bonus_move_options[dir]
+		cell_nodes[pos.y][pos.x].set_bonus_option(10, dir)
+	for dir in bonus_attack_options:
+		var pos: Vector2i = bonus_attack_options[dir]
+		cell_nodes[pos.y][pos.x].set_bonus_option(20, dir)
 	if bonus_move_can_stay:
 		cell_nodes[player_pos.y][player_pos.x].set_bonus_option(10)
 

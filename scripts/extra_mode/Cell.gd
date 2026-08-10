@@ -7,6 +7,7 @@ var cell_type: int = CharacterData.CellType.LIVE
 var grid_pos: Vector2i = Vector2i.ZERO
 var candidate_phase: int = 0  # 0=none, 1..4=spawn preview gradient
 var bonus_option: int = 0  # 0=none, 10=bonus move, 20=bonus chain attack
+var bonus_direction: int = CharacterData.Direction.NONE
 
 func set_type(t: int) -> void:
 	cell_type = t
@@ -16,8 +17,9 @@ func set_candidate(phase: int) -> void:
 	candidate_phase = phase
 	queue_redraw()
 
-func set_bonus_option(option: int) -> void:
+func set_bonus_option(option: int, direction: int = CharacterData.Direction.NONE) -> void:
 	bonus_option = option
+	bonus_direction = direction
 	queue_redraw()
 
 func _draw() -> void:
@@ -38,13 +40,6 @@ func _draw() -> void:
 		draw_rect(rect, preview_colors[candidate_phase], false, 3.0)
 	else:
 		draw_rect(rect, Color(0.25, 0.25, 0.30), false, 1.0)
-
-	# Inner border: bonus-step option, drawn inset so it never hides the
-	# outer danger border even when both apply to the same cell
-	if bonus_option == 10:
-		draw_rect(rect.grow(-6.0), Color(0.2, 0.8, 0.9), false, 3.0)
-	elif bonus_option == 20:
-		draw_rect(rect.grow(-6.0), Color(0.95, 0.35, 0.1), false, 4.0)
 
 	# Dead indicator - red octagon
 	var center = Vector2(CELL_SIZE / 2.0, CELL_SIZE / 2.0)
@@ -71,5 +66,39 @@ func _draw() -> void:
 			4: Color(0.94, 0.30, 0.18),
 		}
 		draw_circle(center + Vector2(0, -CELL_SIZE * 0.3), 6.0, preview_dot_colors[candidate_phase])
-	elif bonus_option == 10 and cell_type == CharacterData.CellType.LIVE:
-		draw_circle(center, 10.0, Color(0.2, 0.8, 0.9))
+
+	if bonus_option != 0 and bonus_direction != CharacterData.Direction.NONE:
+		_draw_bonus_chevron(center, bonus_direction, bonus_option == 20)
+
+
+func _draw_bonus_chevron(center: Vector2, direction: int, chain_attack: bool) -> void:
+	var forward := Vector2(CharacterData.DIR_VECTOR[direction])
+	var side := Vector2(-forward.y, forward.x)
+	var edge_center := center - forward * (CELL_SIZE * 0.27)
+	if chain_attack:
+		var chain_color := Color(0.28, 0.92, 0.48)
+		_draw_chevron(edge_center, forward, side, 10.0, 8.0, 8.0, 7.0, 3.5, chain_color)
+	else:
+		_draw_chevron(edge_center, forward, side, 9.0, 7.0, 7.0, 6.0, 3.0, Color(0.98, 0.98, 0.99))
+
+
+func _draw_chevron(
+	center: Vector2,
+	forward: Vector2,
+	side: Vector2,
+	front_depth: float,
+	rear_depth: float,
+	half_height: float,
+	outline_width: float,
+	fill_width: float,
+	fill_color: Color
+) -> void:
+	var tip := center + forward * front_depth
+	var rear := center - forward * rear_depth
+	var points := PackedVector2Array([
+		rear + side * half_height,
+		tip,
+		rear - side * half_height,
+	])
+	draw_polyline(points, Color(0.08, 0.09, 0.11, 0.9), outline_width, true)
+	draw_polyline(points, fill_color, fill_width, true)
