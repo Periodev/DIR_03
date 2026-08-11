@@ -29,6 +29,11 @@ $playerAnimationCheckPath = Join-Path $root "tools/verify_player_animation.gd"
 $pyprojectPath = Join-Path $root "pyproject.toml"
 $solverCliPath = Join-Path $root "solver/cli.py"
 $extraBoardPath = Join-Path $root "scripts/extra_mode/Board.gd"
+$extraMainPath = Join-Path $root "scripts/extra_mode/Main.gd"
+$extraPlayerPath = Join-Path $root "scripts/extra_mode/Player.gd"
+$extraHudPath = Join-Path $root "scripts/extra_mode/HUD.gd"
+$extraEnergySlotPath = Join-Path $root "scripts/extra_mode/EnergySlot.gd"
+$extraComboBotPath = Join-Path $root "scripts/extra_mode/ComboBot.gd"
 
 $mainEntry = Get-Content -LiteralPath $mainPath -Raw
 $gameBoard = Get-Content -LiteralPath $gameBoardPath -Raw
@@ -59,6 +64,11 @@ $playerAnimationCheck = Get-Content -LiteralPath $playerAnimationCheckPath -Raw
 $pyproject = Get-Content -LiteralPath $pyprojectPath -Raw
 $solverCli = Get-Content -LiteralPath $solverCliPath -Raw
 $extraBoard = Get-Content -LiteralPath $extraBoardPath -Raw
+$extraMain = Get-Content -LiteralPath $extraMainPath -Raw
+$extraPlayer = Get-Content -LiteralPath $extraPlayerPath -Raw
+$extraHud = Get-Content -LiteralPath $extraHudPath -Raw
+$extraEnergySlot = Get-Content -LiteralPath $extraEnergySlotPath -Raw
+$extraComboBot = Get-Content -LiteralPath $extraComboBotPath -Raw
 $legacyProductName = "DIR" + "3"
 
 $checks = @(
@@ -515,12 +525,12 @@ $checks = @(
 		Pass = $gameBoard -notmatch 'const\s+AsciiMapParser\s*=' -and $playerBoardView -notmatch 'func\s+set_grid_lines_visible\(visible:' -and $playerBoardView -notmatch 'start_displacement_tween\([^)]*\bease:' -and $classicLevelSelect -notmatch '\b(?:selected_index|index)\s*/\s*GRID_COLUMNS'
 	},
 	@{
-		Name = "EXTRA dash result keeps an explicit bool across dynamic grid data"
-		Pass = $extraBoard -match 'var\s+hits_dead:\s*bool\s*='
+		Name = "EXTRA spends one full energy slot to arm a free combo-preserving bonus step"
+		Pass = $extraBoard -match 'ENERGY_HALF_UNITS_MAX\s*:=\s*6' -and $extraBoard -match 'ENERGY_SLOT_COST\s*:=\s*2' -and $extraBoard -match 'func\s+try_energy_bonus_step\(\)(?:(?!\r?\nfunc\s)[\s\S])*?energy_half_units\s*<\s*ENERGY_SLOT_COST(?:(?!\r?\nfunc\s)[\s\S])*?energy_half_units\s*-=\s*ENERGY_SLOT_COST(?:(?!\r?\nfunc\s)[\s\S])*?bonus_step_armed\s*=\s*true' -and $extraBoard -match 'func\s+try_move\(dir:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?var\s+is_bonus_step:\s*bool\s*=\s*bonus_step_armed(?:(?!\r?\nfunc\s)[\s\S])*?if\s+not\s+is_bonus_step:\s*\r?\n\s*score_manager\.on_move_to_live\(\)(?:(?!\r?\nfunc\s)[\s\S])*?_finalize_turn_after_action\(true,\s*false\)' -and $extraBoard -match 'func\s+_charge_energy_for_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?2,\s*3:(?:(?!\r?\nfunc\s)[\s\S])*?energy_half_units\s*\+\s*1(?:(?!\r?\nfunc\s)[\s\S])*?4,\s*5:(?:(?!\r?\nfunc\s)[\s\S])*?energy_half_units\s*\+\s*2(?:(?!\r?\nfunc\s)[\s\S])*?combo\s*>=\s*6:(?:(?!\r?\nfunc\s)[\s\S])*?energy_half_units\s*\+\s*4' -and $extraMain -match 'KEY_X(?:(?!\r?\n\s*#)[\s\S])*?try_energy_bonus_step\(\)' -and $extraBoard -notmatch 'ultimate_ready'
 	},
 	@{
-		Name = "EXTRA ultimate provides four unrestricted directional dashes"
-		Pass = $extraBoard -match 'ULT_DASH_COUNT\s*:=\s*4' -and $extraBoard -match 'var\s+ultimate_dashes_remaining:\s*int\s*=\s*0' -and $extraBoard -match 'func\s+_consume_attack_direction\([^)]*\)(?:(?!\r?\nfunc\s)[\s\S])*?ultimate_dashes_remaining\s*-=' -and $extraBoard -match 'func\s+_try_ultimate_dash\([^)]*\)(?:(?!\r?\nfunc\s)[\s\S])*?ultimate_dashes_remaining\s*<=\s*0' -and $extraBoard -match 'var\s+freeze_spawn_cycle:\s*bool\s*=\s*ultimate_dashes_remaining\s*>\s*0' -and $extraBoard -match '_finalize_turn_after_action\(freeze_spawn_cycle\)' -and $extraBoard -notmatch 'ultimate_directions'
+		Name = "EXTRA consumes full energy on Z to activate the four-dash ULT"
+		Pass = $extraBoard -match 'ULT_DASH_COUNT\s*:=\s*4' -and $extraBoard -match 'func\s+try_energy_ultimate\(\)(?:(?!\r?\nfunc\s)[\s\S])*?energy_half_units\s*<\s*ENERGY_HALF_UNITS_MAX(?:(?!\r?\nfunc\s)[\s\S])*?energy_half_units\s*=\s*0(?:(?!\r?\nfunc\s)[\s\S])*?ultimate_dashes_remaining\s*=\s*ULT_DASH_COUNT' -and $extraBoard -notmatch 'func\s+try_energy_ultimate\(\)(?:(?!\r?\nfunc\s)[\s\S])*?score_manager\.reset_combo\(\)' -and $extraBoard -match 'func\s+_try_ultimate_dash\(dir:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?var\s+freeze_spawn_cycle:\s*bool\s*=\s*ultimate_dashes_remaining\s*>\s*0(?:(?!\r?\nfunc\s)[\s\S])*?_finalize_turn_after_action\(freeze_spawn_cycle\)' -and $extraBoard -notmatch 'func\s+_try_ultimate_dash\(dir:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?score_manager\.reset_combo\(\)' -and $extraBoard -match 'if\s+not\s+_ultimate_chain_started:\s*\r?\n\s*_charge_energy_for_combo' -and $extraMain -match 'KEY_Z(?:(?!\r?\n\s*#)[\s\S])*?try_energy_ultimate\(\)' -and $extraMain -notmatch 'KEY_X(?:(?!\r?\n\s*#)[\s\S])*?try_wait\(\)'
 	},
 	@{
 		Name = "EXTRA grants one opening charge turn before spawn progression"
@@ -532,7 +542,7 @@ $checks = @(
 	},
 	@{
 		Name = "EXTRA waits for real movement completion before showing ready arrows"
-		Pass = $extraBoard -match 'movement_started\.connect\(_on_player_movement_started\)' -and $extraBoard -match 'movement_finished\.connect\(_finish_player_move_visual\)' -and $extraBoard -match 'func\s+_on_player_animation_done\(\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+not\s+_player_move_visual_pending:' -and $extraBoard -match 'func\s+_finish_player_move_visual\(\)(?:(?!\r?\nfunc\s)[\s\S])*?_turn_resolution_pending\s+and\s+not\s+_action_animation_pending' -and $extraBoard -match 'func\s+_refresh_attack_prompts\(\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+not\s+game_state\.is_idle\(\):\s*\r?\n\s*return'
+		Pass = $extraBoard -match 'movement_started\.connect\(_on_player_movement_started\)' -and $extraBoard -match 'movement_finished\.connect\(_finish_player_move_visual\)' -and $extraBoard -match 'func\s+_on_player_animation_done\(\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+not\s+_player_move_visual_pending:' -and $extraBoard -match 'func\s+_finish_player_move_visual\(\)(?:(?!\r?\nfunc\s)[\s\S])*?_turn_resolution_pending\s+and\s+not\s+_action_animation_pending' -and $extraBoard -match 'func\s+_refresh_attack_prompts\(\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+not\s+game_state\.is_idle\(\)\s+or\s+bonus_step_armed:\s*\r?\n\s*return' -and $extraBoard -match 'func\s+_sync_player_move_ready\(\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+game_state\.is_idle\(\)\s+and\s+bonus_step_armed(?:(?!\r?\nfunc\s)[\s\S])*?set_bonus_step_directions\(bonus_directions\)'
 	},
 	@{
 		Name = "EXTRA keeps input locked through enemy spawn fade"
@@ -641,6 +651,18 @@ $checks = @(
 	@{
 		Name = "classic level selector supports mouse hover and click alongside keyboard nav"
 		Pass = $classicLevelSelect -match 'func\s+handle_mouse_motion\(pos:\s*Vector2\)' -and $classicLevelSelect -match 'func\s+handle_mouse_click\(pos:\s*Vector2\)' -and $classicLevelSelect -match 'func\s+title_button_rect\(\)\s*->\s*Rect2' -and $classicLevelSelect -match 'SceneTransition\.transition_to\(Campaign\.TITLE_SCREEN_SCENE_PATH\)' -and $classicLevelSelect -match 'func\s+draw_hovered_level_name\(\)[\s\S]*hovered_index\s*==\s*-1\s*or\s+hovered_index\s*==\s*selected_index' -and $classicLevelSelect -match 'elif\s+index\s*==\s*hovered_index\s+and\s+unlocked:' -and $classicLevelSelect -match 'const\s+AREA_ARROW_SCALE\s*:=\s*2\.0'
+	},
+	@{
+		Name = "EXTRA combo meter uses three staged undirected energy slots"
+		Pass = $extraHud -match 'var\s+energy_slots:\s*Array\[DIRExtraEnergySlot\]' -and $extraHud -match 'for\s+_i\s+in\s+3:' -and $extraHud -match 'func\s+update_energy\(half_units:\s*int,\s*bonus_step_armed:\s*bool,\s*ultimate_steps:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?clampi\(half_units\s*-\s*i\s*\*\s*2,\s*0,\s*2\)(?:(?!\r?\nfunc\s)[\s\S])*?float\(slot_half_units\)\s*/\s*2\.0' -and $extraEnergySlot -match 'class_name\s+DIRExtraEnergySlot' -and $extraEnergySlot -match 'FILL_COLOR\s*:=\s*Color\(0\.28,\s*0\.92,\s*0\.48\)' -and $extraEnergySlot -match 'elif\s+fill_ratio\s*>=\s*0\.5:[\s\S]*draw_colored_polygon\(lower_half,\s*FILL_COLOR\)' -and $extraPlayer -match 'func\s+_draw_bonus_step_arrows\(\)[\s\S]*Color\("#55DDE0"\)'
+	},
+	@{
+		Name = "EXTRA places Z ULT and X DASH together left of DIR"
+		Pass = $extraHud -match 'ultimate_action_label\.text\s*=\s*"\[Z\] ULT"(?:(?!var\s+q_label)[\s\S])*?inv_hbox\.add_child\(ultimate_action_label\)(?:(?!var\s+q_label)[\s\S])*?dash_action_label\.text\s*=\s*"\[X\] DASH"(?:(?!var\s+q_label)[\s\S])*?inv_hbox\.add_child\(dash_action_label\)(?:(?!energy_container)[\s\S])*?var\s+q_label' -and $extraHud -match 'dash_action_label\.modulate\s*=\s*Color\.WHITE\s+if\s+half_units\s*>=\s*2\s+or\s+bonus_step_armed' -and $extraHud -match 'ultimate_action_label\.modulate\s*=\s*Color\.WHITE\s+if\s+half_units\s*>=\s*6\s+or\s+ultimate_steps\s*>\s*0' -and $extraHud -notmatch 'Space/X:\s*Wait'
+	},
+	@{
+		Name = "EXTRA exposes an optional combo-seeking F4 bot"
+		Pass = $extraMain -match 'KEY_F4' -and $extraMain -match 'combo_bot\.choose_action\(board\)' -and $extraMain -match 'not\s+board\.game_state\.is_idle\(\)' -and $extraComboBot -match 'class_name\s+DIRExtraComboBot' -and $extraComboBot -match 'LOOKAHEAD_DEPTH\s*:=\s*3' -and $extraComboBot -match 'func\s+_lookahead_score\(' -and $extraComboBot -match 'combo\s*>=\s*3\s+and\s+energy\s*>=\s*board\.ENERGY_SLOT_COST' -and $extraComboBot -match '_has_dash_continuation\(board\)' -and $extraComboBot -match 'return\s+ACTION_ULT'
 	}
 )
 

@@ -1,9 +1,17 @@
 extends Node
 
+const ComboBotScript = preload("res://scripts/extra_mode/ComboBot.gd")
+const AI_ACTION_INTERVAL_SECONDS := 0.16
+
 @onready var board: Node2D = $Board
 @onready var hud: CanvasLayer = $HUD
 
+var combo_bot: DIRExtraComboBot
+var ai_enabled: bool = false
+var _ai_action_cooldown: float = 0.0
+
 func _ready() -> void:
+	combo_bot = ComboBotScript.new()
 	board.setup_character("PLN")
 	hud.setup("PLN")
 
@@ -14,6 +22,31 @@ func _ready() -> void:
 	board.score_manager.combo_changed.connect(hud.update_combo)
 	board.score_manager.defeat_changed.connect(hud.update_defeats)
 
+	_on_board_updated()
+	hud.update_ai_status(ai_enabled)
+
+func _process(delta: float) -> void:
+	if not ai_enabled or board.game_state.is_game_over():
+		return
+	_ai_action_cooldown = maxf(0.0, _ai_action_cooldown - delta)
+	if _ai_action_cooldown > 0.0 or not board.game_state.is_idle():
+		return
+	var action: int = combo_bot.choose_action(board)
+	if action == DIRExtraComboBot.ACTION_NONE:
+		return
+	_execute_ai_action(action)
+	_ai_action_cooldown = AI_ACTION_INTERVAL_SECONDS
+
+func _execute_ai_action(action: int) -> void:
+	match action:
+		DIRExtraComboBot.ACTION_MOVE:
+			board.try_move(combo_bot.chosen_direction)
+		DIRExtraComboBot.ACTION_DASH:
+			board.try_energy_bonus_step()
+		DIRExtraComboBot.ACTION_ULT:
+			board.try_energy_ultimate()
+		DIRExtraComboBot.ACTION_WAIT:
+			board.try_wait()
 	_on_board_updated()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -27,11 +60,23 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
+	if keycode == KEY_F4:
+		ai_enabled = not ai_enabled
+		_ai_action_cooldown = 0.0
+		hud.update_ai_status(ai_enabled)
+		get_viewport().set_input_as_handled()
+		return
+
 	# Restart
 	if keycode == KEY_R:
 		board.restart()
 		hud.setup("PLN")
 		_on_board_updated()
+		hud.update_ai_status(ai_enabled)
+		get_viewport().set_input_as_handled()
+		return
+
+	if ai_enabled:
 		get_viewport().set_input_as_handled()
 		return
 
@@ -69,23 +114,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
-	# Wait (X)
+	# Spend one energy slot to make the next action a dash step (X)
 	if keycode == KEY_X:
-		board.try_wait()
+		board.try_energy_bonus_step()
 		_on_board_updated()
 		get_viewport().set_input_as_handled()
 		return
 
-	# Ultimate (Z)
+	# Spend full energy on ULT (Z)
 	if keycode == KEY_Z:
-		board.try_ultimate()
-		_on_board_updated()
-		get_viewport().set_input_as_handled()
-		return
-
-	# Ultimate (Enter)
-	if keycode == KEY_ENTER:
-		board.try_ultimate()
+		board.try_energy_ultimate()
 		_on_board_updated()
 		get_viewport().set_input_as_handled()
 		return
@@ -96,7 +134,11 @@ func _on_board_updated() -> void:
 	hud.update_combo(board.score_manager.combo_counter if board.score_manager.ENABLE_COMBO_BONUS else 0)
 	hud.update_defeats(board.score_manager.defeat_count)
 	hud.update_turns(board.survival_turns)
-	hud.update_ultimate(board.ultimate_ready, board.get_ultimate_dashes_remaining())
+	hud.update_energy(
+		board.get_energy_half_units(),
+		board.bonus_step_armed,
+		board.get_ultimate_dashes_remaining()
+	)
 	hud.update_state(board.game_state.current_state)
 
 func _on_spawn_hit_started(slot_count: int) -> void:

@@ -7,6 +7,8 @@ const ROWS := 5
 const SPAWN_CYCLE_STEPS := 2
 const SPAWNS_PER_CYCLE := 2
 const OPENING_GRACE_TURNS := 1
+const ENERGY_HALF_UNITS_MAX := 6
+const ENERGY_SLOT_COST := 2
 const ULT_DASH_COUNT := 4
 const SPAWN_CELL_TYPE := CharacterData.CellType.DEAD
 const BLOCK_OUTER_RING_SPAWN := false
@@ -36,7 +38,8 @@ var _turn_freezes_spawn: bool = false
 var _suppress_hit_effect_once: bool = false
 var _pending_kill_visual: Array[Vector2i] = []  # 正在等待延遲視覺更新的格子
 var survival_turns: int = 0
-var ultimate_ready: bool = false
+var energy_half_units: int = 0
+var bonus_step_armed: bool = false
 var ultimate_dashes_remaining: int = 0
 var _ultimate_chain_started: bool = false
 
@@ -115,7 +118,8 @@ func restart() -> void:
 	_suppress_hit_effect_once = false
 	_pending_kill_visual.clear()
 	survival_turns = 0
-	ultimate_ready = false
+	energy_half_units = 0
+	bonus_step_armed = false
 	ultimate_dashes_remaining = 0
 	_ultimate_chain_started = false
 	player_node.cancel_feedback()
@@ -148,6 +152,7 @@ func try_move(dir: int) -> bool:
 		return false
 	if ultimate_dashes_remaining > 0:
 		return _try_ultimate_dash(dir)
+	var is_bonus_step: bool = bonus_step_armed
 
 	var dv = CharacterData.DIR_VECTOR[dir]
 	var target = player_pos + dv
@@ -162,11 +167,15 @@ func try_move(dir: int) -> bool:
 		# Move to live cell
 		player_facing_dir = dir
 		player_pos = target
-		if not _will_spawn_hit_target_this_turn(target):
+		if is_bonus_step or not _will_spawn_hit_target_this_turn(target):
 			inventory.push(_get_move_memory_token(dir))
 			inventory.register_move(dir)
-		score_manager.on_move_to_live()
+			if not is_bonus_step:
+				score_manager.on_move_to_live()
 
+		if is_bonus_step:
+			bonus_step_armed = false
+			return _finalize_turn_after_action(true, false)
 		return _finalize_turn_after_action()
 
 	else:
@@ -188,6 +197,9 @@ func try_move(dir: int) -> bool:
 			_action_animation_pending = true
 			game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
 			player_node.play_attack(dir, false, true)
+		if is_bonus_step:
+			bonus_step_armed = false
+			return _finalize_turn_after_action(true, false)
 		return _finalize_turn_after_action()
 
 func try_charge_action() -> bool:
@@ -235,31 +247,10 @@ func try_wait() -> bool:
 		return false
 	if _player_move_visual_pending:
 		return false
-	if ultimate_dashes_remaining > 0:
+	if bonus_step_armed or ultimate_dashes_remaining > 0:
 		return false
 	score_manager.reset_combo()
 	return _finalize_turn_after_action()
-
-func _perform_dash_kill(target: Vector2i, dir: int, is_ultimate: bool = false) -> void:
-	var origin := player_pos
-	var target_type: int = grid[target.y][target.x]
-	_resolve_attack(dir, target, target_type)
-	if grid[target.y][target.x] == CharacterData.CellType.LIVE:
-		player_pos = target
-		_action_animation_pending = true
-		var slash_length: float = -1.0
-		if is_ultimate:
-			slash_length = maxf(
-				175.0,
-				float(origin.distance_to(target)) * CELL_STEP + CELL_SIZE * 0.35
-			)
-		_char_impl.begin_kill_anim(self, origin, target, dir, slash_length)
-		game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
-		player_node.emit_animation_done_after(player_node.get_hit_delay(true))
-	else:
-		_action_animation_pending = true
-		game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
-		player_node.play_attack(dir, false, true)
 
 func _get_attack_mode() -> int:
 	if current_attack_mode_override >= 0:
@@ -301,8 +292,9 @@ func _resolve_attack(dir: int, target: Vector2i, target_type: int) -> void:
 
 	_kill_flow(next_pos, dir, next_type)
 
-func _finalize_turn_after_action(freeze_spawn_cycle: bool = false) -> bool:
-	survival_turns += 1
+func _finalize_turn_after_action(freeze_spawn_cycle: bool = false, count_turn: bool = true) -> bool:
+	if count_turn:
+		survival_turns += 1
 	_turn_resolution_pending = true
 	_turn_freezes_spawn = freeze_spawn_cycle
 	game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
@@ -311,20 +303,36 @@ func _finalize_turn_after_action(freeze_spawn_cycle: bool = false) -> bool:
 		call_deferred("_complete_turn_after_motion")
 	return true
 
-func try_ultimate() -> bool:
+func try_energy_bonus_step() -> bool:
 	if not game_state.is_idle():
 		return false
 	if _player_move_visual_pending:
 		return false
-	var data = CharacterData.CHARACTERS[current_character]
-	if not data["has_ult"]:
+	if bonus_step_armed or ultimate_dashes_remaining > 0:
 		return false
-	if not ultimate_ready:
+	if energy_half_units < ENERGY_SLOT_COST:
 		return false
-	ultimate_ready = false
+	energy_half_units -= ENERGY_SLOT_COST
+	bonus_step_armed = true
+	_refresh_visuals()
+	return true
+
+func get_energy_half_units() -> int:
+	return energy_half_units
+
+func try_energy_ultimate() -> bool:
+	if not game_state.is_idle():
+		return false
+	if _player_move_visual_pending or bonus_step_armed:
+		return false
+	if energy_half_units < ENERGY_HALF_UNITS_MAX:
+		return false
+	var data: Dictionary = CharacterData.CHARACTERS[current_character]
+	if not bool(data["has_ult"]):
+		return false
+	energy_half_units = 0
 	ultimate_dashes_remaining = ULT_DASH_COUNT
 	_ultimate_chain_started = false
-	score_manager.reset_combo()
 	_refresh_visuals()
 	return true
 
@@ -350,9 +358,7 @@ func _consume_attack_direction(dir: int) -> bool:
 	return true
 
 func _finish_ultimate_chain() -> void:
-	if not _ultimate_chain_started:
-		return
-	if ultimate_dashes_remaining == 0:
+	if _ultimate_chain_started and ultimate_dashes_remaining == 0:
 		_ultimate_chain_started = false
 
 func _try_ultimate_dash(dir: int) -> bool:
@@ -362,7 +368,6 @@ func _try_ultimate_dash(dir: int) -> bool:
 	var origin := player_pos
 	var destination := _get_ultimate_dash_destination(dir)
 	var hits_dead: bool = destination != origin and grid[destination.y][destination.x] == CharacterData.CellType.DEAD
-
 	if not _consume_attack_direction(dir):
 		return false
 	var freeze_spawn_cycle: bool = ultimate_dashes_remaining > 0
@@ -370,7 +375,6 @@ func _try_ultimate_dash(dir: int) -> bool:
 	player_facing_dir = dir
 
 	if destination == origin:
-		score_manager.reset_combo()
 		_finish_ultimate_chain()
 		_action_animation_pending = true
 		game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
@@ -378,16 +382,12 @@ func _try_ultimate_dash(dir: int) -> bool:
 		return _finalize_turn_after_action(freeze_spawn_cycle)
 
 	if hits_dead:
-		_perform_dash_kill(destination, dir, true)
+		_perform_dash_kill(destination, dir)
 		inventory.push(dir)
-		var ultimate_finished := ultimate_dashes_remaining == 0
 		_finish_ultimate_chain()
-		if ultimate_finished:
-			score_manager.reset_combo()
 		return _finalize_turn_after_action(freeze_spawn_cycle)
 
 	player_pos = destination
-	score_manager.reset_combo()
 	_finish_ultimate_chain()
 	return _finalize_turn_after_action(freeze_spawn_cycle)
 
@@ -401,6 +401,25 @@ func _get_ultimate_dash_destination(dir: int) -> Vector2i:
 			break
 		cursor += step
 	return destination
+
+func _perform_dash_kill(target: Vector2i, dir: int) -> void:
+	var origin := player_pos
+	var target_type: int = grid[target.y][target.x]
+	_resolve_attack(dir, target, target_type)
+	if grid[target.y][target.x] == CharacterData.CellType.LIVE:
+		player_pos = target
+		_action_animation_pending = true
+		var slash_length: float = maxf(
+			175.0,
+			float(origin.distance_to(target)) * CELL_STEP + CELL_SIZE * 0.35
+		)
+		_char_impl.begin_kill_anim(self, origin, target, dir, slash_length)
+		game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
+		player_node.emit_animation_done_after(player_node.get_hit_delay(true))
+	else:
+		_action_animation_pending = true
+		game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
+		player_node.play_attack(dir, false, true)
 
 func _is_inside_board(pos: Vector2i) -> bool:
 	return pos.x >= 0 and pos.x < COLS and pos.y >= 0 and pos.y < ROWS
@@ -438,10 +457,20 @@ func _kill_flow(pos: Vector2i, attack_dir: int, cell_type: int) -> void:
 	grid[pos.y][pos.x] = CharacterData.CellType.LIVE
 	score_manager.combo_counter += 1
 	score_manager.on_kill(cell_type)
-	if score_manager.combo_counter >= 4 and not _ultimate_chain_started:
-		ultimate_ready = true
+	if not _ultimate_chain_started:
+		_charge_energy_for_combo(score_manager.combo_counter)
 	_spawn_hit_effect(pos)
 	_char_impl.on_kill(self, pos, attack_dir)
+
+func _charge_energy_for_combo(combo: int) -> void:
+	match combo:
+		2, 3:
+			energy_half_units = mini(energy_half_units + 1, ENERGY_HALF_UNITS_MAX)
+		4, 5:
+			energy_half_units = mini(energy_half_units + 2, ENERGY_HALF_UNITS_MAX)
+		_:
+			if combo >= 6:
+				energy_half_units = mini(energy_half_units + 4, ENERGY_HALF_UNITS_MAX)
 
 var cycle_resolved: bool = false  # true = this cycle already spawned, remaining turns idle
 
@@ -575,7 +604,6 @@ func _check_game_over() -> void:
 		if neighbor.x < 0 or neighbor.x >= COLS or neighbor.y < 0 or neighbor.y >= ROWS:
 			continue
 		if grid[neighbor.y][neighbor.x] != CharacterData.CellType.LIVE:
-			# Ultimate directions replace SEQ attacks until all four are spent.
 			if _has_attack_direction(dv_dir):
 				return  # Can consume and move
 
@@ -665,7 +693,15 @@ func _finish_turn_presentation() -> void:
 
 func _sync_player_move_ready() -> void:
 	var ready_directions: Array[int] = []
-	if game_state.is_idle() and ultimate_dashes_remaining == 0:
+	var bonus_directions: Array[int] = []
+	if game_state.is_idle() and bonus_step_armed:
+		for direction in CharacterData.DIR_VECTOR:
+			var target: Vector2i = player_pos + CharacterData.DIR_VECTOR[direction]
+			if not _is_inside_board(target):
+				continue
+			if grid[target.y][target.x] == CharacterData.CellType.LIVE or _has_attack_direction(direction):
+				bonus_directions.append(direction)
+	elif game_state.is_idle() and ultimate_dashes_remaining == 0:
 		for direction in CharacterData.DIR_VECTOR:
 			var target: Vector2i = player_pos + CharacterData.DIR_VECTOR[direction]
 			if not _is_inside_board(target):
@@ -673,6 +709,7 @@ func _sync_player_move_ready() -> void:
 			if grid[target.y][target.x] == CharacterData.CellType.LIVE:
 				ready_directions.append(direction)
 	player_node.set_move_ready_directions(ready_directions)
+	player_node.set_bonus_step_directions(bonus_directions)
 
 func _clear_attack_prompts() -> void:
 	for row_value in cell_nodes:
@@ -683,7 +720,7 @@ func _clear_attack_prompts() -> void:
 
 func _refresh_attack_prompts() -> void:
 	_clear_attack_prompts()
-	if not game_state.is_idle():
+	if not game_state.is_idle() or bonus_step_armed:
 		return
 	for direction in CharacterData.DIR_VECTOR:
 		var target: Vector2i = player_pos + CharacterData.DIR_VECTOR[direction]

@@ -10,12 +10,15 @@ var energy_container: HBoxContainer
 var hold_container: HBoxContainer
 var hold_label: Label
 var hold_slot: Label
-var ultimate_label: Label
+var dash_action_label: Label
+var ultimate_action_label: Label
 var gameover_panel: PanelContainer
 var gameover_score: Label
 var message_label: Label
+var ai_status_label: Label
 
 var slot_labels: Array = []
+var energy_slots: Array[DIRExtraEnergySlot] = []
 var _max_slots: int = 3
 var _has_hold: bool = false
 var _has_charge_marker: bool = false
@@ -68,6 +71,27 @@ func _ready() -> void:
 	inv_hbox.add_theme_constant_override("separation", 10)
 	inventory_panel.add_child(inv_hbox)
 
+	ultimate_action_label = Label.new()
+	ultimate_action_label.text = "[Z] ULT"
+	ultimate_action_label.add_theme_font_size_override("font_size", 20)
+	ultimate_action_label.add_theme_color_override("font_color", Color(0.28, 0.92, 0.48))
+	ultimate_action_label.custom_minimum_size = Vector2(104, 36)
+	ultimate_action_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	ultimate_action_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	inv_hbox.add_child(ultimate_action_label)
+
+	dash_action_label = Label.new()
+	dash_action_label.text = "[X] DASH"
+	dash_action_label.add_theme_font_size_override("font_size", 20)
+	dash_action_label.add_theme_color_override("font_color", Color("#55DDE0"))
+	dash_action_label.custom_minimum_size = Vector2(116, 36)
+	dash_action_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	dash_action_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	inv_hbox.add_child(dash_action_label)
+
+	var bonus_separator := VSeparator.new()
+	inv_hbox.add_child(bonus_separator)
+
 	var q_label = Label.new()
 	q_label.text = "DIR"
 	q_label.add_theme_font_size_override("font_size", 20)
@@ -76,14 +100,10 @@ func _ready() -> void:
 	energy_container = HBoxContainer.new()
 	energy_container.add_theme_constant_override("separation", 2)
 	inv_hbox.add_child(energy_container)
-	for _i in 2:
-		var energy_slot := Label.new()
-		energy_slot.text = "◇"
-		energy_slot.add_theme_font_size_override("font_size", 28)
-		energy_slot.add_theme_color_override("font_color", Color(0.72, 0.74, 0.78))
-		energy_slot.custom_minimum_size = Vector2(30, 36)
-		energy_slot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	for _i in 3:
+		var energy_slot := DIRExtraEnergySlot.new()
 		energy_container.add_child(energy_slot)
+		energy_slots.append(energy_slot)
 
 	var energy_separator := VSeparator.new()
 	inv_hbox.add_child(energy_separator)
@@ -109,22 +129,21 @@ func _ready() -> void:
 
 	hold_container = inv_hbox
 
-	ultimate_label = Label.new()
-	ultimate_label.text = ""
-	ultimate_label.add_theme_font_size_override("font_size", 24)
-	ultimate_label.add_theme_color_override("font_color", Color(0.28, 0.92, 0.48))
-	ultimate_label.position = Vector2(20, 10)
-	ultimate_label.size = Vector2(320, 30)
-	add_child(ultimate_label)
-
 	message_label = Label.new()
-	message_label.text = "WASD: Move | Space/X: Wait | R: Restart"
+	message_label.text = "WASD: Move | Space: Wait | R: Restart"
 	message_label.add_theme_font_size_override("font_size", 14)
 	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	message_label.position = Vector2(0, 770)
 	message_label.size = Vector2(800, 30)
 	message_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 	add_child(message_label)
+
+	ai_status_label = Label.new()
+	ai_status_label.text = "[F4] AI"
+	ai_status_label.add_theme_font_size_override("font_size", 18)
+	ai_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	ai_status_label.add_theme_color_override("font_color", Color(0.68, 0.70, 0.74))
+	add_child(ai_status_label)
 
 	gameover_panel = PanelContainer.new()
 	gameover_panel.position = Vector2(200, 250)
@@ -215,20 +234,30 @@ func update_combo(combo: int) -> void:
 	else:
 		combo_label.text = ""
 
+func update_energy(half_units: int, bonus_step_armed: bool, ultimate_steps: int) -> void:
+	for i in energy_slots.size():
+		var slot_half_units: int = clampi(half_units - i * 2, 0, 2)
+		var fill_ratio: float = float(slot_half_units) / 2.0
+		energy_slots[i].set_fill_ratio(fill_ratio)
+	dash_action_label.modulate = Color.WHITE if half_units >= 2 or bonus_step_armed else Color(1.0, 1.0, 1.0, 0.28)
+	ultimate_action_label.modulate = Color.WHITE if half_units >= 6 or ultimate_steps > 0 else Color(1.0, 1.0, 1.0, 0.28)
+	if ultimate_steps > 0:
+		ultimate_action_label.text = "[Z] ULT %d" % ultimate_steps
+	else:
+		ultimate_action_label.text = "[Z] ULT"
+
 func update_defeats(defeats: int) -> void:
 	defeats_label.text = "BREAK %d" % defeats
 
 func update_turns(turns: int) -> void:
 	turns_label.text = "TURN %d" % turns
 
-func update_ultimate(ready: bool, remaining_dashes: int) -> void:
-	if ready:
-		ultimate_label.text = "ULT READY [Z]"
-		return
-	if remaining_dashes <= 0:
-		ultimate_label.text = ""
-		return
-	ultimate_label.text = "ULT  %d" % remaining_dashes
+func update_ai_status(enabled: bool) -> void:
+	ai_status_label.text = "[F4] AI ON" if enabled else "[F4] AI"
+	ai_status_label.add_theme_color_override(
+		"font_color",
+		Color("#55DDE0") if enabled else Color(0.68, 0.70, 0.74)
+	)
 
 func play_inventory_hit(slot_count: int) -> void:
 	_cancel_slot_flashes()
@@ -253,7 +282,7 @@ func _cancel_slot_flashes() -> void:
 		slot.modulate = Color.WHITE
 
 func update_state(_state: int) -> void:
-	message_label.text = "WASD: Move | Space/X: Wait | R: Restart"
+	message_label.text = "WASD: Move | Space: Wait | R: Restart"
 
 func show_game_over(final_score: int) -> void:
 	gameover_score.text = str(final_score)
@@ -270,9 +299,6 @@ func _layout_ui() -> void:
 	combo_label.position = Vector2(viewport_size.x - 200, 55)
 	combo_label.size = Vector2(180, 30)
 
-	ultimate_label.position = Vector2(20, 10)
-	ultimate_label.size = Vector2(320, 30)
-
 	defeats_label.position = Vector2(20, 44)
 	defeats_label.size = Vector2(180, 26)
 
@@ -287,6 +313,10 @@ func _layout_ui() -> void:
 
 	message_label.position = Vector2(0, viewport_size.y - 30.0)
 	message_label.size = Vector2(viewport_size.x, 30)
+
+	ai_status_label.position = Vector2(20, 96)
+	ai_status_label.size = Vector2(150, 30)
+	ai_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 	gameover_panel.position = Vector2(
 		(viewport_size.x - gameover_panel.size.x) * 0.5,

@@ -11,6 +11,7 @@ var character_color: Color = Color(0.2, 0.8, 0.3)
 var character_shape: String = "blade_diamond"
 var facing_dir: int = CharacterData.Direction.UP
 var move_ready_directions: Array[int] = []
+var bonus_step_directions: Array[int] = []
 var _char_impl  # CharacterImpl_PLN
 var _feedback_tween: Tween
 var _move_tween: Tween
@@ -37,8 +38,16 @@ func set_move_ready_directions(directions: Array[int]) -> void:
 	move_ready_directions = directions.duplicate()
 	queue_redraw()
 
+func set_bonus_step_directions(directions: Array[int]) -> void:
+	if bonus_step_directions == directions:
+		return
+	bonus_step_directions = directions.duplicate()
+	queue_redraw()
+
 func _draw() -> void:
-	if not move_ready_directions.is_empty():
+	if not bonus_step_directions.is_empty():
+		_draw_bonus_step_arrows()
+	elif not move_ready_directions.is_empty():
 		_draw_move_ready_arrows()
 	var points: PackedVector2Array
 	match character_shape:
@@ -78,6 +87,28 @@ func _draw_move_ready_arrows() -> void:
 			rear - side * ARROW_HALF_HEIGHT,
 		])
 		draw_polyline(arrow, arrow_color, ARROW_WIDTH, true)
+
+func _draw_bonus_step_arrows() -> void:
+	const ARROW_DISTANCE := 70.0
+	const ARROW_FRONT_DEPTH := 8.0
+	const ARROW_REAR_DEPTH := 5.0
+	const ARROW_HALF_HEIGHT := 6.0
+	const OUTLINE_WIDTH := 6.0
+	const FILL_WIDTH := 3.5
+	var arrow_color := Color("#55DDE0")
+	for direction in bonus_step_directions:
+		var forward := Vector2(CharacterData.DIR_VECTOR[direction])
+		var side := Vector2(-forward.y, forward.x)
+		var center := forward * ARROW_DISTANCE
+		var tip := center + forward * ARROW_FRONT_DEPTH
+		var rear := center - forward * ARROW_REAR_DEPTH
+		var arrow := PackedVector2Array([
+			rear + side * ARROW_HALF_HEIGHT,
+			tip,
+			rear - side * ARROW_HALF_HEIGHT,
+		])
+		draw_polyline(arrow, Color(0.08, 0.09, 0.11, 0.9), OUTLINE_WIDTH, true)
+		draw_polyline(arrow, arrow_color, FILL_WIDTH, true)
 
 func play_move(from_pos: Vector2) -> void:
 	if _move_tween != null and _move_tween.is_valid():
