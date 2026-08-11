@@ -520,7 +520,7 @@ $checks = @(
 	},
 	@{
 		Name = "EXTRA ultimate provides four unrestricted directional dashes"
-		Pass = $extraBoard -match 'ULT_DASH_COUNT\s*:=\s*4' -and $extraBoard -match 'var\s+ultimate_dashes_remaining:\s*int\s*=\s*0' -and $extraBoard -match 'func\s+_consume_attack_direction\([^)]*\)(?:(?!\r?\nfunc\s)[\s\S])*?ultimate_dashes_remaining\s*-=' -and $extraBoard -match 'func\s+_try_ultimate_dash\([^)]*\)(?:(?!\r?\nfunc\s)[\s\S])*?ultimate_dashes_remaining\s*<=\s*0' -and $extraBoard -notmatch 'ultimate_directions'
+		Pass = $extraBoard -match 'ULT_DASH_COUNT\s*:=\s*4' -and $extraBoard -match 'var\s+ultimate_dashes_remaining:\s*int\s*=\s*0' -and $extraBoard -match 'func\s+_consume_attack_direction\([^)]*\)(?:(?!\r?\nfunc\s)[\s\S])*?ultimate_dashes_remaining\s*-=' -and $extraBoard -match 'func\s+_try_ultimate_dash\([^)]*\)(?:(?!\r?\nfunc\s)[\s\S])*?ultimate_dashes_remaining\s*<=\s*0' -and $extraBoard -match 'var\s+freeze_spawn_cycle:\s*bool\s*=\s*ultimate_dashes_remaining\s*>\s*0' -and $extraBoard -match '_finalize_turn_after_action\(freeze_spawn_cycle\)' -and $extraBoard -notmatch 'ultimate_directions'
 	},
 	@{
 		Name = "EXTRA grants one opening charge turn before spawn progression"

@@ -365,6 +365,7 @@ func _try_ultimate_dash(dir: int) -> bool:
 
 	if not _consume_attack_direction(dir):
 		return false
+	var freeze_spawn_cycle: bool = ultimate_dashes_remaining > 0
 	_clear_attack_prompts()
 	player_facing_dir = dir
 
@@ -374,7 +375,7 @@ func _try_ultimate_dash(dir: int) -> bool:
 		_action_animation_pending = true
 		game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
 		player_node.play_attack(dir, false, true)
-		return _finalize_turn_after_action(true)
+		return _finalize_turn_after_action(freeze_spawn_cycle)
 
 	if hits_dead:
 		_perform_dash_kill(destination, dir, true)
@@ -383,12 +384,12 @@ func _try_ultimate_dash(dir: int) -> bool:
 		_finish_ultimate_chain()
 		if ultimate_finished:
 			score_manager.reset_combo()
-		return _finalize_turn_after_action(true)
+		return _finalize_turn_after_action(freeze_spawn_cycle)
 
 	player_pos = destination
 	score_manager.reset_combo()
 	_finish_ultimate_chain()
-	return _finalize_turn_after_action(true)
+	return _finalize_turn_after_action(freeze_spawn_cycle)
 
 func _get_ultimate_dash_destination(dir: int) -> Vector2i:
 	var step: Vector2i = CharacterData.DIR_VECTOR[dir]

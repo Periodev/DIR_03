@@ -6,6 +6,7 @@ var defeats_label: Label
 var turns_label: Label
 var inventory_container: HBoxContainer
 var inventory_panel: PanelContainer
+var energy_container: HBoxContainer
 var hold_container: HBoxContainer
 var hold_label: Label
 var hold_slot: Label
@@ -63,13 +64,29 @@ func _ready() -> void:
 	add_child(inventory_panel)
 
 	var inv_hbox = HBoxContainer.new()
-	inv_hbox.add_theme_constant_override("separation", 8)
+	inv_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	inv_hbox.add_theme_constant_override("separation", 10)
 	inventory_panel.add_child(inv_hbox)
 
 	var q_label = Label.new()
-	q_label.text = "SEQ "
+	q_label.text = "DIR"
 	q_label.add_theme_font_size_override("font_size", 20)
 	inv_hbox.add_child(q_label)
+
+	energy_container = HBoxContainer.new()
+	energy_container.add_theme_constant_override("separation", 2)
+	inv_hbox.add_child(energy_container)
+	for _i in 2:
+		var energy_slot := Label.new()
+		energy_slot.text = "◇"
+		energy_slot.add_theme_font_size_override("font_size", 28)
+		energy_slot.add_theme_color_override("font_color", Color(0.72, 0.74, 0.78))
+		energy_slot.custom_minimum_size = Vector2(30, 36)
+		energy_slot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		energy_container.add_child(energy_slot)
+
+	var energy_separator := VSeparator.new()
+	inv_hbox.add_child(energy_separator)
 
 	inventory_container = HBoxContainer.new()
 	inventory_container.add_theme_constant_override("separation", 4)
