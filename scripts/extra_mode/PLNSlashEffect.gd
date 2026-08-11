@@ -18,8 +18,16 @@ const TAIL_GLOW_ALPHA := 0.02
 
 var _slash_len: float = SLASH_LEN
 var _max_width: float = MAX_WIDTH
+var _glow_width: float = GLOW_WIDTH
 
-func setup(dv: Vector2, short: bool = false, windup_override: float = -1.0, _no_sparks: bool = false, length_override: float = -1.0) -> void:
+func setup(
+	dv: Vector2,
+	short: bool = false,
+	windup_override: float = -1.0,
+	_no_sparks: bool = false,
+	length_override: float = -1.0,
+	width_override: float = -1.0
+) -> void:
 	var actual_windup: float = WINDUP if windup_override < 0.0 else windup_override
 	dir_vec = dv.normalized()
 	z_index = 8
@@ -29,6 +37,9 @@ func setup(dv: Vector2, short: bool = false, windup_override: float = -1.0, _no_
 	else:
 		_slash_len = SLASH_LEN_SHORT if short else SLASH_LEN
 		_max_width = MAX_WIDTH_SHORT if short else MAX_WIDTH
+	if width_override >= 0.0:
+		_max_width = width_override
+	_glow_width = GLOW_WIDTH * (_max_width / MAX_WIDTH)
 
 	var tw_ext: Tween = create_tween()
 	tw_ext.tween_interval(actual_windup)
@@ -73,7 +84,7 @@ func _draw_scar(tail: Vector2, tip: Vector2, alpha: float) -> void:
 		var local_alpha: float = lerpf(TAIL_FADE_ALPHA, 1.0, t) * alpha
 		var glow_alpha: float = lerpf(TAIL_GLOW_ALPHA, 0.34, t) * alpha
 		pts_core.append(p + perp * (w * _max_width))
-		pts_glow.append(p + perp * (w * GLOW_WIDTH))
+		pts_glow.append(p + perp * (w * _glow_width))
 		colors_core.append(Color(SLASH_COLOR.r, SLASH_COLOR.g, SLASH_COLOR.b, local_alpha))
 		colors_glow.append(Color(SLASH_COLOR.r, SLASH_COLOR.g, SLASH_COLOR.b, glow_alpha))
 
@@ -84,7 +95,7 @@ func _draw_scar(tail: Vector2, tip: Vector2, alpha: float) -> void:
 		var local_alpha: float = lerpf(TAIL_FADE_ALPHA, 1.0, t) * alpha
 		var glow_alpha: float = lerpf(TAIL_GLOW_ALPHA, 0.34, t) * alpha
 		pts_core.append(p - perp * (w * _max_width))
-		pts_glow.append(p - perp * (w * GLOW_WIDTH))
+		pts_glow.append(p - perp * (w * _glow_width))
 		colors_core.append(Color(SLASH_COLOR.r, SLASH_COLOR.g, SLASH_COLOR.b, local_alpha))
 		colors_glow.append(Color(SLASH_COLOR.r, SLASH_COLOR.g, SLASH_COLOR.b, glow_alpha))
 

@@ -110,12 +110,12 @@ func _draw_bonus_step_arrows() -> void:
 		draw_polyline(arrow, Color(0.08, 0.09, 0.11, 0.9), OUTLINE_WIDTH, true)
 		draw_polyline(arrow, arrow_color, FILL_WIDTH, true)
 
-func play_move(from_pos: Vector2) -> void:
+func play_move(from_pos: Vector2, move_duration_override: float = -1.0) -> void:
 	if _move_tween != null and _move_tween.is_valid():
 		_move_tween.kill()
 	var to_pos := position          # already set by Board
 	position = from_pos             # snap back to start
-	_move_tween = _char_impl.play_move(self, from_pos, to_pos)
+	_move_tween = _char_impl.play_move(self, from_pos, to_pos, move_duration_override)
 	movement_started.emit()
 	_move_tween.finished.connect(_finish_move, CONNECT_ONE_SHOT)
 
@@ -134,8 +134,8 @@ func emit_animation_done_after(delay: float) -> void:
 func play_charge_preview(dir: int) -> void:
 	_char_impl.play_charge_preview(self, dir)
 
-func get_hit_delay(is_dash: bool = false) -> float:
-	return _char_impl.get_hit_delay(is_dash)
+func get_hit_delay(is_dash: bool = false, move_duration_override: float = -1.0) -> float:
+	return _char_impl.get_hit_delay(is_dash, move_duration_override)
 
 func play_spawn_hit() -> void:
 	if _feedback_tween != null and _feedback_tween.is_valid():

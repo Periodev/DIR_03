@@ -10,6 +10,7 @@ const OPENING_GRACE_TURNS := 1
 const ENERGY_HALF_UNITS_MAX := 6
 const ENERGY_SLOT_COST := 2
 const ULT_DASH_COUNT := 4
+const ULT_SLASH_TIP_EXTENSION_RATIO := 0.65
 const SPAWN_CELL_TYPE := CharacterData.CellType.DEAD
 const BLOCK_OUTER_RING_SPAWN := false
 const CELL_SIZE := 100.0
@@ -411,11 +412,21 @@ func _perform_dash_kill(target: Vector2i, dir: int) -> void:
 		_action_animation_pending = true
 		var slash_length: float = maxf(
 			175.0,
-			float(origin.distance_to(target)) * CELL_STEP + CELL_SIZE * 0.35
+			float(origin.distance_to(target)) * CELL_STEP + CELL_SIZE * ULT_SLASH_TIP_EXTENSION_RATIO
 		)
-		_char_impl.begin_kill_anim(self, origin, target, dir, slash_length)
+		_char_impl.begin_kill_anim(
+			self,
+			origin,
+			target,
+			dir,
+			slash_length,
+			CharacterImpl_PLN.ULT_SLASH_WIDTH,
+			CharacterImpl_PLN.ULT_MOVE_DURATION
+		)
 		game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
-		player_node.emit_animation_done_after(player_node.get_hit_delay(true))
+		player_node.emit_animation_done_after(
+			player_node.get_hit_delay(true, CharacterImpl_PLN.ULT_MOVE_DURATION)
+		)
 	else:
 		_action_animation_pending = true
 		game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
