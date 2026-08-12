@@ -20,7 +20,6 @@ func _ready() -> void:
 	board.spawn_hit_started.connect(_on_spawn_hit_started)
 	board.score_manager.score_changed.connect(hud.update_score)
 	board.score_manager.combo_changed.connect(hud.update_combo)
-	board.score_manager.defeat_changed.connect(hud.update_defeats)
 
 	_on_board_updated()
 	hud.update_ai_status(ai_enabled)
@@ -132,8 +131,6 @@ func _on_board_updated() -> void:
 	hud.update_inventory(board.inventory)
 	hud.update_score(board.score_manager.score)
 	hud.update_combo(board.score_manager.combo_counter if board.score_manager.ENABLE_COMBO_BONUS else 0)
-	hud.update_defeats(board.score_manager.defeat_count)
-	hud.update_turns(board.survival_turns)
 	hud.update_energy(
 		board.get_energy_quarter_units(),
 		board.bonus_step_armed,
@@ -145,4 +142,4 @@ func _on_spawn_hit_started(slot_count: int) -> void:
 	hud.play_inventory_hit(slot_count)
 
 func _on_game_over(final_score: int) -> void:
-	hud.show_game_over(final_score)
+	hud.show_game_over(final_score, board.score_manager.max_combo)

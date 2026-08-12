@@ -2,8 +2,6 @@ extends CanvasLayer
 
 var score_label: Label
 var combo_label: Label
-var defeats_label: Label
-var turns_label: Label
 var inventory_container: HBoxContainer
 var inventory_panel: PanelContainer
 var energy_container: HBoxContainer
@@ -14,6 +12,7 @@ var dash_action_label: Label
 var ultimate_action_label: Label
 var gameover_panel: PanelContainer
 var gameover_score: Label
+var gameover_max_combo: Label
 var message_label: Label
 var ai_status_label: Label
 
@@ -26,39 +25,22 @@ var _charge_max: int = 0
 var _slot_flash_tweens: Array[Tween] = []
 
 func _ready() -> void:
-	# Score - top right
+	# Score and combo - top left
 	score_label = Label.new()
 	score_label.text = "0"
-	score_label.add_theme_font_size_override("font_size", 40)
-	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	score_label.position = Vector2(600, 10)
-	score_label.size = Vector2(180, 50)
+	score_label.add_theme_font_size_override("font_size", 56)
+	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	score_label.position = Vector2(20, 8)
+	score_label.size = Vector2(280, 64)
 	add_child(score_label)
 
-	# Combo - below score
 	combo_label = Label.new()
 	combo_label.text = ""
-	combo_label.add_theme_font_size_override("font_size", 22)
-	combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	combo_label.position = Vector2(600, 55)
-	combo_label.size = Vector2(180, 30)
+	combo_label.add_theme_font_size_override("font_size", 32)
+	combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	combo_label.position = Vector2(20, 68)
+	combo_label.size = Vector2(280, 42)
 	add_child(combo_label)
-
-	defeats_label = Label.new()
-	defeats_label.text = "BREAK 0"
-	defeats_label.add_theme_font_size_override("font_size", 20)
-	defeats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	defeats_label.position = Vector2(20, 48)
-	defeats_label.size = Vector2(180, 26)
-	add_child(defeats_label)
-
-	turns_label = Label.new()
-	turns_label.text = "TURN 0"
-	turns_label.add_theme_font_size_override("font_size", 20)
-	turns_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	turns_label.position = Vector2(20, 72)
-	turns_label.size = Vector2(180, 26)
-	add_child(turns_label)
 
 	# Inventory container - bottom
 	inventory_panel = PanelContainer.new()
@@ -168,6 +150,13 @@ func _ready() -> void:
 	gameover_score.add_theme_color_override("font_color", Color(0.95, 0.77, 0.06))
 	vbox.add_child(gameover_score)
 
+	gameover_max_combo = Label.new()
+	gameover_max_combo.text = "MAX COMBO x0"
+	gameover_max_combo.add_theme_font_size_override("font_size", 26)
+	gameover_max_combo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	gameover_max_combo.add_theme_color_override("font_color", Color(0.86, 0.88, 0.91))
+	vbox.add_child(gameover_max_combo)
+
 	var restart_hint = Label.new()
 	restart_hint.text = "Press R to restart"
 	restart_hint.add_theme_font_size_override("font_size", 20)
@@ -229,7 +218,7 @@ func update_score(score: int) -> void:
 	score_label.text = str(score)
 
 func update_combo(combo: int) -> void:
-	if combo > 0:
+	if combo >= 2:
 		combo_label.text = "COMBO x%d" % combo
 	else:
 		combo_label.text = ""
@@ -245,12 +234,6 @@ func update_energy(quarter_units: int, bonus_step_armed: bool, ultimate_steps: i
 		ultimate_action_label.text = "[Z] ULT %d" % ultimate_steps
 	else:
 		ultimate_action_label.text = "[Z] ULT"
-
-func update_defeats(defeats: int) -> void:
-	defeats_label.text = "BREAK %d" % defeats
-
-func update_turns(turns: int) -> void:
-	turns_label.text = "TURN %d" % turns
 
 func update_ai_status(enabled: bool) -> void:
 	ai_status_label.text = "[F4] AI ON" if enabled else "[F4] AI"
@@ -284,8 +267,9 @@ func _cancel_slot_flashes() -> void:
 func update_state(_state: int) -> void:
 	message_label.text = "WASD: Move | Space: Wait | R: Restart"
 
-func show_game_over(final_score: int) -> void:
+func show_game_over(final_score: int, max_combo: int) -> void:
 	gameover_score.text = str(final_score)
+	gameover_max_combo.text = "MAX COMBO x%d" % max_combo
 	gameover_panel.visible = true
 
 func hide_game_over() -> void:
@@ -293,17 +277,11 @@ func hide_game_over() -> void:
 
 func _layout_ui() -> void:
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
-	score_label.position = Vector2(viewport_size.x - 200, 10)
-	score_label.size = Vector2(180, 50)
+	score_label.position = Vector2(20, 8)
+	score_label.size = Vector2(280, 64)
 
-	combo_label.position = Vector2(viewport_size.x - 200, 55)
-	combo_label.size = Vector2(180, 30)
-
-	defeats_label.position = Vector2(20, 44)
-	defeats_label.size = Vector2(180, 26)
-
-	turns_label.position = Vector2(20, 68)
-	turns_label.size = Vector2(180, 26)
+	combo_label.position = Vector2(20, 68)
+	combo_label.size = Vector2(280, 42)
 
 	var inventory_width: float = min(viewport_size.x - 40.0, 960.0)
 	var inventory_x: float = (viewport_size.x - inventory_width) * 0.5
@@ -314,7 +292,7 @@ func _layout_ui() -> void:
 	message_label.position = Vector2(0, viewport_size.y - 30.0)
 	message_label.size = Vector2(viewport_size.x, 30)
 
-	ai_status_label.position = Vector2(20, 96)
+	ai_status_label.position = Vector2(20, 116)
 	ai_status_label.size = Vector2(150, 30)
 	ai_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 

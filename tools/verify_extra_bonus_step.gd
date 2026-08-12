@@ -6,6 +6,18 @@ func _initialize() -> void:
 	call_deferred("run_verification")
 
 func run_verification() -> void:
+	var score_fixture := ScoreManager.new()
+	score_fixture.combo_counter = 4
+	score_fixture.on_kill(CharacterData.CellType.DEAD)
+	score_fixture.reset_combo()
+	if score_fixture.max_combo != 4:
+		fail("ScoreManager did not preserve the session max combo after the chain ended.")
+		return
+	score_fixture.reset()
+	if score_fixture.max_combo != 0:
+		fail("ScoreManager did not clear max combo on restart.")
+		return
+
 	var inventory_fixture := Inventory.new()
 	inventory_fixture.setup("PLN")
 	for direction in [

@@ -35,6 +35,7 @@ $extraHudPath = Join-Path $root "scripts/extra_mode/HUD.gd"
 $extraEnergySlotPath = Join-Path $root "scripts/extra_mode/EnergySlot.gd"
 $extraComboBotPath = Join-Path $root "scripts/extra_mode/ComboBot.gd"
 $extraCharacterDataPath = Join-Path $root "scripts/extra_mode/CharacterData.gd"
+$extraScoreManagerPath = Join-Path $root "scripts/extra_mode/ScoreManager.gd"
 
 $mainEntry = Get-Content -LiteralPath $mainPath -Raw
 $gameBoard = Get-Content -LiteralPath $gameBoardPath -Raw
@@ -71,6 +72,7 @@ $extraHud = Get-Content -LiteralPath $extraHudPath -Raw
 $extraEnergySlot = Get-Content -LiteralPath $extraEnergySlotPath -Raw
 $extraComboBot = Get-Content -LiteralPath $extraComboBotPath -Raw
 $extraCharacterData = Get-Content -LiteralPath $extraCharacterDataPath -Raw
+$extraScoreManager = Get-Content -LiteralPath $extraScoreManagerPath -Raw
 $legacyProductName = "DIR" + "3"
 
 $checks = @(
@@ -673,6 +675,14 @@ $checks = @(
 	@{
 		Name = "EXTRA combo meter uses four staged undirected energy slots"
 		Pass = $extraHud -match 'var\s+energy_slots:\s*Array\[DIRExtraEnergySlot\]' -and $extraHud -match 'for\s+_i\s+in\s+4:' -and $extraHud -match 'func\s+update_energy\(quarter_units:\s*int,\s*bonus_step_armed:\s*bool,\s*ultimate_steps:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?clampi\(quarter_units\s*-\s*i\s*\*\s*4,\s*0,\s*4\)(?:(?!\r?\nfunc\s)[\s\S])*?float\(slot_quarter_units\)\s*/\s*4\.0' -and $extraEnergySlot -match 'class_name\s+DIRExtraEnergySlot' -and $extraEnergySlot -match 'var\s+lower_right_quarter\s*:=\s*PackedVector2Array\(\[\s*center,\s*center\s*\+\s*Vector2\(0\.0,\s*RADIUS\),\s*center\s*\+\s*Vector2\(RADIUS,\s*0\.0\),' -and $extraEnergySlot -match 'var\s+upper_left_quarter\s*:=\s*PackedVector2Array\(\[\s*center,\s*center\s*\+\s*Vector2\(0\.0,\s*-RADIUS\),\s*center\s*\+\s*Vector2\(-RADIUS,\s*0\.0\),' -and $extraPlayer -match 'func\s+_draw_bonus_step_arrows\(\)[\s\S]*Color\("#55DDE0"\)'
+	},
+	@{
+		Name = "EXTRA HUD emphasizes score and combo without break or turn labels"
+		Pass = $extraHud -match 'score_label\.add_theme_font_size_override\("font_size",\s*56\)' -and $extraHud -match 'score_label\.horizontal_alignment\s*=\s*HORIZONTAL_ALIGNMENT_LEFT' -and $extraHud -match 'combo_label\.add_theme_font_size_override\("font_size",\s*32\)' -and $extraHud -match 'func\s+update_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+combo\s*>=\s*2:' -and $extraHud -notmatch 'defeats_label|turns_label|BREAK 0|TURN 0|func\s+update_defeats|func\s+update_turns' -and $extraMain -notmatch 'hud\.update_defeats|hud\.update_turns|defeat_changed\.connect\(hud\.update_defeats\)'
+	},
+	@{
+		Name = "EXTRA Game Over reports the session max combo"
+		Pass = $extraScoreManager -match 'var\s+max_combo:\s*int\s*=\s*0' -and $extraScoreManager -match 'max_combo\s*=\s*maxi\(max_combo,\s*combo_counter\)' -and $extraScoreManager -match 'func\s+reset\(\)(?:(?!\r?\nfunc\s)[\s\S])*?max_combo\s*=\s*0' -and $extraHud -match 'func\s+show_game_over\(final_score:\s*int,\s*max_combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?"MAX COMBO x%d"\s*%\s*max_combo' -and $extraMain -match 'hud\.show_game_over\(final_score,\s*board\.score_manager\.max_combo\)'
 	},
 	@{
 		Name = "EXTRA places Z ULT and X DASH together left of DIR"
