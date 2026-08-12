@@ -28,6 +28,25 @@ func run_verification() -> void:
 		fail("Fresh Board startup created a false player movement tween.")
 		return
 	await create_timer(0.5).timeout
+	for direction_value in CharacterData.DIR_VECTOR:
+		var direction: int = int(direction_value)
+		var surrounded_cell: Vector2i = board.player_pos + CharacterData.DIR_VECTOR[direction]
+		board.grid[surrounded_cell.y][surrounded_cell.x] = CharacterData.CellType.DEAD
+	board.inventory.reset()
+	board.energy_quarter_units = board.ENERGY_QUARTER_UNITS_MAX - 1
+	board.game_state.reset()
+	board._check_game_over()
+	if not board.game_state.is_game_over():
+		fail("A surrounded player survived without full ULT energy.")
+		return
+	board.energy_quarter_units = board.ENERGY_QUARTER_UNITS_MAX
+	board.game_state.reset()
+	board._check_game_over()
+	if board.game_state.is_game_over() or not board.try_energy_ultimate():
+		fail("Full ULT energy did not rescue a surrounded player from Game Over.")
+		return
+	board.restart()
+	await process_frame
 
 	board._charge_energy_for_combo(1)
 	if board.get_energy_quarter_units() != 1 or board.try_energy_bonus_step():
@@ -43,11 +62,11 @@ func run_verification() -> void:
 	board._charge_energy_for_combo(1)
 	board._charge_energy_for_combo(2)
 	board._charge_energy_for_combo(3)
-	if board.get_energy_quarter_units() != 4 or not board.try_energy_bonus_step():
-		fail("The first three combo steps must cumulatively grant one full energy slot.")
+	if board.get_energy_quarter_units() != 5 or not board.try_energy_bonus_step():
+		fail("The first three combo steps must cumulatively grant 1.25 energy slots.")
 		return
-	if board.get_energy_quarter_units() != 0 or not board.bonus_step_armed:
-		fail("Z must spend energy immediately and arm the next bonus step.")
+	if board.get_energy_quarter_units() != 1 or not board.bonus_step_armed:
+		fail("X must spend one energy slot, preserve the remaining quarter, and arm DASH.")
 		return
 
 	board.score_manager.combo_counter = 3
@@ -77,15 +96,15 @@ func run_verification() -> void:
 	if board.score_manager.combo_counter != 4:
 		fail("A bonus attack did not continue the combo.")
 		return
-	if board.get_energy_quarter_units() != 4 or board.survival_turns != 0:
+	if board.get_energy_quarter_units() != 5 or board.survival_turns != 0:
 		fail("Four combo did not add one energy slot, or the bonus attack counted as a turn.")
 		return
 
 	board._charge_energy_for_combo(5)
-	if board.get_energy_quarter_units() != 8:
+	if board.get_energy_quarter_units() != 9:
 		fail("Five combo did not add one energy slot.")
 		return
-	board._charge_energy_for_combo(4)
+	board.energy_quarter_units = 12
 	if board.get_energy_quarter_units() != 12 or board.try_energy_ultimate():
 		fail("Three energy slots incorrectly activated the four-slot ULT.")
 		return

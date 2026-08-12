@@ -475,9 +475,9 @@ func _kill_flow(pos: Vector2i, attack_dir: int, cell_type: int) -> void:
 
 func _charge_energy_for_combo(combo: int) -> void:
 	match combo:
-		1, 2:
+		1:
 			energy_quarter_units = mini(energy_quarter_units + 1, ENERGY_QUARTER_UNITS_MAX)
-		3:
+		2, 3:
 			energy_quarter_units = mini(energy_quarter_units + 2, ENERGY_QUARTER_UNITS_MAX)
 		4, 5:
 			energy_quarter_units = mini(energy_quarter_units + 4, ENERGY_QUARTER_UNITS_MAX)
@@ -609,6 +609,10 @@ func _check_game_over() -> void:
 		var n_type = grid[neighbor.y][neighbor.x]
 		if n_type == CharacterData.CellType.LIVE:
 			return  # Has escape
+
+	var character_data: Dictionary = CharacterData.CHARACTERS[current_character]
+	if energy_quarter_units >= ENERGY_QUARTER_UNITS_MAX and bool(character_data["has_ult"]):
+		return  # Full ULT charge can break out of a surrounded position.
 
 	# All neighbors are DEAD or out of bounds - check inventory + hold
 	for dv_dir in CharacterData.DIR_VECTOR:

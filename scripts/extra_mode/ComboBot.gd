@@ -115,9 +115,9 @@ func _energy_gain_for_combo(combo: int) -> int:
 		return 8
 	if combo >= 4:
 		return 4
-	if combo == 3:
+	if combo >= 2:
 		return 2
-	if combo >= 1:
+	if combo == 1:
 		return 1
 	return 0
 
