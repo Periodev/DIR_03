@@ -4,13 +4,20 @@ const BoardScript = preload("res://scripts/extra_mode/Board.gd")
 const ComboBotScript = preload("res://scripts/extra_mode/ComboBot.gd")
 const MAX_DECISIONS := 2000
 const TIMEOUT_MSEC := 30000
+const BENCHMARK_SEEDS := [20260811, 20260812]
 
 func _initialize() -> void:
 	call_deferred("run_benchmark")
 
 func run_benchmark() -> void:
-	seed(20260811)
 	Engine.time_scale = 20.0
+	for benchmark_seed in BENCHMARK_SEEDS:
+		await _run_board(int(benchmark_seed))
+	Engine.time_scale = 1.0
+	quit(0)
+
+func _run_board(benchmark_seed: int) -> void:
+	seed(benchmark_seed)
 	var board: Node2D = BoardScript.new()
 	var bot: DIRExtraComboBot = ComboBotScript.new()
 	root.add_child(board)
@@ -38,7 +45,8 @@ func run_benchmark() -> void:
 		decisions += 1
 		await process_frame
 	print(
-		"BENCH: score=%d defeats=%d turns=%d decisions=%d combo=%d" % [
+		"BENCH seed=%d: score=%d defeats=%d turns=%d decisions=%d combo=%d" % [
+			benchmark_seed,
 			board.score_manager.score,
 			board.score_manager.defeat_count,
 			board.survival_turns,
@@ -46,5 +54,5 @@ func run_benchmark() -> void:
 			board.score_manager.combo_counter,
 		]
 	)
-	Engine.time_scale = 1.0
-	quit(0)
+	board.queue_free()
+	await process_frame

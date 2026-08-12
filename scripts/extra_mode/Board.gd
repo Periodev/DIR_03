@@ -7,8 +7,8 @@ const ROWS := 5
 const SPAWN_CYCLE_STEPS := 2
 const SPAWNS_PER_CYCLE := 2
 const OPENING_GRACE_TURNS := 1
-const ENERGY_HALF_UNITS_MAX := 6
-const ENERGY_SLOT_COST := 2
+const ENERGY_QUARTER_UNITS_MAX := 16
+const ENERGY_SLOT_COST := 4
 const ULT_DASH_COUNT := 4
 const ULT_SLASH_TIP_EXTENSION_RATIO := 0.65
 const SPAWN_CELL_TYPE := CharacterData.CellType.DEAD
@@ -39,7 +39,7 @@ var _turn_freezes_spawn: bool = false
 var _suppress_hit_effect_once: bool = false
 var _pending_kill_visual: Array[Vector2i] = []  # 正在等待延遲視覺更新的格子
 var survival_turns: int = 0
-var energy_half_units: int = 0
+var energy_quarter_units: int = 0
 var bonus_step_armed: bool = false
 var ultimate_dashes_remaining: int = 0
 var _ultimate_chain_started: bool = false
@@ -119,13 +119,17 @@ func restart() -> void:
 	_suppress_hit_effect_once = false
 	_pending_kill_visual.clear()
 	survival_turns = 0
-	energy_half_units = 0
+	energy_quarter_units = 0
 	bonus_step_armed = false
 	ultimate_dashes_remaining = 0
 	_ultimate_chain_started = false
 	player_node.cancel_feedback()
 
 	setup_character(current_character, current_attack_mode_override)
+	player_node.position = Vector2(
+		player_pos.x * CELL_STEP + CELL_SIZE / 2.0,
+		player_pos.y * CELL_STEP + CELL_SIZE / 2.0
+	)
 	score_manager.reset()
 	game_state.reset()
 
@@ -311,27 +315,27 @@ func try_energy_bonus_step() -> bool:
 		return false
 	if bonus_step_armed or ultimate_dashes_remaining > 0:
 		return false
-	if energy_half_units < ENERGY_SLOT_COST:
+	if energy_quarter_units < ENERGY_SLOT_COST:
 		return false
-	energy_half_units -= ENERGY_SLOT_COST
+	energy_quarter_units -= ENERGY_SLOT_COST
 	bonus_step_armed = true
 	_refresh_visuals()
 	return true
 
-func get_energy_half_units() -> int:
-	return energy_half_units
+func get_energy_quarter_units() -> int:
+	return energy_quarter_units
 
 func try_energy_ultimate() -> bool:
 	if not game_state.is_idle():
 		return false
 	if _player_move_visual_pending or bonus_step_armed:
 		return false
-	if energy_half_units < ENERGY_HALF_UNITS_MAX:
+	if energy_quarter_units < ENERGY_QUARTER_UNITS_MAX:
 		return false
 	var data: Dictionary = CharacterData.CHARACTERS[current_character]
 	if not bool(data["has_ult"]):
 		return false
-	energy_half_units = 0
+	energy_quarter_units = 0
 	ultimate_dashes_remaining = ULT_DASH_COUNT
 	_ultimate_chain_started = false
 	_refresh_visuals()
@@ -368,19 +372,14 @@ func _try_ultimate_dash(dir: int) -> bool:
 
 	var origin := player_pos
 	var destination := _get_ultimate_dash_destination(dir)
+	if destination == origin:
+		return false
 	var hits_dead: bool = destination != origin and grid[destination.y][destination.x] == CharacterData.CellType.DEAD
 	if not _consume_attack_direction(dir):
 		return false
 	var freeze_spawn_cycle: bool = ultimate_dashes_remaining > 0
 	_clear_attack_prompts()
 	player_facing_dir = dir
-
-	if destination == origin:
-		_finish_ultimate_chain()
-		_action_animation_pending = true
-		game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
-		player_node.play_attack(dir, false, true)
-		return _finalize_turn_after_action(freeze_spawn_cycle)
 
 	if hits_dead:
 		_perform_dash_kill(destination, dir)
@@ -389,6 +388,7 @@ func _try_ultimate_dash(dir: int) -> bool:
 		return _finalize_turn_after_action(freeze_spawn_cycle)
 
 	player_pos = destination
+	inventory.push(dir)
 	_finish_ultimate_chain()
 	return _finalize_turn_after_action(freeze_spawn_cycle)
 
@@ -475,13 +475,15 @@ func _kill_flow(pos: Vector2i, attack_dir: int, cell_type: int) -> void:
 
 func _charge_energy_for_combo(combo: int) -> void:
 	match combo:
-		2, 3:
-			energy_half_units = mini(energy_half_units + 1, ENERGY_HALF_UNITS_MAX)
+		1, 2:
+			energy_quarter_units = mini(energy_quarter_units + 1, ENERGY_QUARTER_UNITS_MAX)
+		3:
+			energy_quarter_units = mini(energy_quarter_units + 2, ENERGY_QUARTER_UNITS_MAX)
 		4, 5:
-			energy_half_units = mini(energy_half_units + 2, ENERGY_HALF_UNITS_MAX)
+			energy_quarter_units = mini(energy_quarter_units + 4, ENERGY_QUARTER_UNITS_MAX)
 		_:
 			if combo >= 6:
-				energy_half_units = mini(energy_half_units + 4, ENERGY_HALF_UNITS_MAX)
+				energy_quarter_units = mini(energy_quarter_units + 8, ENERGY_QUARTER_UNITS_MAX)
 
 var cycle_resolved: bool = false  # true = this cycle already spawned, remaining turns idle
 
@@ -705,6 +707,7 @@ func _finish_turn_presentation() -> void:
 func _sync_player_move_ready() -> void:
 	var ready_directions: Array[int] = []
 	var bonus_directions: Array[int] = []
+	var ultimate_ready: bool = game_state.is_idle() and ultimate_dashes_remaining > 0
 	if game_state.is_idle() and bonus_step_armed:
 		for direction in CharacterData.DIR_VECTOR:
 			var target: Vector2i = player_pos + CharacterData.DIR_VECTOR[direction]
@@ -721,6 +724,7 @@ func _sync_player_move_ready() -> void:
 				ready_directions.append(direction)
 	player_node.set_move_ready_directions(ready_directions)
 	player_node.set_bonus_step_directions(bonus_directions)
+	player_node.set_ultimate_dash_ready(ultimate_ready)
 
 func _clear_attack_prompts() -> void:
 	for row_value in cell_nodes:
@@ -731,7 +735,7 @@ func _clear_attack_prompts() -> void:
 
 func _refresh_attack_prompts() -> void:
 	_clear_attack_prompts()
-	if not game_state.is_idle() or bonus_step_armed:
+	if not game_state.is_idle() or bonus_step_armed or ultimate_dashes_remaining > 0:
 		return
 	for direction in CharacterData.DIR_VECTOR:
 		var target: Vector2i = player_pos + CharacterData.DIR_VECTOR[direction]

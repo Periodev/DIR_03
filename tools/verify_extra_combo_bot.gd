@@ -15,11 +15,11 @@ func run_verification() -> void:
 
 	_reset_fixture(board)
 	board.score_manager.combo_counter = 3
-	board.energy_half_units = board.ENERGY_SLOT_COST
+	board.energy_quarter_units = board.ENERGY_SLOT_COST
 	board.inventory.push(CharacterData.Direction.RIGHT)
 	board.grid[2][3] = CharacterData.CellType.DEAD
-	if bot.choose_action(board) != DIRExtraComboBot.ACTION_DASH:
-		fail("Sustainable high combo with an adjacent target did not prioritize DASH.")
+	if bot.choose_action(board) != DIRExtraComboBot.ACTION_MOVE:
+		fail("An adjacent target spent DASH instead of charging energy with a normal attack.")
 		return
 
 	board.bonus_step_armed = true
@@ -30,7 +30,7 @@ func run_verification() -> void:
 
 	_reset_fixture(board)
 	board.score_manager.combo_counter = 2
-	board.energy_half_units = board.ENERGY_SLOT_COST
+	board.energy_quarter_units = board.ENERGY_SLOT_COST
 	board.inventory.push(CharacterData.Direction.RIGHT)
 	board.grid[2][3] = CharacterData.CellType.DEAD
 	if bot.choose_action(board) != DIRExtraComboBot.ACTION_MOVE:
@@ -38,28 +38,62 @@ func run_verification() -> void:
 		return
 
 	_reset_fixture(board)
-	board.score_manager.combo_counter = 2
-	board.energy_half_units = board.ENERGY_SLOT_COST
+	board.score_manager.combo_counter = 4
+	board.energy_quarter_units = board.ENERGY_SLOT_COST
 	board.inventory.push(CharacterData.Direction.DOWN)
 	board.grid[3][3] = CharacterData.CellType.DEAD
 	if bot.choose_action(board) != DIRExtraComboBot.ACTION_DASH:
-		fail("DASH was not used when one free setup move creates an immediate attack.")
+		fail("DASH was not used to bridge a high combo into an immediate attack.")
+		return
+
+	_reset_fixture(board)
+	board.score_manager.combo_counter = 4
+	board.energy_quarter_units = board.ENERGY_SLOT_COST * 2
+	board.inventory.push(CharacterData.Direction.DOWN)
+	board.grid[3][3] = CharacterData.CellType.DEAD
+	if bot.choose_action(board) == DIRExtraComboBot.ACTION_DASH:
+		fail("DASH spent energy reserved for a near-ready ULT.")
 		return
 
 	_reset_fixture(board)
 	board.score_manager.combo_counter = 2
-	board.energy_half_units = board.ENERGY_SLOT_COST
+	board.energy_quarter_units = board.ENERGY_SLOT_COST
 	if bot.choose_action(board) == DIRExtraComboBot.ACTION_DASH:
 		fail("DASH was spent without an immediate combo continuation.")
 		return
 
 	_reset_fixture(board)
 	board.score_manager.combo_counter = 4
-	board.energy_half_units = board.ENERGY_HALF_UNITS_MAX
+	board.energy_quarter_units = board.ENERGY_QUARTER_UNITS_MAX
 	board.grid[2][4] = CharacterData.CellType.DEAD
 	board.grid[0][2] = CharacterData.CellType.DEAD
 	if bot.choose_action(board) != DIRExtraComboBot.ACTION_ULT:
 		fail("Full energy with two line targets did not activate ULT.")
+		return
+
+	_reset_fixture(board)
+	board.score_manager.combo_counter = 4
+	board.energy_quarter_units = board.ENERGY_QUARTER_UNITS_MAX
+	board.grid[2][4] = CharacterData.CellType.DEAD
+	board.grid[4][4] = CharacterData.CellType.DEAD
+	board.grid[4][0] = CharacterData.CellType.DEAD
+	board.grid[0][0] = CharacterData.CellType.DEAD
+	board.grid[1][0] = CharacterData.CellType.DEAD
+	board.grid[1][1] = CharacterData.CellType.DEAD
+	if bot.choose_action(board) != DIRExtraComboBot.ACTION_ULT \
+			or not board.try_energy_ultimate():
+		fail("ULT continuation fixture did not activate ULT.")
+		return
+	for _dash_index in board.ULT_DASH_COUNT:
+		if bot.choose_action(board) != DIRExtraComboBot.ACTION_MOVE:
+			fail("ULT planner did not provide all four dash directions.")
+			return
+		if not board.try_move(bot.chosen_direction):
+			fail("ULT planner selected an invalid dash direction.")
+			return
+		await _wait_until_idle(board)
+	if bot._attack_directions(board).is_empty():
+		fail("ULT sequence did not finish beside an attackable enemy for combo continuation.")
 		return
 
 	_reset_fixture(board)
@@ -80,12 +114,17 @@ func _reset_fixture(board: Node2D) -> void:
 	board.player_pos = Vector2i(2, 2)
 	board.inventory.reset()
 	board.score_manager.combo_counter = 0
-	board.energy_half_units = 0
+	board.energy_quarter_units = 0
 	board.bonus_step_armed = false
 	board.ultimate_dashes_remaining = 0
 	board.candidate_cells.clear()
 	board.cycle_counter = 0
+	board._opening_grace_turns_remaining = 10
 	board.game_state.reset()
+
+func _wait_until_idle(board: Node2D) -> void:
+	while not board.game_state.is_idle() and not board.game_state.is_game_over():
+		await process_frame
 
 func fail(message: String) -> void:
 	push_error("FAIL: %s" % message)

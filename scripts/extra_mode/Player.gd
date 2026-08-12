@@ -12,6 +12,7 @@ var character_shape: String = "blade_diamond"
 var facing_dir: int = CharacterData.Direction.UP
 var move_ready_directions: Array[int] = []
 var bonus_step_directions: Array[int] = []
+var ultimate_dash_ready: bool = false
 var _char_impl  # CharacterImpl_PLN
 var _feedback_tween: Tween
 var _move_tween: Tween
@@ -44,8 +45,16 @@ func set_bonus_step_directions(directions: Array[int]) -> void:
 	bonus_step_directions = directions.duplicate()
 	queue_redraw()
 
+func set_ultimate_dash_ready(ready: bool) -> void:
+	if ultimate_dash_ready == ready:
+		return
+	ultimate_dash_ready = ready
+	queue_redraw()
+
 func _draw() -> void:
-	if not bonus_step_directions.is_empty():
+	if ultimate_dash_ready:
+		_draw_ultimate_dash_arrows()
+	elif not bonus_step_directions.is_empty():
 		_draw_bonus_step_arrows()
 	elif not move_ready_directions.is_empty():
 		_draw_move_ready_arrows()
@@ -109,6 +118,32 @@ func _draw_bonus_step_arrows() -> void:
 		])
 		draw_polyline(arrow, Color(0.08, 0.09, 0.11, 0.9), OUTLINE_WIDTH, true)
 		draw_polyline(arrow, arrow_color, FILL_WIDTH, true)
+
+func _draw_ultimate_dash_arrows() -> void:
+	const INNER_DISTANCE := 47.0
+	const OUTER_DISTANCE := 59.0
+	const FRONT_DEPTH := 7.0
+	const REAR_DEPTH := 5.0
+	const HALF_HEIGHT := 6.0
+	const OUTLINE_WIDTH := 6.0
+	const FILL_WIDTH := 3.0
+	const ULT_COLOR := Color("#47EB7A")
+	for direction_value in CharacterData.DIR_VECTOR:
+		var direction: int = int(direction_value)
+		var forward: Vector2 = Vector2(CharacterData.DIR_VECTOR[direction])
+		var side: Vector2 = Vector2(-forward.y, forward.x)
+		for distance_value in [INNER_DISTANCE, OUTER_DISTANCE]:
+			var distance: float = float(distance_value)
+			var center: Vector2 = forward * distance
+			var tip: Vector2 = center + forward * FRONT_DEPTH
+			var rear: Vector2 = center - forward * REAR_DEPTH
+			var arrow := PackedVector2Array([
+				rear + side * HALF_HEIGHT,
+				tip,
+				rear - side * HALF_HEIGHT,
+			])
+			draw_polyline(arrow, Color(0.08, 0.09, 0.11, 0.95), OUTLINE_WIDTH, true)
+			draw_polyline(arrow, ULT_COLOR, FILL_WIDTH, true)
 
 func play_move(from_pos: Vector2, move_duration_override: float = -1.0) -> void:
 	if _move_tween != null and _move_tween.is_valid():

@@ -135,7 +135,7 @@ func _on_board_updated() -> void:
 	hud.update_defeats(board.score_manager.defeat_count)
 	hud.update_turns(board.survival_turns)
 	hud.update_energy(
-		board.get_energy_half_units(),
+		board.get_energy_quarter_units(),
 		board.bonus_step_armed,
 		board.get_ultimate_dashes_remaining()
 	)

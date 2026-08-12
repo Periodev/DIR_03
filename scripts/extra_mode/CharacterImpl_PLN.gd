@@ -7,7 +7,7 @@ const PLNMoveTrail   = preload("res://scripts/extra_mode/PLNMoveTrail.gd")
 const WINDUP := PLNSlashEffect.WINDUP
 const MOVE_DURATION := 0.07
 const ULT_MOVE_DURATION := 0.05
-const NORMAL_SLASH_WIDTH := 10.0
+const NORMAL_SLASH_WIDTH := 8.0
 const ULT_SLASH_WIDTH := PLNSlashEffect.MAX_WIDTH
 
 var pending_kill_pos: Vector2i = Vector2i(-1, -1)

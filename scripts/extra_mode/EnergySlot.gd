@@ -30,6 +30,19 @@ func _draw() -> void:
 	])
 	if fill_ratio >= 1.0:
 		draw_colored_polygon(diamond, FILL_COLOR)
+	elif fill_ratio >= 0.75:
+		var lower_half := PackedVector2Array([
+			center + Vector2(-RADIUS, 0.0),
+			center + Vector2(0.0, RADIUS),
+			center + Vector2(RADIUS, 0.0),
+		])
+		var upper_left_quarter := PackedVector2Array([
+			center,
+			center + Vector2(0.0, -RADIUS),
+			center + Vector2(-RADIUS, 0.0),
+		])
+		draw_colored_polygon(lower_half, FILL_COLOR)
+		draw_colored_polygon(upper_left_quarter, FILL_COLOR)
 	elif fill_ratio >= 0.5:
 		var lower_half := PackedVector2Array([
 			center + Vector2(-RADIUS, 0.0),
@@ -37,4 +50,11 @@ func _draw() -> void:
 			center + Vector2(RADIUS, 0.0),
 		])
 		draw_colored_polygon(lower_half, FILL_COLOR)
+	elif fill_ratio >= 0.25:
+		var lower_right_quarter := PackedVector2Array([
+			center,
+			center + Vector2(0.0, RADIUS),
+			center + Vector2(RADIUS, 0.0),
+		])
+		draw_colored_polygon(lower_right_quarter, FILL_COLOR)
 	draw_polyline(diamond + PackedVector2Array([diamond[0]]), OUTLINE_COLOR, OUTLINE_WIDTH, true)

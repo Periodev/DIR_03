@@ -100,7 +100,7 @@ func _ready() -> void:
 	energy_container = HBoxContainer.new()
 	energy_container.add_theme_constant_override("separation", 2)
 	inv_hbox.add_child(energy_container)
-	for _i in 3:
+	for _i in 4:
 		var energy_slot := DIRExtraEnergySlot.new()
 		energy_container.add_child(energy_slot)
 		energy_slots.append(energy_slot)
@@ -234,13 +234,13 @@ func update_combo(combo: int) -> void:
 	else:
 		combo_label.text = ""
 
-func update_energy(half_units: int, bonus_step_armed: bool, ultimate_steps: int) -> void:
+func update_energy(quarter_units: int, bonus_step_armed: bool, ultimate_steps: int) -> void:
 	for i in energy_slots.size():
-		var slot_half_units: int = clampi(half_units - i * 2, 0, 2)
-		var fill_ratio: float = float(slot_half_units) / 2.0
+		var slot_quarter_units: int = clampi(quarter_units - i * 4, 0, 4)
+		var fill_ratio: float = float(slot_quarter_units) / 4.0
 		energy_slots[i].set_fill_ratio(fill_ratio)
-	dash_action_label.modulate = Color.WHITE if half_units >= 2 or bonus_step_armed else Color(1.0, 1.0, 1.0, 0.28)
-	ultimate_action_label.modulate = Color.WHITE if half_units >= 6 or ultimate_steps > 0 else Color(1.0, 1.0, 1.0, 0.28)
+	dash_action_label.modulate = Color.WHITE if quarter_units >= 4 or bonus_step_armed else Color(1.0, 1.0, 1.0, 0.28)
+	ultimate_action_label.modulate = Color.WHITE if quarter_units >= 16 or ultimate_steps > 0 else Color(1.0, 1.0, 1.0, 0.28)
 	if ultimate_steps > 0:
 		ultimate_action_label.text = "[Z] ULT %d" % ultimate_steps
 	else:

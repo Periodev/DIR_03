@@ -26,20 +26,18 @@ func choose_action(board: Node) -> int:
 		return ACTION_MOVE if chosen_direction != CharacterData.Direction.NONE else ACTION_NONE
 
 	var combo: int = board.score_manager.combo_counter
-	var energy: int = board.get_energy_half_units()
-	if energy >= board.ENERGY_HALF_UNITS_MAX and _should_activate_ultimate(board, combo):
+	var energy: int = board.get_energy_quarter_units()
+	if energy >= board.ENERGY_QUARTER_UNITS_MAX and _should_activate_ultimate(board, combo):
 		return ACTION_ULT
 
 	if not attack_directions.is_empty():
-		if combo >= 3 and energy >= board.ENERGY_SLOT_COST:
-			return ACTION_DASH
 		chosen_direction = _best_attack_direction(board, attack_directions)
 		return ACTION_MOVE
 
-	if combo >= 2 and energy >= board.ENERGY_SLOT_COST and _has_dash_continuation(board):
+	if _should_spend_dash_for_continuation(board, combo, energy):
 		return ACTION_DASH
 
-	if energy >= board.ENERGY_HALF_UNITS_MAX and _count_ultimate_targets(board) > 0:
+	if energy >= board.ENERGY_QUARTER_UNITS_MAX and _count_ultimate_targets(board) > 0:
 		return ACTION_ULT
 
 	chosen_direction = _best_normal_direction(board, false)
@@ -100,6 +98,28 @@ func _has_dash_continuation(board: Node) -> bool:
 		if _future_attack_count(board, target, direction) > 0:
 			return true
 	return false
+
+func _should_spend_dash_for_continuation(board: Node, combo: int, energy: int) -> bool:
+	if combo < 4 or energy < board.ENERGY_SLOT_COST:
+		return false
+	if not _has_dash_continuation(board):
+		return false
+	var next_combo_gain: int = _energy_gain_for_combo(combo + 1)
+	var reaches_ultimate: bool = (
+		energy - board.ENERGY_SLOT_COST + next_combo_gain >= board.ENERGY_QUARTER_UNITS_MAX
+	)
+	return energy < board.ENERGY_SLOT_COST * 2 or reaches_ultimate
+
+func _energy_gain_for_combo(combo: int) -> int:
+	if combo >= 6:
+		return 8
+	if combo >= 4:
+		return 4
+	if combo == 3:
+		return 2
+	if combo >= 1:
+		return 1
+	return 0
 
 func _direction_plan_score(board: Node, direction: int, preserve_combo: bool) -> float:
 	var target: Vector2i = board.player_pos + Vector2i(CharacterData.DIR_VECTOR[direction])
@@ -245,10 +265,17 @@ func _future_attack_count(board: Node, from_pos: Vector2i, gained_direction: int
 	return count
 
 func _should_activate_ultimate(board: Node, combo: int) -> bool:
-	var targets: int = _count_ultimate_targets(board)
-	if targets >= 2:
-		return true
-	return targets >= 1 and combo >= 5
+	if _count_dead_cells(board) == 0:
+		return false
+	return _best_ultimate_plan_score(board) > float(combo * combo) * 18.0
+
+func _count_dead_cells(board: Node) -> int:
+	var count: int = 0
+	for row in board.ROWS:
+		for column in board.COLS:
+			if board.grid[row][column] != CharacterData.CellType.LIVE:
+				count += 1
+	return count
 
 func _count_ultimate_targets(board: Node) -> int:
 	var count: int = 0
@@ -263,27 +290,178 @@ func _count_ultimate_targets(board: Node) -> int:
 func _best_ultimate_direction(board: Node) -> int:
 	var best_direction: int = CharacterData.Direction.NONE
 	var best_score: float = -INF
+	var grid: Array = board.grid.duplicate(true)
+	var queue: Array = board.inventory.queue.duplicate()
+	var remaining: int = board.get_ultimate_dashes_remaining()
 	for direction_value in CharacterData.DIR_VECTOR:
 		var direction: int = int(direction_value)
-		var destination: Vector2i = _ultimate_destination(board, direction)
+		var destination: Vector2i = _ultimate_destination_on_grid(
+			board, board.player_pos, grid, direction
+		)
 		if destination == board.player_pos:
 			continue
-		var distance: int = int(round(board.player_pos.distance_to(destination)))
-		var hits_dead: bool = board.grid[destination.y][destination.x] != CharacterData.CellType.LIVE
-		var score: float = (1000.0 if hits_dead else 0.0) - float(distance) * 6.0
-		score += float(_live_neighbor_count(board, destination)) * 10.0
+		var next_grid: Array = grid.duplicate(true)
+		var next_queue: Array = queue.duplicate()
+		var next_combo: int = board.score_manager.combo_counter
+		var score: float = _apply_simulated_ultimate_dash(
+			board,
+			destination,
+			direction,
+			next_grid,
+			next_queue,
+			next_combo,
+			remaining
+		)
+		if next_grid[destination.y][destination.x] == CharacterData.CellType.LIVE \
+				and grid[destination.y][destination.x] != CharacterData.CellType.LIVE:
+			next_combo += 1
+		score += _ultimate_sequence_score(
+			board,
+			destination,
+			next_grid,
+			next_queue,
+			next_combo,
+			remaining - 1
+		)
 		if score > best_score:
 			best_score = score
 			best_direction = direction
 	return best_direction
 
+func _best_ultimate_plan_score(board: Node) -> float:
+	var best_score: float = -INF
+	var grid: Array = board.grid.duplicate(true)
+	var queue: Array = board.inventory.queue.duplicate()
+	for direction_value in CharacterData.DIR_VECTOR:
+		var direction: int = int(direction_value)
+		var destination: Vector2i = _ultimate_destination_on_grid(
+			board, board.player_pos, grid, direction
+		)
+		if destination == board.player_pos:
+			continue
+		var next_grid: Array = grid.duplicate(true)
+		var next_queue: Array = queue.duplicate()
+		var next_combo: int = board.score_manager.combo_counter
+		var score: float = _apply_simulated_ultimate_dash(
+			board,
+			destination,
+			direction,
+			next_grid,
+			next_queue,
+			next_combo,
+			board.ULT_DASH_COUNT
+		)
+		if next_grid[destination.y][destination.x] == CharacterData.CellType.LIVE \
+				and grid[destination.y][destination.x] != CharacterData.CellType.LIVE:
+			next_combo += 1
+		score += _ultimate_sequence_score(
+			board,
+			destination,
+			next_grid,
+			next_queue,
+			next_combo,
+			board.ULT_DASH_COUNT - 1
+		)
+		best_score = maxf(best_score, score)
+	return best_score
+
+func _ultimate_sequence_score(
+	board: Node,
+	pos: Vector2i,
+	grid: Array,
+	queue: Array,
+	combo: int,
+	remaining: int
+) -> float:
+	if remaining <= 0:
+		return _ultimate_terminal_score(board, pos, grid, queue, combo)
+	var best_score: float = -INF
+	for direction_value in CharacterData.DIR_VECTOR:
+		var direction: int = int(direction_value)
+		var destination: Vector2i = _ultimate_destination_on_grid(board, pos, grid, direction)
+		if destination == pos:
+			continue
+		var next_grid: Array = grid.duplicate(true)
+		var next_queue: Array = queue.duplicate()
+		var next_combo: int = combo
+		var score: float = _apply_simulated_ultimate_dash(
+			board,
+			destination,
+			direction,
+			next_grid,
+			next_queue,
+			next_combo,
+			remaining
+		)
+		if next_grid[destination.y][destination.x] == CharacterData.CellType.LIVE \
+				and grid[destination.y][destination.x] != CharacterData.CellType.LIVE:
+			next_combo += 1
+		score += _ultimate_sequence_score(
+			board,
+			destination,
+			next_grid,
+			next_queue,
+			next_combo,
+			remaining - 1
+		)
+		best_score = maxf(best_score, score)
+	if best_score == -INF:
+		return _ultimate_terminal_score(board, pos, grid, queue, combo) - 3000.0
+	return best_score
+
+func _apply_simulated_ultimate_dash(
+	board: Node,
+	destination: Vector2i,
+	direction: int,
+	grid: Array,
+	queue: Array,
+	combo: int,
+	remaining: int
+) -> float:
+	var score: float = 0.0
+	if grid[destination.y][destination.x] != CharacterData.CellType.LIVE:
+		grid[destination.y][destination.x] = CharacterData.CellType.LIVE
+		score += _combo_kill_value(combo + 1)
+	_push_simulated_direction(queue, board.inventory.max_size, direction)
+	if remaining == 1 and board._will_spawn_hit_target_this_turn(destination):
+		score -= 5000.0
+	return score
+
+func _ultimate_terminal_score(
+	board: Node,
+	pos: Vector2i,
+	grid: Array,
+	queue: Array,
+	combo: int
+) -> float:
+	var continuation_count: int = 0
+	for direction_value in CharacterData.DIR_VECTOR:
+		var direction: int = int(direction_value)
+		var target: Vector2i = pos + Vector2i(CharacterData.DIR_VECTOR[direction])
+		if not board._is_inside_board(target):
+			continue
+		if grid[target.y][target.x] != CharacterData.CellType.LIVE and direction in queue:
+			continuation_count += 1
+	return (
+		_simulated_state_score(board, pos, grid, queue, combo)
+		+ float(continuation_count) * 1800.0
+	)
+
 func _ultimate_destination(board: Node, direction: int) -> Vector2i:
+	return _ultimate_destination_on_grid(board, board.player_pos, board.grid, direction)
+
+func _ultimate_destination_on_grid(
+	board: Node,
+	pos: Vector2i,
+	grid: Array,
+	direction: int
+) -> Vector2i:
 	var step: Vector2i = Vector2i(CharacterData.DIR_VECTOR[direction])
-	var cursor: Vector2i = board.player_pos + step
-	var destination: Vector2i = board.player_pos
+	var cursor: Vector2i = pos + step
+	var destination: Vector2i = pos
 	while board._is_inside_board(cursor):
 		destination = cursor
-		if board.grid[cursor.y][cursor.x] != CharacterData.CellType.LIVE:
+		if grid[cursor.y][cursor.x] != CharacterData.CellType.LIVE:
 			break
 		cursor += step
 	return destination
