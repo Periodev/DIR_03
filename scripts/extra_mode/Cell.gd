@@ -95,7 +95,8 @@ func _draw_spawn_warning_corners() -> void:
 func _draw_attack_chevron(center: Vector2, direction: int) -> void:
 	var forward := Vector2(CharacterData.DIR_VECTOR[direction])
 	var side := Vector2(-forward.y, forward.x)
-	var edge_center := center - forward * (CELL_SIZE * 0.38)
+	# Draw beyond this target cell so the prompt sits inside the adjacent player cell.
+	var edge_center := center - forward * (CELL_SIZE * 0.68)
 	var attack_color := Color(0.28, 0.92, 0.48)
 	_draw_chevron(edge_center, forward, side, 10.0, 8.0, 8.0, 7.0, 3.5, attack_color)
 

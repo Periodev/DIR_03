@@ -5,6 +5,8 @@ const PLNChargeGlow  = preload("res://scripts/extra_mode/PLNChargeGlow.gd")
 const PLNMoveTrail   = preload("res://scripts/extra_mode/PLNMoveTrail.gd")
 
 const WINDUP := PLNSlashEffect.WINDUP
+const NORMAL_CHARGE_SCALE := 0.8
+const ULT_WINDUP := WINDUP * 1.1
 const MOVE_DURATION := 0.07
 const ULT_MOVE_DURATION := 0.05
 const NORMAL_SLASH_WIDTH := 8.0
@@ -50,17 +52,27 @@ func play_attack(player: Node2D, dir: int, success: bool, is_dash: bool) -> void
 		tw.tween_property(player, "position", origin, back_dur)\
 		  .set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
-func get_hit_delay(is_dash: bool, move_duration_override: float = -1.0) -> float:
+func get_hit_delay(
+	is_dash: bool,
+	move_duration_override: float = -1.0,
+	windup_override: float = -1.0
+) -> float:
 	if is_dash:
 		var move_duration: float = MOVE_DURATION if move_duration_override < 0.0 else move_duration_override
-		return WINDUP + 0.03 + 0.10 + move_duration
+		var windup_duration: float = WINDUP if windup_override < 0.0 else windup_override
+		return windup_duration + 0.03 + 0.10 + move_duration
 	return 0.25
 
-func play_charge_preview(player: Node2D, dir: int) -> void:
+func play_charge_preview(
+	player: Node2D,
+	dir: int,
+	body_scale: float = NORMAL_CHARGE_SCALE,
+	windup_duration: float = WINDUP
+) -> void:
 	var glow: Node2D = Node2D.new()
 	glow.set_script(PLNChargeGlow)
 	player.add_child(glow)
-	glow.setup(dir, WINDUP)
+	glow.setup(dir, windup_duration, body_scale)
 
 func on_kill(_board: Node2D, _pos: Vector2i, _attack_dir: int) -> void:
 	pass
@@ -77,11 +89,13 @@ func begin_kill_anim(
 	dir: int,
 	slash_length_override: float = -1.0,
 	slash_width_override: float = NORMAL_SLASH_WIDTH,
-	move_duration_override: float = MOVE_DURATION
+	move_duration_override: float = MOVE_DURATION,
+	charge_scale: float = NORMAL_CHARGE_SCALE,
+	windup_duration: float = WINDUP
 ) -> void:
 	pending_kill_pos = target
 	defer_player_move = true
-	board.player_node.play_charge_preview(dir)
+	board.player_node.play_charge_preview(dir, charge_scale, windup_duration)
 	var dv: Vector2i = CharacterData.DIR_VECTOR[dir]
 	var slash_fx: Node2D = Node2D.new()
 	slash_fx.set_script(PLNSlashEffect)
@@ -91,8 +105,8 @@ func begin_kill_anim(
 	)
 	board.add_child(slash_fx)
 	var slash_length: float = 175.0 if slash_length_override < 0.0 else slash_length_override
-	slash_fx.setup(Vector2(dv), false, -1.0, true, slash_length, slash_width_override)
-	board.get_tree().create_timer(WINDUP + 0.03 + 0.10).timeout.connect(
+	slash_fx.setup(Vector2(dv), false, windup_duration, true, slash_length, slash_width_override)
+	board.get_tree().create_timer(windup_duration + 0.03 + 0.10).timeout.connect(
 		func(): trigger_move(board, move_duration_override))
 
 func trigger_move(board: Node2D, move_duration: float = MOVE_DURATION) -> void:

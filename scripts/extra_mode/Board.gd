@@ -25,7 +25,7 @@ signal board_updated
 signal spawn_hit_started(slot_count: int)
 
 var grid: Array = []  # grid[row][col] = CellType
-var player_pos: Vector2i = Vector2i(COLS / 2, ROWS / 2)
+var player_pos: Vector2i = Vector2i(int(COLS / 2.0), int(ROWS / 2.0))
 var player_facing_dir: int = CharacterData.Direction.UP
 var candidate_cells: Array = []  # Array of Vector2i
 var cycle_counter: int = 0
@@ -104,7 +104,7 @@ func restart() -> void:
 			row.append(CharacterData.CellType.LIVE)
 		grid.append(row)
 
-	player_pos = Vector2i(COLS / 2, ROWS / 2)
+	player_pos = Vector2i(int(COLS / 2.0), int(ROWS / 2.0))
 	player_facing_dir = CharacterData.Direction.UP
 	candidate_cells.clear()
 	cycle_counter = 0
@@ -273,6 +273,8 @@ func _get_move_memory_token(dir: int) -> int:
 	return dir
 
 func _will_spawn_hit_target_this_turn(target: Vector2i) -> bool:
+	if _opening_grace_turns_remaining > 0:
+		return false
 	if cycle_resolved:
 		return false
 	if cycle_counter + 1 < SPAWN_CYCLE_STEPS:
@@ -421,11 +423,17 @@ func _perform_dash_kill(target: Vector2i, dir: int) -> void:
 			dir,
 			slash_length,
 			CharacterImpl_PLN.ULT_SLASH_WIDTH,
-			CharacterImpl_PLN.ULT_MOVE_DURATION
+			CharacterImpl_PLN.ULT_MOVE_DURATION,
+			1.0,
+			CharacterImpl_PLN.ULT_WINDUP
 		)
 		game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
 		player_node.emit_animation_done_after(
-			player_node.get_hit_delay(true, CharacterImpl_PLN.ULT_MOVE_DURATION)
+			player_node.get_hit_delay(
+				true,
+				CharacterImpl_PLN.ULT_MOVE_DURATION,
+				CharacterImpl_PLN.ULT_WINDUP
+			)
 		)
 	else:
 		_action_animation_pending = true
@@ -710,6 +718,7 @@ func _finish_turn_presentation() -> void:
 
 func _sync_player_move_ready() -> void:
 	var ready_directions: Array[int] = []
+	var danger_directions: Array[int] = []
 	var bonus_directions: Array[int] = []
 	var ultimate_ready: bool = game_state.is_idle() and ultimate_dashes_remaining > 0
 	if game_state.is_idle() and bonus_step_armed:
@@ -726,11 +735,15 @@ func _sync_player_move_ready() -> void:
 				continue
 			if grid[target.y][target.x] == CharacterData.CellType.LIVE:
 				ready_directions.append(direction)
-	player_node.set_move_ready_directions(ready_directions)
+				if _will_spawn_hit_target_this_turn(target):
+					danger_directions.append(direction)
+	player_node.set_move_ready_directions(ready_directions, danger_directions)
 	player_node.set_bonus_step_directions(bonus_directions)
 	player_node.set_ultimate_dash_ready(ultimate_ready)
 
 func _clear_attack_prompts() -> void:
+	var no_directions: Array[int] = []
+	player_node.set_attack_ready_directions(no_directions)
 	for row_value in cell_nodes:
 		var row: Array = row_value
 		for cell_value in row:
@@ -741,12 +754,14 @@ func _refresh_attack_prompts() -> void:
 	_clear_attack_prompts()
 	if not game_state.is_idle() or bonus_step_armed or ultimate_dashes_remaining > 0:
 		return
+	var attack_directions: Array[int] = []
 	for direction in CharacterData.DIR_VECTOR:
 		var target: Vector2i = player_pos + CharacterData.DIR_VECTOR[direction]
 		if not _is_inside_board(target):
 			continue
 		if grid[target.y][target.x] == CharacterData.CellType.DEAD and _has_attack_direction(direction):
-			cell_nodes[target.y][target.x].set_attack_prompt(direction)
+			attack_directions.append(direction)
+	player_node.set_attack_ready_directions(attack_directions)
 
 func _update_board_offset() -> void:
 	var board_width: float = float(COLS - 1) * CELL_STEP + CELL_SIZE

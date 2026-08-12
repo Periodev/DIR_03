@@ -526,7 +526,7 @@ $checks = @(
 	},
 	@{
 		Name = "GDScript warning-prone names and integer division stay explicit"
-		Pass = $gameBoard -notmatch 'const\s+AsciiMapParser\s*=' -and $playerBoardView -notmatch 'func\s+set_grid_lines_visible\(visible:' -and $playerBoardView -notmatch 'start_displacement_tween\([^)]*\bease:' -and $classicLevelSelect -notmatch '\b(?:selected_index|index)\s*/\s*GRID_COLUMNS'
+		Pass = $gameBoard -notmatch 'const\s+AsciiMapParser\s*=' -and $playerBoardView -notmatch 'func\s+set_grid_lines_visible\(visible:' -and $playerBoardView -notmatch 'start_displacement_tween\([^)]*\bease:' -and $classicLevelSelect -notmatch '\b(?:selected_index|index)\s*/\s*GRID_COLUMNS' -and $playerBoardView -notmatch 'func\s+scale_points_from\([^)]*\bscale:\s*float' -and $worldMap -notmatch 'func\s+scale_points_from\([^)]*\bscale:\s*float' -and $titleScreen -notmatch 'func\s+scale_points_from\([^)]*\bscale:\s*float' -and $extraBoard -notmatch '\b(?:COLS|ROWS)\s*/\s*2(?!\.)'
 	},
 	@{
 		Name = "EXTRA PLN uses a three-slot rolling direction inventory"
@@ -545,8 +545,8 @@ $checks = @(
 		Pass = $extraBoard -match 'func\s+_check_game_over\(\)(?:(?!\r?\nfunc\s)[\s\S])*?var\s+character_data:\s*Dictionary\s*=\s*CharacterData\.CHARACTERS\[current_character\](?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*>=\s*ENERGY_QUARTER_UNITS_MAX\s+and\s+bool\(character_data\["has_ult"\]\):\s*\r?\n\s*return'
 	},
 	@{
-		Name = "EXTRA shows fixed double arrows while ULT input is ready"
-		Pass = $extraBoard -match 'var\s+ultimate_ready:\s*bool\s*=\s*game_state\.is_idle\(\)\s+and\s+ultimate_dashes_remaining\s*>\s*0' -and $extraBoard -match 'player_node\.set_ultimate_dash_ready\(ultimate_ready\)' -and $extraPlayer -match 'func\s+set_ultimate_dash_ready\(ready:\s*bool\)' -and $extraPlayer -match 'func\s+_draw_ultimate_dash_arrows\(\)' -and $extraPlayer -match 'INNER_DISTANCE\s*:=\s*47\.0' -and $extraPlayer -match 'OUTER_DISTANCE\s*:=\s*59\.0' -and $extraPlayer -match 'ULT_COLOR\s*:=\s*Color\("#47EB7A"\)'
+		Name = "EXTRA shows fixed large chevrons while ULT input is ready"
+		Pass = $extraBoard -match 'var\s+ultimate_ready:\s*bool\s*=\s*game_state\.is_idle\(\)\s+and\s+ultimate_dashes_remaining\s*>\s*0' -and $extraBoard -match 'player_node\.set_ultimate_dash_ready\(ultimate_ready\)' -and $extraPlayer -match 'func\s+set_ultimate_dash_ready\(ready:\s*bool\)' -and $extraPlayer -match 'func\s+_draw_ultimate_dash_arrows\(\)' -and $extraPlayer -match 'ARROW_DISTANCE\s*:=\s*70\.0' -and $extraPlayer -match 'ARROW_HALF_HEIGHT\s*:=\s*8\.0' -and $extraPlayer -match 'ULT_COLOR\s*:=\s*Color\(0\.28,\s*0\.92,\s*0\.48\)'
 	},
 	@{
 		Name = "EXTRA grants one opening charge turn before spawn progression"

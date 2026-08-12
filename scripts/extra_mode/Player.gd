@@ -5,12 +5,15 @@ signal movement_started
 signal movement_finished
 
 const CharacterImpl_PLN = preload("res://scripts/extra_mode/CharacterImpl_PLN.gd")
+const PLAYER_BODY_SCALE := 0.8
 
 var character_name: String = "PLN"
 var character_color: Color = Color(0.2, 0.8, 0.3)
 var character_shape: String = "blade_diamond"
 var facing_dir: int = CharacterData.Direction.UP
 var move_ready_directions: Array[int] = []
+var danger_move_directions: Array[int] = []
+var attack_ready_directions: Array[int] = []
 var bonus_step_directions: Array[int] = []
 var ultimate_dash_ready: bool = false
 var _char_impl  # CharacterImpl_PLN
@@ -33,16 +36,23 @@ func set_facing(dir: int) -> void:
 	facing_dir = dir
 	queue_redraw()
 
-func set_move_ready_directions(directions: Array[int]) -> void:
-	if move_ready_directions == directions:
+func set_move_ready_directions(directions: Array[int], danger_directions: Array[int] = []) -> void:
+	if move_ready_directions == directions and danger_move_directions == danger_directions:
 		return
 	move_ready_directions = directions.duplicate()
+	danger_move_directions = danger_directions.duplicate()
 	queue_redraw()
 
 func set_bonus_step_directions(directions: Array[int]) -> void:
 	if bonus_step_directions == directions:
 		return
 	bonus_step_directions = directions.duplicate()
+	queue_redraw()
+
+func set_attack_ready_directions(directions: Array[int]) -> void:
+	if attack_ready_directions == directions:
+		return
+	attack_ready_directions = directions.duplicate()
 	queue_redraw()
 
 func set_ultimate_dash_ready(ready: bool) -> void:
@@ -56,8 +66,11 @@ func _draw() -> void:
 		_draw_ultimate_dash_arrows()
 	elif not bonus_step_directions.is_empty():
 		_draw_bonus_step_arrows()
-	elif not move_ready_directions.is_empty():
-		_draw_move_ready_arrows()
+	else:
+		if not move_ready_directions.is_empty():
+			_draw_move_ready_arrows()
+		if not attack_ready_directions.is_empty():
+			_draw_attack_ready_arrows()
 	var points: PackedVector2Array
 	match character_shape:
 		"blade_diamond":
@@ -70,7 +83,7 @@ func _draw() -> void:
 			var angle := _facing_to_angle(facing_dir)
 			points = PackedVector2Array()
 			for p in base:
-				points.append(p.rotated(angle))
+				points.append((p * PLAYER_BODY_SCALE).rotated(angle))
 		_:
 			points = _make_polygon(6, 20.0, 0.0)
 
@@ -78,13 +91,15 @@ func _draw() -> void:
 	draw_polyline(points + PackedVector2Array([points[0]]), Color.WHITE, 2.0)
 
 func _draw_move_ready_arrows() -> void:
-	const ARROW_DISTANCE := 70.0
+	const ARROW_DISTANCE := 42.0
 	const ARROW_FRONT_DEPTH := 5.0
 	const ARROW_REAR_DEPTH := 3.0
 	const ARROW_HALF_HEIGHT := 4.0
 	const ARROW_WIDTH := 2.0
-	var arrow_color := Color(1.0, 1.0, 1.0, 0.72)
+	var normal_color := Color(1.0, 1.0, 1.0, 0.72)
+	var danger_color := Color(0.94, 0.24, 0.20, 0.95)
 	for direction in move_ready_directions:
+		var arrow_color: Color = danger_color if direction in danger_move_directions else normal_color
 		var forward := Vector2(CharacterData.DIR_VECTOR[direction])
 		var side := Vector2(-forward.y, forward.x)
 		var center := forward * ARROW_DISTANCE
@@ -98,7 +113,7 @@ func _draw_move_ready_arrows() -> void:
 		draw_polyline(arrow, arrow_color, ARROW_WIDTH, true)
 
 func _draw_bonus_step_arrows() -> void:
-	const ARROW_DISTANCE := 70.0
+	const ARROW_DISTANCE := 40.0
 	const ARROW_FRONT_DEPTH := 8.0
 	const ARROW_REAR_DEPTH := 5.0
 	const ARROW_HALF_HEIGHT := 6.0
@@ -119,31 +134,50 @@ func _draw_bonus_step_arrows() -> void:
 		draw_polyline(arrow, Color(0.08, 0.09, 0.11, 0.9), OUTLINE_WIDTH, true)
 		draw_polyline(arrow, arrow_color, FILL_WIDTH, true)
 
+func _draw_attack_ready_arrows() -> void:
+	const ARROW_DISTANCE := 46.0
+	const ARROW_FRONT_DEPTH := 6.0
+	const ARROW_REAR_DEPTH := 4.0
+	const ARROW_HALF_HEIGHT := 5.0
+	const OUTLINE_WIDTH := 5.0
+	const FILL_WIDTH := 2.5
+	var arrow_color := Color(0.28, 0.92, 0.48)
+	for direction in attack_ready_directions:
+		var forward := Vector2(CharacterData.DIR_VECTOR[direction])
+		var side := Vector2(-forward.y, forward.x)
+		var center := forward * ARROW_DISTANCE
+		var tip := center + forward * ARROW_FRONT_DEPTH
+		var rear := center - forward * ARROW_REAR_DEPTH
+		var arrow := PackedVector2Array([
+			rear + side * ARROW_HALF_HEIGHT,
+			tip,
+			rear - side * ARROW_HALF_HEIGHT,
+		])
+		draw_polyline(arrow, Color(0.08, 0.09, 0.11, 0.9), OUTLINE_WIDTH, true)
+		draw_polyline(arrow, arrow_color, FILL_WIDTH, true)
+
 func _draw_ultimate_dash_arrows() -> void:
-	const INNER_DISTANCE := 47.0
-	const OUTER_DISTANCE := 59.0
-	const FRONT_DEPTH := 7.0
-	const REAR_DEPTH := 5.0
-	const HALF_HEIGHT := 6.0
-	const OUTLINE_WIDTH := 6.0
-	const FILL_WIDTH := 3.0
-	const ULT_COLOR := Color("#47EB7A")
+	const ARROW_DISTANCE := 70.0
+	const ARROW_FRONT_DEPTH := 10.0
+	const ARROW_REAR_DEPTH := 8.0
+	const ARROW_HALF_HEIGHT := 8.0
+	const OUTLINE_WIDTH := 7.0
+	const FILL_WIDTH := 3.5
+	const ULT_COLOR := Color(0.28, 0.92, 0.48)
 	for direction_value in CharacterData.DIR_VECTOR:
 		var direction: int = int(direction_value)
 		var forward: Vector2 = Vector2(CharacterData.DIR_VECTOR[direction])
 		var side: Vector2 = Vector2(-forward.y, forward.x)
-		for distance_value in [INNER_DISTANCE, OUTER_DISTANCE]:
-			var distance: float = float(distance_value)
-			var center: Vector2 = forward * distance
-			var tip: Vector2 = center + forward * FRONT_DEPTH
-			var rear: Vector2 = center - forward * REAR_DEPTH
-			var arrow := PackedVector2Array([
-				rear + side * HALF_HEIGHT,
-				tip,
-				rear - side * HALF_HEIGHT,
-			])
-			draw_polyline(arrow, Color(0.08, 0.09, 0.11, 0.95), OUTLINE_WIDTH, true)
-			draw_polyline(arrow, ULT_COLOR, FILL_WIDTH, true)
+		var center := forward * ARROW_DISTANCE
+		var tip := center + forward * ARROW_FRONT_DEPTH
+		var rear := center - forward * ARROW_REAR_DEPTH
+		var arrow := PackedVector2Array([
+			rear + side * ARROW_HALF_HEIGHT,
+			tip,
+			rear - side * ARROW_HALF_HEIGHT,
+		])
+		draw_polyline(arrow, Color(0.08, 0.09, 0.11, 0.95), OUTLINE_WIDTH, true)
+		draw_polyline(arrow, ULT_COLOR, FILL_WIDTH, true)
 
 func play_move(from_pos: Vector2, move_duration_override: float = -1.0) -> void:
 	if _move_tween != null and _move_tween.is_valid():
@@ -166,11 +200,19 @@ func emit_animation_done_after(delay: float) -> void:
 	get_tree().create_timer(delay).timeout.connect(
 		func(): animation_done.emit(), CONNECT_ONE_SHOT)
 
-func play_charge_preview(dir: int) -> void:
-	_char_impl.play_charge_preview(self, dir)
+func play_charge_preview(
+	dir: int,
+	body_scale: float = CharacterImpl_PLN.NORMAL_CHARGE_SCALE,
+	windup_duration: float = CharacterImpl_PLN.WINDUP
+) -> void:
+	_char_impl.play_charge_preview(self, dir, body_scale, windup_duration)
 
-func get_hit_delay(is_dash: bool = false, move_duration_override: float = -1.0) -> float:
-	return _char_impl.get_hit_delay(is_dash, move_duration_override)
+func get_hit_delay(
+	is_dash: bool = false,
+	move_duration_override: float = -1.0,
+	windup_override: float = -1.0
+) -> float:
+	return _char_impl.get_hit_delay(is_dash, move_duration_override, windup_override)
 
 func play_spawn_hit() -> void:
 	if _feedback_tween != null and _feedback_tween.is_valid():

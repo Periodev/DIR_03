@@ -1,11 +1,17 @@
 extends SceneTree
 
 const BoardScript = preload("res://scripts/extra_mode/Board.gd")
+const CharacterImpl_PLN = preload("res://scripts/extra_mode/CharacterImpl_PLN.gd")
 
 func _initialize() -> void:
 	call_deferred("run_verification")
 
 func run_verification() -> void:
+	if not is_equal_approx(CharacterImpl_PLN.NORMAL_CHARGE_SCALE, 0.8) \
+			or not is_equal_approx(CharacterImpl_PLN.ULT_WINDUP, CharacterImpl_PLN.WINDUP * 1.1):
+		fail("Normal and ULT charge presentation no longer use their distinct scale and timing.")
+		return
+
 	var score_fixture := ScoreManager.new()
 	score_fixture.combo_counter = 4
 	score_fixture.on_kill(CharacterData.CellType.DEAD)
@@ -39,6 +45,27 @@ func run_verification() -> void:
 	if board._player_move_visual_pending:
 		fail("Fresh Board startup created a false player movement tween.")
 		return
+	var danger_direction: int = CharacterData.Direction.LEFT
+	var danger_target: Vector2i = board.player_pos + CharacterData.DIR_VECTOR[danger_direction]
+	board.candidate_cells = [danger_target]
+	board.cycle_counter = board.SPAWN_CYCLE_STEPS - 1
+	board._opening_grace_turns_remaining = 1
+	board._sync_player_move_ready()
+	if danger_direction in board.player_node.danger_move_directions:
+		fail("Opening grace incorrectly marked a move as immediate spawn danger.")
+		return
+	board._opening_grace_turns_remaining = 0
+	board._sync_player_move_ready()
+	if danger_direction not in board.player_node.danger_move_directions:
+		fail("A move into this turn's spawn cell was not marked as dangerous.")
+		return
+	board.bonus_step_armed = true
+	board._sync_player_move_ready()
+	if not board.player_node.danger_move_directions.is_empty():
+		fail("A spawn-frozen bonus step retained an immediate danger marker.")
+		return
+	board.restart()
+	await process_frame
 	await create_timer(0.5).timeout
 	for direction_value in CharacterData.DIR_VECTOR:
 		var direction: int = int(direction_value)
@@ -143,6 +170,9 @@ func run_verification() -> void:
 	board._refresh_attack_prompts()
 	if ult_prompt_cell.attack_prompt_direction != CharacterData.Direction.NONE:
 		fail("A normal attack prompt remained visible during ULT.")
+		return
+	if not board.player_node.attack_ready_directions.is_empty():
+		fail("A player-layer attack prompt remained visible during ULT.")
 		return
 
 	board.player_pos = Vector2i(0, 0)

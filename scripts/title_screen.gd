@@ -661,12 +661,12 @@ func chevron_points(
 func scale_points_from(
 	points: PackedVector2Array,
 	origin: Vector2,
-	scale: float
+	scale_factor: float
 ) -> PackedVector2Array:
 	var scaled := PackedVector2Array()
 	scaled.resize(points.size())
 	for index in range(points.size()):
-		scaled[index] = origin + (points[index] - origin) * scale
+		scaled[index] = origin + (points[index] - origin) * scale_factor
 	return scaled
 
 

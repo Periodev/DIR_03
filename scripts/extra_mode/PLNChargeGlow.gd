@@ -11,8 +11,9 @@ var _alpha: float = 1.0
 var _scale_mul: float = 1.16
 var _progress: float = 0.0
 
-func setup(facing_dir: int, hold_duration: float) -> void:
+func setup(facing_dir: int, hold_duration: float, body_scale: float = 1.0) -> void:
 	_angle = _facing_to_angle(facing_dir)
+	scale = Vector2.ONE * body_scale
 	z_index = 7
 	queue_redraw()
 
