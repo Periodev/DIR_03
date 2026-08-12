@@ -11,7 +11,7 @@ const MIN_SIDE_MARGIN := 48.0
 const MAX_SIDE_MARGIN := 96.0
 const SIDE_MARGIN_RATIO := 0.07
 const HEADER_BOTTOM := 96.0
-const BOTTOM_MARGIN := 48.0
+const BOTTOM_MARGIN := 88.0
 const TILE_GAP := 8.0
 const LEVEL_NAME_GAP := 20.0
 const LEVEL_NAME_HEIGHT := 24.0
@@ -31,6 +31,8 @@ const TITLE_BUTTON_ICON_SIZE := 36.0
 const TITLE_BUTTON_GAP := 10.0
 const TITLE_BUTTON_FONT_SIZE := 24
 const TITLE_BUTTON_MARGIN_X := 18.0
+const CONFIRM_HINT_BOTTOM_MARGIN := 36.0
+const CONFIRM_HINT_FONT_SIZE := 18
 
 var palette: Dictionary = VisualStyle.theme(false)
 var entries: Array[Dictionary] = []
@@ -469,17 +471,35 @@ func _draw() -> void:
 	draw_selected_level_name()
 	draw_hovered_level_name()
 	draw_area_arrows()
+	draw_confirm_hint()
 
 
 func draw_header() -> void:
-	var viewport_width := get_viewport_rect().size.x
-	draw_text_centered(
-		Rect2(0, 22, viewport_width, 28),
-		"LEVEL SELECT",
-		21,
-		palette["text_hi"]
-	)
 	draw_title_button()
+
+
+func draw_confirm_hint() -> void:
+	var viewport_rect := get_viewport_rect()
+	var page: Array = current_page_entries()
+	var color: Color = palette["text_hi"]
+	var selection_unlocked := false
+	if not page.is_empty():
+		var selected_entry: Dictionary = page[selected_index]
+		selection_unlocked = is_entry_unlocked(selected_entry)
+	if not selection_unlocked:
+		color = palette["text_dim"]
+		color.a *= 0.55
+	draw_text_centered(
+		Rect2(
+			0.0,
+			viewport_rect.end.y - CONFIRM_HINT_BOTTOM_MARGIN - 16.0,
+			viewport_rect.size.x,
+			32.0
+		),
+		"SPACE / ENTER  SELECT LEVEL",
+		CONFIRM_HINT_FONT_SIZE,
+		color
+	)
 
 
 func draw_title_button() -> void:

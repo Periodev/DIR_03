@@ -7,14 +7,19 @@ const TITLE_FONT_SIZE := 64
 const OPTION_FONT_SIZE := 28
 const GRID_SPACING := 96.0
 const MENU_CELL_SIZE := 288.0
-const MENU_CENTER_Y_RATIO := 0.61
-const TITLE_CONTENT_OFFSET_Y := -40.0
+const MENU_CENTER_Y_RATIO := 0.5
+const TITLE_CONTENT_OFFSET_Y := -64.0
 const HORIZONTAL_OPTION_DISTANCE := 290.0
 const VERTICAL_OPTION_DISTANCE := 235.0
-const OPTION_BOX_SIZE := Vector2(200.0, 72.0)
+const OPTION_BOX_SIZE := Vector2(168.0, 58.0)
 const OPTION_BOX_WIDTH := 1.0
 const HOVER_OPTION_BOX_WIDTH := 2.0
 const SELECTED_OPTION_BOX_WIDTH := 3.0
+const CONFIRM_HINT_BOTTOM_MARGIN := 36.0
+const CONFIRM_HINT_FONT_SIZE := 18
+const CONFIRM_HINT_SPACE_WIDTH := 84.0
+const CONFIRM_HINT_ENTER_WIDTH := 86.0
+const CONFIRM_HINT_GAP := 12.0
 const MAIN_OPTION_OFFSETS := {
 	Vector2i.UP: Vector2.UP * VERTICAL_OPTION_DISTANCE,
 	Vector2i.LEFT: Vector2.LEFT * HORIZONTAL_OPTION_DISTANCE,
@@ -24,6 +29,7 @@ const MAIN_OPTION_OFFSETS := {
 const CONFIRM_HOLD_SECONDS := 0.16
 const CONFIG_OPTION_BOX_SIZE := Vector2(360.0, 64.0)
 const CONFIG_OPTION_GAP := 78.0
+const CONFIG_PANEL_VERTICAL_MARGIN := 80.0
 const CONFIG_PANEL_OFFSET_X := 370.0
 const INFO_PANEL_OFFSET_X := 370.0
 const CONFIG_AUDIO_STEP := 10
@@ -57,6 +63,11 @@ var config_action_tween: Tween
 var config_action_callback := Callable()
 var hovered_config_index := -1
 var info_back_hovered := false
+var confirm_hint_alpha := 0.78:
+	set(value):
+		confirm_hint_alpha = value
+		queue_redraw()
+var confirm_hint_tween: Tween
 
 
 func _ready() -> void:
@@ -115,11 +126,12 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func handle_config_input(event: InputEvent) -> void:
+	var option_count := config_option_count()
 	if event.is_action_pressed("move_up"):
-		config_index = posmod(config_index - 1, 4)
+		config_index = posmod(config_index - 1, option_count)
 		queue_redraw()
 	elif event.is_action_pressed("move_down"):
-		config_index = posmod(config_index + 1, 4)
+		config_index = posmod(config_index + 1, option_count)
 		queue_redraw()
 	elif event.is_action_pressed("move_left"):
 		adjust_config(-1)
@@ -145,7 +157,7 @@ func handle_mouse_motion(pos: Vector2) -> void:
 					break
 		MenuMode.CONFIG:
 			var new_index := -1
-			for index in 4:
+			for index in config_option_count():
 				if config_option_rect(index).has_point(pos):
 					new_index = index
 					break
@@ -170,7 +182,7 @@ func handle_mouse_click(pos: Vector2) -> void:
 					activate_selection()
 					return
 		MenuMode.CONFIG:
-			for index in 4:
+			for index in config_option_count():
 				if config_option_rect(index).has_point(pos):
 					config_index = index
 					if index == 2:
@@ -192,7 +204,7 @@ func compute_menu_center() -> Vector2:
 	var viewport_rect := get_viewport_rect()
 	return Vector2(
 		viewport_rect.get_center().x,
-		viewport_rect.size.y * MENU_CENTER_Y_RATIO + TITLE_CONTENT_OFFSET_Y
+		viewport_rect.size.y * MENU_CENTER_Y_RATIO
 	)
 
 
@@ -204,11 +216,38 @@ func main_option_rect(direction: Vector2i) -> Rect2:
 
 func config_list_center() -> Vector2:
 	var center := compute_menu_center()
-	return Vector2(center.x + CONFIG_PANEL_OFFSET_X, center.y - CONFIG_OPTION_GAP * 0.5)
+	return Vector2(center.x + CONFIG_PANEL_OFFSET_X, center.y)
+
+
+func config_labels() -> Array[String]:
+	return [
+		"FULLSCREEN  %s" % fullscreen_label(),
+		"GRID  %s" % ("ON" if Campaign.grid_lines_visible else "OFF"),
+		"AUDIO",
+		"BACK",
+	]
+
+
+func config_option_count() -> int:
+	return config_labels().size()
+
+
+func config_option_gap(option_count: int) -> float:
+	if option_count <= 1:
+		return 0.0
+	var available_height := get_viewport_rect().size.y - CONFIG_PANEL_VERTICAL_MARGIN * 2.0
+	var fitted_gap := (available_height - CONFIG_OPTION_BOX_SIZE.y) / float(option_count - 1)
+	return clampf(fitted_gap, CONFIG_OPTION_BOX_SIZE.y + 8.0, CONFIG_OPTION_GAP)
+
+
+func config_option_center(index: int) -> Vector2:
+	var option_count := config_option_count()
+	var centered_index := float(index) - float(option_count - 1) / 2.0
+	return config_list_center() + Vector2(0.0, centered_index * config_option_gap(option_count))
 
 
 func config_option_rect(index: int) -> Rect2:
-	var center := config_list_center() + Vector2(0.0, (float(index) - 1.5) * CONFIG_OPTION_GAP)
+	var center := config_option_center(index)
 	return Rect2(center - CONFIG_OPTION_BOX_SIZE / 2.0, CONFIG_OPTION_BOX_SIZE)
 
 
@@ -222,7 +261,19 @@ func select_direction(direction: Vector2i) -> void:
 	if selected_direction == direction:
 		return
 	selected_direction = direction
+	pulse_confirm_hint()
 	queue_redraw()
+
+
+func pulse_confirm_hint() -> void:
+	if confirm_hint_tween != null and confirm_hint_tween.is_valid():
+		confirm_hint_tween.kill()
+	confirm_hint_alpha = 0.78
+	confirm_hint_tween = create_tween()
+	confirm_hint_tween.tween_property(self, "confirm_hint_alpha", 1.0, 0.08) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	confirm_hint_tween.tween_property(self, "confirm_hint_alpha", 0.78, 0.16) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 
 
 func activate_selection() -> void:
@@ -384,7 +435,7 @@ func _draw() -> void:
 
 	var menu_center := Vector2(
 		viewport_rect.get_center().x,
-		viewport_rect.size.y * MENU_CENTER_Y_RATIO + TITLE_CONTENT_OFFSET_Y
+		viewport_rect.size.y * MENU_CENTER_Y_RATIO
 	)
 	draw_centered_text(
 		Vector2(
@@ -414,22 +465,62 @@ func draw_main_menu(menu_center: Vector2) -> void:
 		extra_unlocked()
 	)
 	draw_player_mark(menu_center)
+	draw_confirm_hint()
 
 
+func draw_confirm_hint() -> void:
+	var viewport_rect := get_viewport_rect()
+	var center := Vector2(
+		viewport_rect.get_center().x,
+		viewport_rect.end.y - CONFIRM_HINT_BOTTOM_MARGIN
+	)
+	var key_color: Color = palette["text_hi"]
+	key_color.a *= confirm_hint_alpha
+	var label_color: Color = palette["text_dim"]
+	label_color.a *= confirm_hint_alpha
+	var slash_width: float = ui_font.get_string_size(
+		"/", HORIZONTAL_ALIGNMENT_LEFT, -1, CONFIRM_HINT_FONT_SIZE
+	).x
+	var select_width: float = ui_font.get_string_size(
+		"SELECT", HORIZONTAL_ALIGNMENT_LEFT, -1, CONFIRM_HINT_FONT_SIZE
+	).x
+	var total_width := (
+		CONFIRM_HINT_SPACE_WIDTH
+		+ CONFIRM_HINT_GAP
+		+ slash_width
+		+ CONFIRM_HINT_GAP
+		+ CONFIRM_HINT_ENTER_WIDTH
+		+ CONFIRM_HINT_GAP * 1.5
+		+ select_width
+	)
+	var cursor_x := center.x - total_width / 2.0
+	draw_centered_text(
+		Vector2(cursor_x + CONFIRM_HINT_SPACE_WIDTH / 2.0, center.y),
+		"SPACE",
+		CONFIRM_HINT_FONT_SIZE,
+		key_color
+	)
+	cursor_x += CONFIRM_HINT_SPACE_WIDTH + CONFIRM_HINT_GAP
+	draw_centered_text(Vector2(cursor_x + slash_width / 2.0, center.y), "/", CONFIRM_HINT_FONT_SIZE, label_color)
+	cursor_x += slash_width + CONFIRM_HINT_GAP
+	draw_centered_text(
+		Vector2(cursor_x + CONFIRM_HINT_ENTER_WIDTH / 2.0, center.y),
+		"ENTER",
+		CONFIRM_HINT_FONT_SIZE,
+		key_color
+	)
+	cursor_x += CONFIRM_HINT_ENTER_WIDTH + CONFIRM_HINT_GAP * 1.5
+	draw_centered_text(
+		Vector2(cursor_x + select_width / 2.0, center.y),
+		"SELECT",
+		CONFIRM_HINT_FONT_SIZE,
+		label_color
+	)
 func draw_config_menu(menu_center: Vector2) -> void:
 	draw_player_mark(menu_center)
-	var labels: Array[String] = [
-		"FULLSCREEN  %s" % fullscreen_label(),
-		"GRID  %s" % ("ON" if Campaign.grid_lines_visible else "OFF"),
-		"AUDIO",
-		"BACK",
-	]
-	var list_center := Vector2(
-		menu_center.x + CONFIG_PANEL_OFFSET_X,
-		menu_center.y - CONFIG_OPTION_GAP * 0.5
-	)
+	var labels := config_labels()
 	for index in labels.size():
-		var center := list_center + Vector2(0.0, (float(index) - 1.5) * CONFIG_OPTION_GAP)
+		var center := config_option_center(index)
 		if index == 2:
 			draw_audio_option(center, index == config_index, index == hovered_config_index)
 		else:
