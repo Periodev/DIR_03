@@ -11,6 +11,9 @@ func run_verification() -> void:
 			or not is_equal_approx(CharacterImpl_PLN.ULT_WINDUP, CharacterImpl_PLN.WINDUP * 1.1):
 		fail("Normal and ULT charge presentation no longer use their distinct scale and timing.")
 		return
+	if not is_equal_approx(CharacterImpl_PLN.NORMAL_SLASH_LENGTH, 145.0):
+		fail("Normal slash no longer ends just beyond an adjacent enemy.")
+		return
 
 	var score_fixture := ScoreManager.new()
 	score_fixture.combo_counter = 4

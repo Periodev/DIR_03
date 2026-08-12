@@ -65,7 +65,7 @@ func _ready() -> void:
 	dash_action_label = Label.new()
 	dash_action_label.text = "[X] DASH"
 	dash_action_label.add_theme_font_size_override("font_size", 20)
-	dash_action_label.add_theme_color_override("font_color", Color("#55DDE0"))
+	dash_action_label.add_theme_color_override("font_color", Color("#C8E64A"))
 	dash_action_label.custom_minimum_size = Vector2(116, 36)
 	dash_action_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	dash_action_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -239,7 +239,7 @@ func update_ai_status(enabled: bool) -> void:
 	ai_status_label.text = "[F4] AI ON" if enabled else "[F4] AI"
 	ai_status_label.add_theme_color_override(
 		"font_color",
-		Color("#55DDE0") if enabled else Color(0.68, 0.70, 0.74)
+		Color("#C8E64A") if enabled else Color(0.68, 0.70, 0.74)
 	)
 
 func play_inventory_hit(slot_count: int) -> void:

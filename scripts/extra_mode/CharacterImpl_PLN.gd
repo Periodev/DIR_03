@@ -9,6 +9,7 @@ const NORMAL_CHARGE_SCALE := 0.8
 const ULT_WINDUP := WINDUP * 1.1
 const MOVE_DURATION := 0.07
 const ULT_MOVE_DURATION := 0.05
+const NORMAL_SLASH_LENGTH := 145.0
 const NORMAL_SLASH_WIDTH := 8.0
 const ULT_SLASH_WIDTH := PLNSlashEffect.MAX_WIDTH
 
@@ -104,7 +105,7 @@ func begin_kill_anim(
 		origin.y * board.CELL_STEP + board.CELL_SIZE / 2.0
 	)
 	board.add_child(slash_fx)
-	var slash_length: float = 175.0 if slash_length_override < 0.0 else slash_length_override
+	var slash_length: float = NORMAL_SLASH_LENGTH if slash_length_override < 0.0 else slash_length_override
 	slash_fx.setup(Vector2(dv), false, windup_duration, true, slash_length, slash_width_override)
 	board.get_tree().create_timer(windup_duration + 0.03 + 0.10).timeout.connect(
 		func(): trigger_move(board, move_duration_override))

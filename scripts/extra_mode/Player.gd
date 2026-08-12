@@ -119,7 +119,7 @@ func _draw_bonus_step_arrows() -> void:
 	const ARROW_HALF_HEIGHT := 6.0
 	const OUTLINE_WIDTH := 6.0
 	const FILL_WIDTH := 3.5
-	var arrow_color := Color("#55DDE0")
+	var arrow_color := Color("#C8E64A")
 	for direction in bonus_step_directions:
 		var forward := Vector2(CharacterData.DIR_VECTOR[direction])
 		var side := Vector2(-forward.y, forward.x)
