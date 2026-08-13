@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 from solver.engine import run_commands
+from solver.model import Direction
 from solver.parser import load_level, parse_level
 from solver.search import solve_astar, solve_bfs
 
@@ -22,6 +24,10 @@ class SearchTests(unittest.TestCase):
 
     def test_counts_turn_before_opposite_push(self) -> None:
         level = parse_level("*A@")
+        level = replace(
+            level,
+            initial_state=replace(level.initial_state, facing=Direction.RIGHT),
+        )
 
         result = solve_bfs(level)
 
@@ -39,6 +45,10 @@ class SearchTests(unittest.TestCase):
 
     def test_astar_finds_same_shortest_turning_solution(self) -> None:
         level = parse_level("*A@")
+        level = replace(
+            level,
+            initial_state=replace(level.initial_state, facing=Direction.RIGHT),
+        )
 
         result = solve_astar(level)
 
@@ -47,6 +57,10 @@ class SearchTests(unittest.TestCase):
 
     def test_astar_respects_inclusive_upper_bound(self) -> None:
         level = parse_level("*A@")
+        level = replace(
+            level,
+            initial_state=replace(level.initial_state, facing=Direction.RIGHT),
+        )
 
         too_short = solve_astar(level, upper_bound=1)
         exact = solve_astar(level, upper_bound=2)

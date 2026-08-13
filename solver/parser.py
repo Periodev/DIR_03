@@ -230,7 +230,7 @@ def _build_level(
 ) -> Level:
     initial_state = State(
         player=cells.player,
-        facing=Direction.RIGHT,
+        facing=_facing_toward_nearest_block(cells.player, cells.blocks),
         queue=None,
         blocks=cells.blocks,
     )
@@ -243,3 +243,22 @@ def _build_level(
         block_specs=cells.specs,
         initial_state=initial_state,
     )
+
+
+def _facing_toward_nearest_block(
+    player: Position,
+    blocks: tuple[BlockState, ...],
+) -> Direction:
+    if not blocks:
+        return Direction.RIGHT
+
+    nearest = min(
+        blocks,
+        key=lambda block: abs(block.position[0] - player[0])
+        + abs(block.position[1] - player[1]),
+    )
+    dx = nearest.position[0] - player[0]
+    dy = nearest.position[1] - player[1]
+    if abs(dx) >= abs(dy) and dx != 0:
+        return Direction.RIGHT if dx > 0 else Direction.LEFT
+    return Direction.DOWN if dy > 0 else Direction.UP

@@ -26,6 +26,7 @@ $levelPath = Join-Path $root "levels/level_test.txt"
 $projectPath = Join-Path $root "project.godot"
 $editorPath = Join-Path $root "tools/level_editor.html"
 $playerAnimationCheckPath = Join-Path $root "tools/verify_player_animation.gd"
+$initialFacingCheckPath = Join-Path $root "tools/verify_initial_facing.gd"
 $pyprojectPath = Join-Path $root "pyproject.toml"
 $solverCliPath = Join-Path $root "solver/cli.py"
 $extraBoardPath = Join-Path $root "scripts/extra_mode/Board.gd"
@@ -63,6 +64,7 @@ $level = Get-Content -LiteralPath $levelPath -Raw
 $project = Get-Content -LiteralPath $projectPath -Raw
 $editor = Get-Content -LiteralPath $editorPath -Raw
 $playerAnimationCheck = Get-Content -LiteralPath $playerAnimationCheckPath -Raw
+$initialFacingCheck = Get-Content -LiteralPath $initialFacingCheckPath -Raw
 $pyproject = Get-Content -LiteralPath $pyprojectPath -Raw
 $solverCli = Get-Content -LiteralPath $solverCliPath -Raw
 $extraBoard = Get-Content -LiteralPath $extraBoardPath -Raw
@@ -87,6 +89,10 @@ $checks = @(
 	@{
 		Name = "main.gd tracks install_order by block id"
 		Pass = $main -match "var\s+install_order:\s*Array\[int\]"
+	},
+	@{
+		Name = "levels initialize player facing toward the nearest block"
+		Pass = $gameBoard -match 'func\s+face_nearest_initial_block\(' -and ([regex]::Matches($gameBoard, 'face_nearest_initial_block\(\)').Count -ge 3) -and $gameBoard -match 'func\s+manhattan_distance\(' -and $initialFacingCheck -match 'PASS: initial facing follows the nearest block'
 	},
 	@{
 		Name = "main.gd removed old momentum_slot"

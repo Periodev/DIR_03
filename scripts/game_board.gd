@@ -508,10 +508,9 @@ func reset_level() -> void:
 	reset_completion_feedback()
 	player_cell = initial_player_cell
 	player_queue = ""
-	facing_direction = Vector2i.RIGHT
-	facing_name = "Right"
 	level_completed = false
 	blocks = duplicate_initial_blocks()
+	face_nearest_initial_block()
 	install_order.clear()
 	command_history.clear()
 	undo_stack.clear()
@@ -659,7 +658,36 @@ func set_level_from_text(source: String) -> String:
 	static_dead_cells = calculate_static_dead_cells()
 	player_cell = initial_player_cell
 	blocks = duplicate_initial_blocks()
+	face_nearest_initial_block()
 	return ""
+
+
+func face_nearest_initial_block() -> void:
+	facing_direction = Vector2i.RIGHT
+	facing_name = "Right"
+	if blocks.is_empty():
+		return
+
+	var nearest_cell: Vector2i = Vector2i(blocks[0]["cell"])
+	var nearest_distance: int = manhattan_distance(player_cell, nearest_cell)
+	for block_index in range(1, blocks.size()):
+		var block_cell: Vector2i = Vector2i(blocks[block_index]["cell"])
+		var block_distance: int = manhattan_distance(player_cell, block_cell)
+		if block_distance < nearest_distance:
+			nearest_cell = block_cell
+			nearest_distance = block_distance
+
+	var delta: Vector2i = nearest_cell - player_cell
+	if absi(delta.x) >= absi(delta.y) and delta.x != 0:
+		facing_direction = Vector2i(signi(delta.x), 0)
+	elif delta.y != 0:
+		facing_direction = Vector2i(0, signi(delta.y))
+	facing_name = direction_name_from_vector(facing_direction)
+
+
+func manhattan_distance(from_cell: Vector2i, to_cell: Vector2i) -> int:
+	var delta: Vector2i = to_cell - from_cell
+	return absi(delta.x) + absi(delta.y)
 
 
 func calculate_static_dead_cells() -> Array[Vector2i]:
@@ -1102,3 +1130,13 @@ func direction_from_name(direction_name: String) -> Vector2i:
 			return Vector2i.RIGHT
 		_:
 			return Vector2i.ZERO
+
+
+func direction_name_from_vector(direction: Vector2i) -> String:
+	if direction == Vector2i.UP:
+		return "Up"
+	if direction == Vector2i.DOWN:
+		return "Down"
+	if direction == Vector2i.LEFT:
+		return "Left"
+	return "Right"

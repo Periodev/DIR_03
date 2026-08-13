@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from solver.model import BlockKind
+from solver.model import BlockKind, Direction
 from solver.parser import LevelParseError, load_level, parse_level
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,6 +11,14 @@ KNOWN_LEVEL_PATH = ROOT / "tests" / "fixtures" / "known_31_step_level.txt"
 
 
 class ParserTests(unittest.TestCase):
+    def test_initial_facing_points_toward_nearest_block(self) -> None:
+        level = parse_level("@..A\nB...")
+        self.assertEqual(level.initial_state.facing, Direction.DOWN)
+
+    def test_initial_facing_prefers_horizontal_axis_for_diagonal_tie(self) -> None:
+        level = parse_level("@..\n...\n..A")
+        self.assertEqual(level.initial_state.facing, Direction.RIGHT)
+
     def test_loads_fixed_regression_level(self) -> None:
         level = load_level(KNOWN_LEVEL_PATH)
 

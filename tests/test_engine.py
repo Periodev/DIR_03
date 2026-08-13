@@ -16,7 +16,7 @@ KNOWN_SOLUTION = "RRUXTURRDRXDRRULLUXLLLUTTRXDDDT"
 class EngineTests(unittest.TestCase):
     def test_first_press_only_turns_toward_an_adjacent_block(self) -> None:
         level = parse_level("*A@")
-        initial = level.initial_state
+        initial = replace(level.initial_state, facing=Direction.RIGHT)
 
         turned = step(level, initial, Command.LEFT)
 
