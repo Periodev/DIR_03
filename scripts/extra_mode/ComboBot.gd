@@ -102,24 +102,7 @@ func _has_dash_continuation(board: Node) -> bool:
 func _should_spend_dash_for_continuation(board: Node, combo: int, energy: int) -> bool:
 	if combo < 4 or energy < board.ENERGY_SLOT_COST:
 		return false
-	if not _has_dash_continuation(board):
-		return false
-	var next_combo_gain: int = _energy_gain_for_combo(combo + 1)
-	var reaches_ultimate: bool = (
-		energy - board.ENERGY_SLOT_COST + next_combo_gain >= board.ENERGY_QUARTER_UNITS_MAX
-	)
-	return energy < board.ENERGY_SLOT_COST * 2 or reaches_ultimate
-
-func _energy_gain_for_combo(combo: int) -> int:
-	if combo >= 6:
-		return 8
-	if combo >= 4:
-		return 4
-	if combo >= 2:
-		return 2
-	if combo == 1:
-		return 1
-	return 0
+	return _has_dash_continuation(board)
 
 func _direction_plan_score(board: Node, direction: int, preserve_combo: bool) -> float:
 	var target: Vector2i = board.player_pos + Vector2i(CharacterData.DIR_VECTOR[direction])

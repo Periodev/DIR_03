@@ -51,8 +51,8 @@ func run_verification() -> void:
 	board.energy_quarter_units = board.ENERGY_SLOT_COST * 2
 	board.inventory.push(CharacterData.Direction.DOWN)
 	board.grid[3][3] = CharacterData.CellType.DEAD
-	if bot.choose_action(board) == DIRExtraComboBot.ACTION_DASH:
-		fail("DASH spent energy reserved for a near-ready ULT.")
+	if bot.choose_action(board) != DIRExtraComboBot.ACTION_DASH:
+		fail("High combo did not spend available energy on a verified DASH continuation.")
 		return
 
 	_reset_fixture(board)

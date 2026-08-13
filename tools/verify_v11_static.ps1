@@ -694,7 +694,7 @@ $checks = @(
 	},
 	@{
 		Name = "EXTRA exposes an optional combo-seeking F4 bot"
-		Pass = $extraMain -match 'KEY_F4' -and $extraMain -match 'combo_bot\.choose_action\(board\)' -and $extraMain -match 'not\s+board\.game_state\.is_idle\(\)' -and $extraComboBot -match 'class_name\s+DIRExtraComboBot' -and $extraComboBot -match 'LOOKAHEAD_DEPTH\s*:=\s*3' -and $extraComboBot -match 'func\s+_lookahead_score\(' -and $extraComboBot -match 'func\s+_should_spend_dash_for_continuation\(' -and $extraComboBot -match 'func\s+_energy_gain_for_combo\(' -and $extraComboBot -match 'func\s+_ultimate_sequence_score\(' -and $extraComboBot -match 'continuation_count\)\s*\*\s*1800\.0' -and $extraComboBot -match 'return\s+ACTION_ULT'
+		Pass = $extraMain -match 'KEY_F4' -and $extraMain -match 'combo_bot\.choose_action\(board\)' -and $extraMain -match 'not\s+board\.game_state\.is_idle\(\)' -and $extraComboBot -match 'class_name\s+DIRExtraComboBot' -and $extraComboBot -match 'LOOKAHEAD_DEPTH\s*:=\s*3' -and $extraComboBot -match 'func\s+_lookahead_score\(' -and $extraComboBot -match 'func\s+_should_spend_dash_for_continuation\(' -and $extraComboBot -match 'combo\s*<\s*4\s+or\s+energy\s*<\s*board\.ENERGY_SLOT_COST' -and $extraComboBot -match 'func\s+_ultimate_sequence_score\(' -and $extraComboBot -match 'continuation_count\)\s*\*\s*1800\.0' -and $extraComboBot -match 'return\s+ACTION_ULT'
 	}
 )
 
