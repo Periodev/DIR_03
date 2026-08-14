@@ -1,3 +1,5 @@
+> **OBSOLETE (archived from `docs/superpowers/specs/`):** This describes an early prototype direction (player absorbs momentum after a push) that was later explicitly abandoned and conflicts with the current implemented ruleset. Kept for design-archaeology reference only — do not treat as current spec.
+
 # Momentum Absorption GUI Prototype Design
 
 Date: 2026-06-23

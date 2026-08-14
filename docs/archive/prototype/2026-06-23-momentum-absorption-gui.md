@@ -1,3 +1,5 @@
+> **OBSOLETE (archived from `docs/superpowers/plans/`):** This describes an early prototype direction (player absorbs momentum after a push) that was later explicitly abandoned and conflicts with the current implemented ruleset. Kept for design-archaeology reference only — do not treat as current spec.
+
 # Momentum Absorption GUI Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
