@@ -78,9 +78,6 @@ func play_charge_preview(
 func on_kill(_board: Node2D, _pos: Vector2i, _attack_dir: int) -> void:
 	pass
 
-func on_failed_kill(_board: Node2D, _attack_dir: int) -> void:
-	pass
-
 # Called by Board when a DASH kill triggers post-kill reposition.
 # Sets state and spawns the board-level slash + deferred move timer.
 func begin_kill_anim(
@@ -125,7 +122,3 @@ func trigger_move(board: Node2D, move_duration: float = MOVE_DURATION) -> void:
 
 func resolve_kill_visual() -> void:
 	pending_kill_pos = Vector2i(-1, -1)
-
-func reset_state() -> void:
-	pending_kill_pos = Vector2i(-1, -1)
-	defer_player_move = false

@@ -448,12 +448,3 @@ func _ultimate_destination_on_grid(
 			break
 		cursor += step
 	return destination
-
-func _live_neighbor_count(board: Node, pos: Vector2i) -> int:
-	var count: int = 0
-	for direction_value in CharacterData.DIR_VECTOR:
-		var direction: int = int(direction_value)
-		var target: Vector2i = pos + Vector2i(CharacterData.DIR_VECTOR[direction])
-		if board._is_inside_board(target) and board.grid[target.y][target.x] == CharacterData.CellType.LIVE:
-			count += 1
-	return count

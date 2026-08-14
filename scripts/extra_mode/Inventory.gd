@@ -33,11 +33,6 @@ func pop() -> int:
 		return CharacterData.Direction.NONE
 	return queue.pop_front()
 
-func peek() -> int:
-	if queue.is_empty():
-		return CharacterData.Direction.NONE
-	return queue[0]
-
 func toggle_hold() -> void:
 	if not has_hold:
 		return
@@ -53,10 +48,6 @@ func toggle_hold() -> void:
 	elif not queue.is_empty():
 		# Hold empty -> take first slot
 		hold = queue.pop_front()
-
-func is_full() -> bool:
-	return queue.size() >= max_size
-
 func find_direction(dir: int) -> int:
 	for i in queue.size():
 		if queue[i] == dir:
@@ -65,9 +56,6 @@ func find_direction(dir: int) -> int:
 
 func remove_at(idx: int) -> void:
 	queue.remove_at(idx)
-
-func has_direction(dir: int) -> bool:
-	return dir in queue or hold == dir
 
 func register_move(dir: int) -> void:
 	if not has_charge_marker:

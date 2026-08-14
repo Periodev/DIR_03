@@ -443,9 +443,6 @@ func _perform_dash_kill(target: Vector2i, dir: int) -> void:
 func _is_inside_board(pos: Vector2i) -> bool:
 	return pos.x >= 0 and pos.x < COLS and pos.y >= 0 and pos.y < ROWS
 
-func _on_failed_kill(attack_dir: int) -> void:
-	_char_impl.on_failed_kill(self, attack_dir)
-
 func _spawn_hit_effect(pos: Vector2i) -> void:
 	var world_pos := Vector2(pos.x * CELL_STEP + CELL_SIZE / 2.0,
 							 pos.y * CELL_STEP + CELL_SIZE / 2.0)

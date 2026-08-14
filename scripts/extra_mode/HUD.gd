@@ -272,9 +272,6 @@ func show_game_over(final_score: int, max_combo: int) -> void:
 	gameover_max_combo.text = "MAX COMBO x%d" % max_combo
 	gameover_panel.visible = true
 
-func hide_game_over() -> void:
-	gameover_panel.visible = false
-
 func _layout_ui() -> void:
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
 	score_label.position = Vector2(20, 8)

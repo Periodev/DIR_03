@@ -15,8 +15,5 @@ func is_idle() -> bool:
 func is_game_over() -> bool:
 	return current_state == CharacterData.GameStateEnum.GAME_OVER
 
-func is_presenting() -> bool:
-	return current_state == CharacterData.GameStateEnum.PRESENTING
-
 func reset() -> void:
 	set_state(CharacterData.GameStateEnum.IDLE)

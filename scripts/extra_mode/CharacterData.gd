@@ -15,13 +15,6 @@ const DIR_VECTOR := {
 	Direction.RIGHT: Vector2i(1, 0),
 }
 
-const OPPOSITE := {
-	Direction.UP:    Direction.DOWN,
-	Direction.DOWN:  Direction.UP,
-	Direction.LEFT:  Direction.RIGHT,
-	Direction.RIGHT: Direction.LEFT,
-}
-
 const DIR_ARROWS := {
 	Direction.NONE:    "",
 	Direction.UP:      "^",
