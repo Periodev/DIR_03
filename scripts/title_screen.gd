@@ -3,9 +3,13 @@ extends Node2D
 
 const VisualStyle = preload("res://scripts/visual_style.gd")
 const CONFIRM_STREAM: AudioStream = preload(
-	"res://assets/audio/sfx/confirm/switch28.ogg"
+	"res://assets/audio/sfx/confirm/switch34.ogg"
 )
 const CONFIRM_VOLUME_DB := -4.0
+const TURN_STREAM: AudioStream = preload(
+	"res://assets/audio/sfx/turn/click2.ogg"
+)
+const TURN_VOLUME_DB := -8.0
 
 const TITLE_FONT_SIZE := 64
 const OPTION_FONT_SIZE := 28
@@ -73,6 +77,7 @@ var confirm_hint_alpha := 0.78:
 		queue_redraw()
 var confirm_hint_tween: Tween
 var confirm_player: AudioStreamPlayer
+var turn_player: AudioStreamPlayer
 
 
 func _ready() -> void:
@@ -81,6 +86,10 @@ func _ready() -> void:
 	confirm_player.name = "ConfirmPlayer"
 	confirm_player.volume_db = CONFIRM_VOLUME_DB
 	add_child(confirm_player)
+	turn_player = AudioStreamPlayer.new()
+	turn_player.name = "TurnPlayer"
+	turn_player.volume_db = TURN_VOLUME_DB
+	add_child(turn_player)
 	if Campaign.is_single_level_mode():
 		call_deferred("open_single_level_test")
 		return
@@ -270,8 +279,16 @@ func select_direction(direction: Vector2i) -> void:
 	if selected_direction == direction:
 		return
 	selected_direction = direction
+	play_turn_feedback()
 	pulse_confirm_hint()
 	queue_redraw()
+
+
+func play_turn_feedback() -> void:
+	if turn_player == null:
+		return
+	turn_player.stream = TURN_STREAM
+	turn_player.play()
 
 
 func play_confirm_feedback() -> void:

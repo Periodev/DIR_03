@@ -41,7 +41,9 @@ $extraScoreManagerPath = Join-Path $root "scripts/extra_mode/ScoreManager.gd"
 $errorSound005Path = Join-Path $root "assets/audio/sfx/error/error_005.ogg"
 $hintSoundPath = Join-Path $root "assets/audio/sfx/hint/bong_001.ogg"
 $triggerActivationSoundPath = Join-Path $root "assets/audio/sfx/release/dragon-studio-simple-whoosh-382724.mp3"
-$confirmSoundPath = Join-Path $root "assets/audio/sfx/confirm/switch28.ogg"
+$confirmSoundPath = Join-Path $root "assets/audio/sfx/confirm/switch34.ogg"
+$turnSoundPath = Join-Path $root "assets/audio/sfx/turn/click2.ogg"
+$completionSoundPath = Join-Path $root "assets/audio/sfx/complete/confirmation_003.ogg"
 $blockPushSoundPath = Join-Path $root "assets/audio/sfx/push/handleSmallLeather2.ogg"
 $releaseSoundPaths = 0..4 | ForEach-Object {
 	Join-Path $root ("assets/audio/sfx/release/impactPlank_medium_{0:D3}.ogg" -f $_)
@@ -236,7 +238,7 @@ $checks = @(
 	},
 	@{
 		Name = "main.gd turns toward blocks before attempting a push"
-		Pass = $main -match "block_index\s*!=\s*-1\s+and\s+facing_direction\s*!=\s*direction" -and $main -match "faced block.*without pushing"
+		Pass = $main -match "var\s+facing_changed\s*:=\s*facing_direction\s*!=\s*direction" -and $main -match "block_index\s*!=\s*-1\s+and\s+facing_changed" -and $main -match "faced block.*without pushing"
 	},
 	@{
 		Name = "main.gd has no queue rejection feedback"
@@ -495,8 +497,16 @@ $checks = @(
 		Pass = (Test-Path -LiteralPath $triggerActivationSoundPath) -and ([regex]::Matches($gameBoard, '(?m)^\s+play_trigger_activation_feedback\(\)\s*$')).Count -eq 1 -and ([regex]::Matches($gameBoard, '(?m)^\s+play_block_push_feedback\(\)\s*$')).Count -eq 1 -and $gameBoard -match 'vector_name\s*==\s*""[\s\S]*play_trigger_activation_feedback\(\)[\s\S]*var\s+direction' -and $playerBoardView -notmatch 'play_release_block_motion_feedback' -and $audioFeedback -match 'TRIGGER_ACTIVATION_STREAM:\s*AudioStream[\s\S]*dragon-studio-simple-whoosh-382724\.mp3' -and $audioFeedback -match 'TRIGGER_ACTIVATION_VOLUME_DB\s*:=\s*-4\.0' -and $audioFeedback -match 'func\s+play_trigger_activation\(\)[\s\S]*trigger_activation_player\.stream\s*=\s*TRIGGER_ACTIVATION_STREAM[\s\S]*trigger_activation_player\.play\(\)' -and $audioFeedback -notmatch 'TRIGGER_ACTIVATION_FADE|forceField_001\.ogg|func\s+play_release\(' -and $audioFeedback -match 'release_dissipate_player:\s*AudioStreamPlayer' -and $playerAnimationCheck -match 'release activation sound should cover release movement' -and $playerAnimationCheck -match 'release sound should keep its configured volume' -and $playerAnimationCheck -match 'blocked trigger should never play successful block movement'
 	},
 	@{
-		Name = "install and title confirmation share switch28"
-		Pass = (Test-Path -LiteralPath $confirmSoundPath) -and $audioFeedback -match 'INSTALL_STREAM:\s*AudioStream[\s\S]*switch28\.ogg' -and $audioFeedback -match 'INSTALL_VOLUME_DB\s*:=\s*-4\.0' -and $audioFeedback -match 'func\s+play_install\(\)[\s\S]*install_player\.play\(\)' -and $gameBoard -match 'func\s+play_install_feedback\(\)[\s\S]*audio_feedback\.play_install\(\)' -and $gameBoard -match 'play_install_feedback\(\)\s*[\r\n]+\s*render_all\(\)\s*[\r\n]+\s*play_facing_action\(\)' -and $titleScreen -match 'CONFIRM_STREAM:\s*AudioStream[\s\S]*switch28\.ogg' -and $titleScreen -match 'CONFIRM_VOLUME_DB\s*:=\s*-4\.0' -and $titleScreen -notmatch 'SELECT_STREAM|SELECT_VOLUME_DB|play_select_feedback|select_player' -and $titleScreen -match 'func\s+play_confirm_feedback\(\)[\s\S]*confirm_player\.play\(\)' -and $titleScreen -match 'func\s+activate_selection\(\)[\s\S]*extra_unlocked\(\)[\s\S]*play_confirm_feedback\(\)[\s\S]*play_config_action\('
+		Name = "install and title confirmation share switch34"
+		Pass = (Test-Path -LiteralPath $confirmSoundPath) -and $audioFeedback -match 'INSTALL_STREAM:\s*AudioStream[\s\S]*switch34\.ogg' -and $audioFeedback -match 'INSTALL_VOLUME_DB\s*:=\s*-4\.0' -and $audioFeedback -match 'func\s+play_install\(\)[\s\S]*install_player\.play\(\)' -and $gameBoard -match 'func\s+play_install_feedback\(\)[\s\S]*audio_feedback\.play_install\(\)' -and $gameBoard -match 'play_install_feedback\(\)\s*[\r\n]+\s*render_all\(\)\s*[\r\n]+\s*play_facing_action\(\)' -and $titleScreen -match 'CONFIRM_STREAM:\s*AudioStream[\s\S]*switch34\.ogg' -and $titleScreen -match 'CONFIRM_VOLUME_DB\s*:=\s*-4\.0' -and $titleScreen -notmatch 'SELECT_STREAM|SELECT_VOLUME_DB|play_select_feedback|select_player' -and $titleScreen -match 'func\s+play_confirm_feedback\(\)[\s\S]*confirm_player\.play\(\)' -and $titleScreen -match 'func\s+activate_selection\(\)[\s\S]*extra_unlocked\(\)[\s\S]*play_confirm_feedback\(\)[\s\S]*play_config_action\('
+	},
+	@{
+		Name = "stationary turns and title selection share click2"
+		Pass = (Test-Path -LiteralPath $turnSoundPath) -and $audioFeedback -match 'TURN_STREAM:\s*AudioStream[\s\S]*click2\.ogg' -and $audioFeedback -match 'TURN_VOLUME_DB\s*:=\s*-8\.0' -and $audioFeedback -match 'func\s+play_turn\(\)[\s\S]*turn_player\.play\(\)' -and $gameBoard -match 'var\s+facing_changed\s*:=\s*facing_direction\s*!=\s*direction' -and $gameBoard -match 'block_index\s*!=\s*-1\s+and\s+facing_changed[\s\S]*play_turn_feedback\(\)[\s\S]*render_all\(\)' -and $gameBoard -match 'not\s+is_cell_walkable_for_player\([^)]*\)[\s\S]*if\s+facing_changed:\s*[\r\n]+\s*play_turn_feedback\(\)' -and ([regex]::Matches($gameBoard, '(?m)^\s*play_turn_feedback\(\)\s*$')).Count -eq 2 -and $gameBoard -match 'func\s+play_turn_feedback\(\)[\s\S]*audio_feedback\.play_turn\(\)' -and $titleScreen -match 'TURN_STREAM:\s*AudioStream[\s\S]*click2\.ogg' -and $titleScreen -match 'TURN_VOLUME_DB\s*:=\s*-8\.0' -and $titleScreen -match 'func\s+select_direction\([^)]*\)[\s\S]*selected_direction\s*==\s*direction[\s\S]*return[\s\S]*play_turn_feedback\(\)' -and $titleScreen -match 'func\s+play_turn_feedback\(\)[\s\S]*turn_player\.play\(\)'
+	},
+	@{
+		Name = "completion confirmation begins with the delayed goal pulse"
+		Pass = (Test-Path -LiteralPath $completionSoundPath) -and $audioFeedback -match 'COMPLETION_STREAM:\s*AudioStream[\s\S]*confirmation_003\.ogg' -and $audioFeedback -match 'COMPLETION_VOLUME_DB\s*:=\s*-4\.0' -and $audioFeedback -match 'func\s+play_completion\(\)[\s\S]*completion_player\.play\(\)' -and $gameBoard -match 'func\s+play_completion_sound_feedback\(\)[\s\S]*audio_feedback\.play_completion\(\)' -and $playerBoardView -match 'func\s+begin_completion_pulse\(\)[\s\S]*play_completion_sound_feedback\(\)[\s\S]*queue_redraw\(\)' -and $playerAnimationCheck -match 'completion sound should remain silent during the pulse delay' -and $playerAnimationCheck -match 'completion sound should begin with the completed-goal pulse'
 	},
 	@{
 		Name = "successful player movement uses concrete footstep variants"

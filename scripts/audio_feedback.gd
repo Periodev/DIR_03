@@ -13,9 +13,17 @@ const TRIGGER_ACTIVATION_STREAM: AudioStream = preload(
 const TRIGGER_ACTIVATION_VOLUME_DB := -4.0
 const TRIGGER_ACTIVATION_COLLISION_VOLUME_DB := -16.0
 const INSTALL_STREAM: AudioStream = preload(
-	"res://assets/audio/sfx/confirm/switch28.ogg"
+	"res://assets/audio/sfx/confirm/switch34.ogg"
 )
 const INSTALL_VOLUME_DB := -4.0
+const TURN_STREAM: AudioStream = preload(
+	"res://assets/audio/sfx/turn/click2.ogg"
+)
+const TURN_VOLUME_DB := -8.0
+const COMPLETION_STREAM: AudioStream = preload(
+	"res://assets/audio/sfx/complete/confirmation_003.ogg"
+)
+const COMPLETION_VOLUME_DB := -4.0
 const BLOCK_PUSH_STREAM: AudioStream = preload(
 	"res://assets/audio/sfx/push/handleSmallLeather2.ogg"
 )
@@ -50,6 +58,8 @@ var release_dissipate_player: AudioStreamPlayer
 var collision_impact_player: AudioStreamPlayer
 var move_player: AudioStreamPlayer
 var install_player: AudioStreamPlayer
+var turn_player: AudioStreamPlayer
+var completion_player: AudioStreamPlayer
 var block_push_player: AudioStreamPlayer
 var last_release_dissipate_index := -1
 var last_collision_impact_index := -1
@@ -67,6 +77,10 @@ func _ready() -> void:
 	move_player = add_audio_player("MovePlayer")
 	install_player = add_audio_player("InstallPlayer")
 	install_player.volume_db = INSTALL_VOLUME_DB
+	turn_player = add_audio_player("TurnPlayer")
+	turn_player.volume_db = TURN_VOLUME_DB
+	completion_player = add_audio_player("CompletionPlayer")
+	completion_player.volume_db = COMPLETION_VOLUME_DB
 	block_push_player = add_audio_player("BlockPushPlayer")
 	block_push_player.volume_db = BLOCK_PUSH_VOLUME_DB
 
@@ -109,6 +123,22 @@ func play_install() -> void:
 
 	install_player.stream = INSTALL_STREAM
 	install_player.play()
+
+
+func play_turn() -> void:
+	if turn_player == null:
+		return
+
+	turn_player.stream = TURN_STREAM
+	turn_player.play()
+
+
+func play_completion() -> void:
+	if completion_player == null:
+		return
+
+	completion_player.stream = COMPLETION_STREAM
+	completion_player.play()
 
 
 func play_block_push() -> void:

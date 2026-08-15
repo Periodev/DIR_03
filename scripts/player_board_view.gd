@@ -158,6 +158,10 @@ func play_completion_feedback() -> void:
 
 func begin_completion_pulse() -> void:
 	completion_pulse_progress = 0.0
+	if game_board != null and game_board.has_method(
+		"play_completion_sound_feedback"
+	):
+		game_board.play_completion_sound_feedback()
 	queue_redraw()
 
 

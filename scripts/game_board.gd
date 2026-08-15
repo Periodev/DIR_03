@@ -231,13 +231,15 @@ func try_move(direction: Vector2i, direction_name: String) -> void:
 	begin_atomic_input()
 	var target := player_cell + direction
 	var block_index := find_block_index_at(target)
+	var facing_changed := facing_direction != direction
 
-	if block_index != -1 and facing_direction != direction:
+	if block_index != -1 and facing_changed:
 		facing_direction = direction
 		facing_name = direction_name
 		var block_id := int(blocks[block_index]["id"])
 		set_message("Turned %s to face block. Press again to push." % direction_name)
 		append_debug_log("Turn %s: faced block %s without pushing." % [direction_name, block_label(block_id)])
+		play_turn_feedback()
 		render_all()
 		end_atomic_input()
 		return
@@ -248,6 +250,8 @@ func try_move(direction: Vector2i, direction_name: String) -> void:
 	if not is_cell_walkable_for_player(player_cell, target):
 		set_message("Blocked by wall, fence or board edge. Queue unchanged.")
 		append_debug_log("Move %s failed: wall, fence or edge." % direction_name)
+		if facing_changed:
+			play_turn_feedback()
 		render_all()
 		end_atomic_input()
 		return
@@ -867,6 +871,11 @@ func play_completion_feedback() -> void:
 		board_view.play_completion_feedback()
 
 
+func play_completion_sound_feedback() -> void:
+	if audio_feedback != null:
+		audio_feedback.play_completion()
+
+
 func reset_completion_feedback() -> void:
 	if board_view != null and board_view.has_method("reset_completion_feedback"):
 		board_view.reset_completion_feedback()
@@ -1041,6 +1050,11 @@ func play_trigger_activation_feedback() -> void:
 func play_install_feedback() -> void:
 	if audio_feedback != null:
 		audio_feedback.play_install()
+
+
+func play_turn_feedback() -> void:
+	if audio_feedback != null:
+		audio_feedback.play_turn()
 
 
 func play_block_push_feedback() -> void:

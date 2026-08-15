@@ -955,12 +955,30 @@ func check_completion_feedback(game: Node) -> void:
 		float(view.completion_pulse_progress) < 0.0,
 		"completed goals should remain still during the pulse delay"
 	)
-	await create_timer(
-		VisualStyle.COMPLETION_PULSE_DELAY_SECONDS + 0.03
-	).timeout
+	require(
+		not bool(game.audio_feedback.completion_player.playing),
+		"completion sound should remain silent during the pulse delay"
+	)
+	await create_timer(VisualStyle.COMPLETION_PULSE_DELAY_SECONDS * 0.5).timeout
+	require(
+		float(view.completion_pulse_progress) < 0.0,
+		"completed goals should still wait halfway through the pulse delay"
+	)
+	require(
+		not bool(game.audio_feedback.completion_player.playing),
+		"completion sound should stay silent halfway through the pulse delay"
+	)
+	var pulse_wait_frames := 0
+	while float(view.completion_pulse_progress) < 0.0 and pulse_wait_frames < 30:
+		await get_tree().process_frame
+		pulse_wait_frames += 1
 	require(
 		float(view.completion_pulse_progress) >= 0.0,
 		"completed goals should pulse only after the delay"
+	)
+	require(
+		bool(game.audio_feedback.completion_player.playing),
+		"completion sound should begin with the completed-goal pulse"
 	)
 	require(bool(hud.continue_hint.visible), "completion should show the continue hint")
 	require(not bool(hud.direction_hint.visible), "completion should hide movement hints")
