@@ -7,10 +7,11 @@ const ERROR_RED_STREAM: AudioStream = preload(
 const INTERACT_HINT_STREAM: AudioStream = preload(
 	"res://assets/audio/sfx/hint/bong_001.ogg"
 )
-const RELEASE_STREAM: AudioStream = preload(
-	"res://assets/audio/sfx/release/switch_003.ogg"
+const TRIGGER_ACTIVATION_STREAM: AudioStream = preload(
+	"res://assets/audio/sfx/release/dragon-studio-simple-whoosh-382724.mp3"
 )
-const RELEASE_VOLUME_DB := -4.0
+const TRIGGER_ACTIVATION_VOLUME_DB := -4.0
+const TRIGGER_ACTIVATION_COLLISION_VOLUME_DB := -16.0
 const INSTALL_STREAM: AudioStream = preload(
 	"res://assets/audio/sfx/confirm/switch28.ogg"
 )
@@ -26,6 +27,14 @@ const RELEASE_DISSIPATE_STREAMS: Array[AudioStream] = [
 	preload("res://assets/audio/sfx/release/impactPlank_medium_003.ogg"),
 	preload("res://assets/audio/sfx/release/impactPlank_medium_004.ogg"),
 ]
+const COLLISION_IMPACT_STREAMS: Array[AudioStream] = [
+	preload("res://assets/audio/sfx/collision/impactWood_light_000.ogg"),
+	preload("res://assets/audio/sfx/collision/impactWood_light_001.ogg"),
+	preload("res://assets/audio/sfx/collision/impactWood_light_002.ogg"),
+	preload("res://assets/audio/sfx/collision/impactWood_light_003.ogg"),
+	preload("res://assets/audio/sfx/collision/impactWood_light_004.ogg"),
+]
+const COLLISION_IMPACT_VOLUME_DB := 2.0
 const PLAYER_MOVE_STREAMS: Array[AudioStream] = [
 	preload("res://assets/audio/sfx/move/footstep_concrete_000.ogg"),
 	preload("res://assets/audio/sfx/move/footstep_concrete_001.ogg"),
@@ -36,21 +45,25 @@ const PLAYER_MOVE_STREAMS: Array[AudioStream] = [
 
 var error_player: AudioStreamPlayer
 var hint_player: AudioStreamPlayer
-var release_player: AudioStreamPlayer
+var trigger_activation_player: AudioStreamPlayer
 var release_dissipate_player: AudioStreamPlayer
+var collision_impact_player: AudioStreamPlayer
 var move_player: AudioStreamPlayer
 var install_player: AudioStreamPlayer
 var block_push_player: AudioStreamPlayer
 var last_release_dissipate_index := -1
+var last_collision_impact_index := -1
 var last_player_move_index := -1
 
 
 func _ready() -> void:
 	error_player = add_audio_player("ErrorPlayer")
 	hint_player = add_audio_player("HintPlayer")
-	release_player = add_audio_player("ReleasePlayer")
-	release_player.volume_db = RELEASE_VOLUME_DB
+	trigger_activation_player = add_audio_player("TriggerActivationPlayer")
+	trigger_activation_player.volume_db = TRIGGER_ACTIVATION_VOLUME_DB
 	release_dissipate_player = add_audio_player("ReleaseDissipatePlayer")
+	collision_impact_player = add_audio_player("CollisionImpactPlayer")
+	collision_impact_player.volume_db = COLLISION_IMPACT_VOLUME_DB
 	move_player = add_audio_player("MovePlayer")
 	install_player = add_audio_player("InstallPlayer")
 	install_player.volume_db = INSTALL_VOLUME_DB
@@ -81,12 +94,13 @@ func play_interact_hint() -> void:
 	hint_player.play()
 
 
-func play_release() -> void:
-	if release_player == null:
+func play_trigger_activation() -> void:
+	if trigger_activation_player == null:
 		return
 
-	release_player.stream = RELEASE_STREAM
-	release_player.play()
+	trigger_activation_player.volume_db = TRIGGER_ACTIVATION_VOLUME_DB
+	trigger_activation_player.stream = TRIGGER_ACTIVATION_STREAM
+	trigger_activation_player.play()
 
 
 func play_install() -> void:
@@ -116,6 +130,23 @@ func play_release_dissipate() -> void:
 	last_release_dissipate_index = stream_index
 	release_dissipate_player.stream = RELEASE_DISSIPATE_STREAMS[stream_index]
 	release_dissipate_player.play()
+
+
+func play_collision_impact() -> void:
+	if collision_impact_player == null or COLLISION_IMPACT_STREAMS.is_empty():
+		return
+
+	if trigger_activation_player != null and trigger_activation_player.playing:
+		trigger_activation_player.volume_db = (
+			TRIGGER_ACTIVATION_COLLISION_VOLUME_DB
+		)
+	var stream_index := nonrepeating_index(
+		COLLISION_IMPACT_STREAMS.size(),
+		last_collision_impact_index
+	)
+	last_collision_impact_index = stream_index
+	collision_impact_player.stream = COLLISION_IMPACT_STREAMS[stream_index]
+	collision_impact_player.play()
 
 
 func play_player_move() -> void:

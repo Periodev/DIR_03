@@ -389,6 +389,7 @@ func trigger_vector() -> void:
 		end_atomic_input()
 		return
 
+	play_trigger_activation_feedback()
 	var direction := direction_from_name(vector_name)
 	var target: Vector2i = carrier["cell"] + direction
 
@@ -429,7 +430,6 @@ func trigger_vector() -> void:
 			block_label(carrier_id),
 			cell_text(target),
 		])
-		play_release_feedback()
 		if start_trigger_displacement(
 			carrier_id,
 			vector_name,
@@ -472,7 +472,6 @@ func trigger_vector() -> void:
 		block_label(pushed_block["id"]),
 		cell_text(pushed_target),
 	])
-	play_release_feedback()
 	if start_trigger_displacement(
 		carrier_id,
 		vector_name,
@@ -1034,9 +1033,9 @@ func play_interact_hint_feedback() -> void:
 		audio_feedback.play_interact_hint()
 
 
-func play_release_feedback() -> void:
+func play_trigger_activation_feedback() -> void:
 	if audio_feedback != null:
-		audio_feedback.play_release()
+		audio_feedback.play_trigger_activation()
 
 
 func play_install_feedback() -> void:
@@ -1052,6 +1051,11 @@ func play_block_push_feedback() -> void:
 func play_release_dissipate_feedback() -> void:
 	if audio_feedback != null:
 		audio_feedback.play_release_dissipate()
+
+
+func play_collision_impact_feedback() -> void:
+	if audio_feedback != null:
+		audio_feedback.play_collision_impact()
 
 
 func play_player_move_feedback() -> void:

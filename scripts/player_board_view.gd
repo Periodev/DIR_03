@@ -376,6 +376,7 @@ func play_trigger_displacement(
 			VisualStyle.COLLISION_CONTACT_OFFSET_RATIO,
 			VisualStyle.COLLISION_APPROACH_SECONDS
 		).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		displacement_tween.tween_callback(play_collision_contact_feedback)
 		displacement_tween.tween_interval(VisualStyle.COLLISION_HOLD_SECONDS)
 	if is_collision:
 		displacement_tween.tween_method(
@@ -427,6 +428,13 @@ func play_blocked_release_contact_feedback() -> void:
 		"play_release_dissipate_feedback"
 	):
 		game_board.play_release_dissipate_feedback()
+
+
+func play_collision_contact_feedback() -> void:
+	if game_board != null and game_board.has_method(
+		"play_collision_impact_feedback"
+	):
+		game_board.play_collision_impact_feedback()
 
 
 func prepare_displacement(

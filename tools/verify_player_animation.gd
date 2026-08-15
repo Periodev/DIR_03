@@ -519,7 +519,7 @@ func check_push_displacement(game: Node) -> void:
 	await create_timer(
 		VisualStyle.FACING_ACTION_RETREAT_SECONDS / 2.0
 		+ VisualStyle.FACING_ACTION_HOLD_SECONDS
-		+ VisualStyle.FACING_ACTION_FORWARD_SECONDS * 0.7
+		+ VisualStyle.FACING_ACTION_FORWARD_SECONDS * 0.4
 	).timeout
 	require(
 		float(view.facing_action_offset_ratio) > 0.0,
@@ -644,9 +644,27 @@ func check_install_reveal(game: Node) -> void:
 func check_free_trigger_sequence(game: Node) -> void:
 	require_level(game, "@A.*")
 	install_test_vector(game, 1, "Right")
+	var audio: DirAudioFeedback = game.audio_feedback
+	audio.trigger_activation_player.stop()
+	audio.block_push_player.stop()
 	var started: bool = bool(game.execute_command("T"))
 	require(started, "free trigger command should be accepted")
 	require(bool(game.input_locked), "free trigger should lock input")
+	require(
+		bool(audio.trigger_activation_player.playing),
+		"free trigger should start the release activation sound"
+	)
+	require(
+		is_equal_approx(
+			audio.trigger_activation_player.volume_db,
+			DirAudioFeedback.TRIGGER_ACTIVATION_VOLUME_DB
+		),
+		"release sound should start at its configured volume"
+	)
+	require(
+		not bool(audio.block_push_player.playing),
+		"free trigger should not start block movement sound"
+	)
 	await create_timer(
 		VisualStyle.TRIGGER_FLASH_IN_SECONDS
 		+ VisualStyle.TRIGGER_FLASH_HOLD_SECONDS / 2.0
@@ -664,6 +682,10 @@ func check_free_trigger_sequence(game: Node) -> void:
 		int(view.collision_carrier_block_id) == -1,
 		"free trigger should not animate a collision source"
 	)
+	require(
+		not bool(audio.block_push_player.playing),
+		"release should keep block movement sound silent during the white flash"
+	)
 	await create_timer(
 		VisualStyle.TRIGGER_FLASH_HOLD_SECONDS / 2.0
 		+ VisualStyle.DISPLACEMENT_SECONDS / 2.0
@@ -676,6 +698,14 @@ func check_free_trigger_sequence(game: Node) -> void:
 		float(view.displacement_progress) > 0.05,
 		"triggered block should move while the flash fades"
 	)
+	require(
+		not bool(audio.block_push_player.playing),
+		"release should not add block movement sound"
+	)
+	require(
+		bool(audio.trigger_activation_player.playing),
+		"release activation sound should cover release movement"
+	)
 	await create_timer(
 		VisualStyle.DISPLACEMENT_SECONDS / 2.0
 		+ VisualStyle.DISPLACEMENT_SECONDS
@@ -687,14 +717,32 @@ func check_free_trigger_sequence(game: Node) -> void:
 		"free trigger should move its carrier"
 	)
 	require(not bool(game.input_locked), "free trigger should unlock after animation")
+	require(
+		is_equal_approx(
+			audio.trigger_activation_player.volume_db,
+			DirAudioFeedback.TRIGGER_ACTIVATION_VOLUME_DB
+		),
+		"release sound should keep its configured volume"
+	)
 
 
 func check_blocked_trigger_sequence(game: Node) -> void:
 	require_level(game, "@A")
 	install_test_vector(game, 1, "Right")
+	var audio: DirAudioFeedback = game.audio_feedback
+	audio.trigger_activation_player.stop()
+	audio.block_push_player.stop()
 	var started: bool = bool(game.execute_command("T"))
 	require(started, "blocked trigger command should be accepted")
 	require(bool(game.input_locked), "blocked trigger should lock input")
+	require(
+		bool(audio.trigger_activation_player.playing),
+		"blocked trigger should still activate its release sound"
+	)
+	require(
+		not bool(audio.block_push_player.playing),
+		"blocked trigger should not play successful block movement"
+	)
 	require(game.install_order.is_empty(), "blocked trigger should consume install order")
 	var block_index: int = int(game.find_block_index_by_id(1))
 	var block: Dictionary = game.blocks[block_index]
@@ -734,6 +782,10 @@ func check_blocked_trigger_sequence(game: Node) -> void:
 		fade_observed,
 		"blocked trigger direction should fade after flashing"
 	)
+	require(
+		not bool(audio.block_push_player.playing),
+		"blocked trigger should never play successful block movement"
+	)
 	await create_timer(VisualStyle.BLOCKED_RELEASE_SHAKE_SECONDS + 0.05).timeout
 	require(not bool(game.input_locked), "blocked trigger should unlock after animation")
 	require(
@@ -749,6 +801,8 @@ func check_blocked_trigger_sequence(game: Node) -> void:
 func check_collision_trigger_sequence(game: Node) -> void:
 	require_level(game, "@AB.*")
 	install_test_vector(game, 1, "Right")
+	var audio: DirAudioFeedback = game.audio_feedback
+	audio.collision_impact_player.stop()
 	var started: bool = bool(game.execute_command("T"))
 	require(started, "collision trigger command should be accepted")
 	require(bool(game.input_locked), "collision trigger should lock input")
@@ -777,12 +831,53 @@ func check_collision_trigger_sequence(game: Node) -> void:
 		float(view.displacement_progress) < 0.01,
 		"collision target should wait until after contact"
 	)
-	await create_timer(
-		VisualStyle.COLLISION_APPROACH_SECONDS / 2.0
-		+ VisualStyle.COLLISION_HOLD_SECONDS
-		+ VisualStyle.COLLISION_TARGET_LEAD_SECONDS
-		+ 0.02
-	).timeout
+	require(
+		is_equal_approx(
+			audio.trigger_activation_player.volume_db,
+			DirAudioFeedback.TRIGGER_ACTIVATION_VOLUME_DB
+		),
+		"collision whoosh should keep full volume before contact"
+	)
+	for _frame in range(4):
+		await get_tree().process_frame
+		if audio.collision_impact_player.playing:
+			break
+	require(
+		bool(audio.collision_impact_player.playing),
+		"collision impact should play at visual contact"
+	)
+	require(
+		is_equal_approx(
+			audio.trigger_activation_player.volume_db,
+			DirAudioFeedback.TRIGGER_ACTIVATION_COLLISION_VOLUME_DB
+		),
+		"collision contact should duck the release whoosh"
+	)
+	require(
+		is_equal_approx(
+			audio.collision_impact_player.volume_db,
+			DirAudioFeedback.COLLISION_IMPACT_VOLUME_DB
+		),
+		"collision impact should use its configured gain"
+	)
+	require(
+		is_equal_approx(
+			float(view.collision_source_offset_ratio),
+			VisualStyle.COLLISION_CONTACT_OFFSET_RATIO
+		),
+		"collision impact should begin only at the contact boundary"
+	)
+	require(
+		float(view.displacement_progress) < 0.01,
+		"collision target should remain still during contact hold"
+	)
+	for _frame in range(8):
+		await get_tree().process_frame
+		if (
+			float(view.displacement_progress)
+			> VisualStyle.COLLISION_TARGET_LEAD_RATIO
+		):
+			break
 	require(
 		float(view.displacement_progress)
 			> VisualStyle.COLLISION_TARGET_LEAD_RATIO,
@@ -797,13 +892,8 @@ func check_collision_trigger_sequence(game: Node) -> void:
 		float(view.collision_source_offset_ratio) > 0.0,
 		"collision source should still be returning after the handoff"
 	)
-	await create_timer(
-		collision_trigger_total_seconds()
-		- approach_start
-		- VisualStyle.COLLISION_APPROACH_SECONDS
-		- VisualStyle.COLLISION_HOLD_SECONDS
-		+ 0.05
-	).timeout
+	while bool(game.input_locked):
+		await get_tree().process_frame
 	var carrier_index: int = int(game.find_block_index_by_id(1))
 	var pushed_index: int = int(game.find_block_index_by_id(2))
 	var carrier: Dictionary = game.blocks[carrier_index]
