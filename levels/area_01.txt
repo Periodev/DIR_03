@@ -82,21 +82,18 @@ Exchange
 !cell-edge-v1
 
 [cells]
-.b#
-.@.
-*.A
-.C*
+#.A*
+b@.C
+..*.
 
 [horizontal_edges]
-...
-...
-...
+....
+....
 
 [vertical_edges]
-..
-..
-..
-..
+...
+...
+...
 
 ---------
 反轉
