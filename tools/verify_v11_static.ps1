@@ -40,6 +40,9 @@ $extraCharacterDataPath = Join-Path $root "scripts/extra_mode/CharacterData.gd"
 $extraScoreManagerPath = Join-Path $root "scripts/extra_mode/ScoreManager.gd"
 $errorSound005Path = Join-Path $root "assets/audio/sfx/error/error_005.ogg"
 $hintSoundPath = Join-Path $root "assets/audio/sfx/hint/bong_001.ogg"
+$releaseActivationSoundPath = Join-Path $root "assets/audio/sfx/release/switch_003.ogg"
+$confirmSoundPath = Join-Path $root "assets/audio/sfx/confirm/switch28.ogg"
+$blockPushSoundPath = Join-Path $root "assets/audio/sfx/push/handleSmallLeather2.ogg"
 $releaseSoundPaths = 0..4 | ForEach-Object {
 	Join-Path $root ("assets/audio/sfx/release/impactPlank_medium_{0:D3}.ogg" -f $_)
 }
@@ -481,8 +484,20 @@ $checks = @(
 		Pass = (Test-Path -LiteralPath $hintSoundPath) -and @($releaseSoundPaths | Where-Object { -not (Test-Path -LiteralPath $_) }).Count -eq 0 -and $gameBoard -match 'func\s+start_player_hint_feedback\(\)[\s\S]*play_interact_hint_feedback\(\)' -and $gameBoard -match 'func\s+start_block_hint_feedback\([^)]*\)[\s\S]*play_interact_hint_feedback\(\)' -and $audioFeedback -match 'INTERACT_HINT_STREAM:\s*AudioStream[\s\S]*bong_001\.ogg' -and $audioFeedback -match 'RELEASE_DISSIPATE_STREAMS:\s*Array\[AudioStream\][\s\S]*impactPlank_medium_000\.ogg[\s\S]*impactPlank_medium_004\.ogg' -and $playerBoardView -match 'elif\s+is_blocked_release:[\s\S]*tween_callback\(\s*play_blocked_release_contact_feedback\s*\)[\s\S]*set_blocked_release_shake_progress' -and $playerBoardView -match 'func\s+play_blocked_release_contact_feedback\(\)[\s\S]*play_release_dissipate_feedback\(\)'
 	},
 	@{
+		Name = "valid releases play the switch activation sound"
+		Pass = (Test-Path -LiteralPath $releaseActivationSoundPath) -and ([regex]::Matches($gameBoard, '(?m)^\s+play_release_feedback\(\)\s*$')).Count -eq 2 -and $gameBoard -match 'front_block_index\s*==\s*-1[\s\S]*play_release_feedback\(\)[\s\S]*start_trigger_displacement\(' -and $gameBoard -match 'pushed_block_id[\s\S]*play_release_feedback\(\)[\s\S]*start_trigger_displacement\(' -and $audioFeedback -match 'RELEASE_STREAM:\s*AudioStream[\s\S]*switch_003\.ogg' -and $audioFeedback -match 'RELEASE_VOLUME_DB\s*:=\s*-4\.0' -and $audioFeedback -match 'func\s+play_release\(\)[\s\S]*release_player\.play\(\)' -and $audioFeedback -match 'release_dissipate_player:\s*AudioStreamPlayer'
+	},
+	@{
+		Name = "install and title confirmation share switch28"
+		Pass = (Test-Path -LiteralPath $confirmSoundPath) -and $audioFeedback -match 'INSTALL_STREAM:\s*AudioStream[\s\S]*switch28\.ogg' -and $audioFeedback -match 'INSTALL_VOLUME_DB\s*:=\s*-4\.0' -and $audioFeedback -match 'func\s+play_install\(\)[\s\S]*install_player\.play\(\)' -and $gameBoard -match 'func\s+play_install_feedback\(\)[\s\S]*audio_feedback\.play_install\(\)' -and $gameBoard -match 'play_install_feedback\(\)\s*[\r\n]+\s*render_all\(\)\s*[\r\n]+\s*play_facing_action\(\)' -and $titleScreen -match 'CONFIRM_STREAM:\s*AudioStream[\s\S]*switch28\.ogg' -and $titleScreen -match 'CONFIRM_VOLUME_DB\s*:=\s*-4\.0' -and $titleScreen -notmatch 'SELECT_STREAM|SELECT_VOLUME_DB|play_select_feedback|select_player' -and $titleScreen -match 'func\s+play_confirm_feedback\(\)[\s\S]*confirm_player\.play\(\)' -and $titleScreen -match 'func\s+activate_selection\(\)[\s\S]*extra_unlocked\(\)[\s\S]*play_confirm_feedback\(\)[\s\S]*play_config_action\('
+	},
+	@{
 		Name = "successful player movement uses concrete footstep variants"
 		Pass = @($moveSoundPaths | Where-Object { -not (Test-Path -LiteralPath $_) }).Count -eq 0 -and $gameBoard -match 'Moved through empty space\.[\s\S]*play_player_move_feedback\(\)[\s\S]*start_player_displacement\(' -and $audioFeedback -match 'PLAYER_MOVE_STREAMS:\s*Array\[AudioStream\][\s\S]*footstep_concrete_000\.ogg[\s\S]*footstep_concrete_004\.ogg' -and $audioFeedback -match 'func\s+play_player_move\(\)[\s\S]*nonrepeating_index\('
+	},
+	@{
+		Name = "successful player pushes use the amplified leather slide"
+		Pass = (Test-Path -LiteralPath $blockPushSoundPath) -and $gameBoard -match 'Push %s: block %s[\s\S]*play_block_push_feedback\(\)[\s\S]*play_facing_action\(\)[\s\S]*start_block_displacement\(' -and $audioFeedback -match 'BLOCK_PUSH_STREAM:\s*AudioStream[\s\S]*handleSmallLeather2\.ogg' -and $audioFeedback -match 'BLOCK_PUSH_VOLUME_DB\s*:=\s*10\.0' -and $audioFeedback -match 'func\s+play_block_push\(\)[\s\S]*block_push_player\.play\(\)'
 	},
 	@{
 		Name = "blocked releases shake without becoming errors"

@@ -287,6 +287,7 @@ func try_move(direction: Vector2i, direction_name: String) -> void:
 		cell_text(block_target),
 		"queue overwritten",
 	])
+	play_block_push_feedback()
 	play_facing_action()
 	if start_block_displacement(
 		pushed_block_id,
@@ -350,6 +351,7 @@ func install_vector() -> void:
 		block_label(block["id"]),
 		install_order_text(),
 	])
+	play_install_feedback()
 	render_all()
 	play_facing_action()
 	if start_install_reveal(int(block["id"])):
@@ -427,6 +429,7 @@ func trigger_vector() -> void:
 			block_label(carrier_id),
 			cell_text(target),
 		])
+		play_release_feedback()
 		if start_trigger_displacement(
 			carrier_id,
 			vector_name,
@@ -469,6 +472,7 @@ func trigger_vector() -> void:
 		block_label(pushed_block["id"]),
 		cell_text(pushed_target),
 	])
+	play_release_feedback()
 	if start_trigger_displacement(
 		carrier_id,
 		vector_name,
@@ -1028,6 +1032,21 @@ func start_block_hint_feedback(block_cell: Vector2i) -> void:
 func play_interact_hint_feedback() -> void:
 	if audio_feedback != null:
 		audio_feedback.play_interact_hint()
+
+
+func play_release_feedback() -> void:
+	if audio_feedback != null:
+		audio_feedback.play_release()
+
+
+func play_install_feedback() -> void:
+	if audio_feedback != null:
+		audio_feedback.play_install()
+
+
+func play_block_push_feedback() -> void:
+	if audio_feedback != null:
+		audio_feedback.play_block_push()
 
 
 func play_release_dissipate_feedback() -> void:

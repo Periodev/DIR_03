@@ -2,6 +2,10 @@ class_name DirTitleScreen
 extends Node2D
 
 const VisualStyle = preload("res://scripts/visual_style.gd")
+const CONFIRM_STREAM: AudioStream = preload(
+	"res://assets/audio/sfx/confirm/switch28.ogg"
+)
+const CONFIRM_VOLUME_DB := -4.0
 
 const TITLE_FONT_SIZE := 64
 const OPTION_FONT_SIZE := 28
@@ -68,10 +72,15 @@ var confirm_hint_alpha := 0.78:
 		confirm_hint_alpha = value
 		queue_redraw()
 var confirm_hint_tween: Tween
+var confirm_player: AudioStreamPlayer
 
 
 func _ready() -> void:
 	ui_font = ThemeDB.fallback_font
+	confirm_player = AudioStreamPlayer.new()
+	confirm_player.name = "ConfirmPlayer"
+	confirm_player.volume_db = CONFIRM_VOLUME_DB
+	add_child(confirm_player)
 	if Campaign.is_single_level_mode():
 		call_deferred("open_single_level_test")
 		return
@@ -265,6 +274,13 @@ func select_direction(direction: Vector2i) -> void:
 	queue_redraw()
 
 
+func play_confirm_feedback() -> void:
+	if confirm_player == null:
+		return
+	confirm_player.stream = CONFIRM_STREAM
+	confirm_player.play()
+
+
 func pulse_confirm_hint() -> void:
 	if confirm_hint_tween != null and confirm_hint_tween.is_valid():
 		confirm_hint_tween.kill()
@@ -279,6 +295,7 @@ func pulse_confirm_hint() -> void:
 func activate_selection() -> void:
 	if selected_direction == Vector2i.DOWN and not extra_unlocked():
 		return
+	play_confirm_feedback()
 	play_config_action(confirm_selection_after_action)
 
 
