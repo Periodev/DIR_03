@@ -33,7 +33,7 @@ var block_cell: Vector2i = block["cell"]
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\verify_v11_static.ps1
-& 'D:\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64.exe' --headless --path 'D:\DIR_03' --editor --quit
+godot --headless --path . --editor --quit
 python -m unittest discover -s tests -v
 ```
 

@@ -36,7 +36,7 @@ Create `scripts/main.gd` with board constants, player state, and rendering helpe
 Run:
 
 ```powershell
-& 'D:\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe' --headless --path D:\DIR_03 --quit
+godot --headless --path . --quit
 ```
 
 Expected: Godot exits without GDScript parse errors.
@@ -91,7 +91,7 @@ When momentum exists, show a small arrow label above the player.
 Run:
 
 ```powershell
-& 'D:\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe' --headless --path D:\DIR_03 --quit
+godot --headless --path . --quit
 ```
 
 Expected: no script parse errors.

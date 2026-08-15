@@ -257,6 +257,7 @@ func try_move(direction: Vector2i, direction_name: String) -> void:
 		player_cell = target
 		set_message("Moved through empty space. Queue unchanged.")
 		append_debug_log("Move %s: player -> %s." % [direction_name, cell_text(player_cell)])
+		play_player_move_feedback()
 		if start_player_displacement(player_from, target):
 			return
 		finish_displacement_action(false)
@@ -1032,6 +1033,11 @@ func play_interact_hint_feedback() -> void:
 func play_release_dissipate_feedback() -> void:
 	if audio_feedback != null:
 		audio_feedback.play_release_dissipate()
+
+
+func play_player_move_feedback() -> void:
+	if audio_feedback != null:
+		audio_feedback.play_player_move()
 
 
 func finish_displacement_action(check_completion: bool) -> void:

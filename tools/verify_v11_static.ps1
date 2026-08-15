@@ -43,6 +43,9 @@ $hintSoundPath = Join-Path $root "assets/audio/sfx/hint/bong_001.ogg"
 $releaseSoundPaths = 0..4 | ForEach-Object {
 	Join-Path $root ("assets/audio/sfx/release/impactPlank_medium_{0:D3}.ogg" -f $_)
 }
+$moveSoundPaths = 0..4 | ForEach-Object {
+	Join-Path $root ("assets/audio/sfx/move/footstep_concrete_{0:D3}.ogg" -f $_)
+}
 
 $mainEntry = Get-Content -LiteralPath $mainPath -Raw
 $gameBoard = Get-Content -LiteralPath $gameBoardPath -Raw
@@ -476,6 +479,10 @@ $checks = @(
 	@{
 		Name = "neutral hints and blocked releases use distinct sound families"
 		Pass = (Test-Path -LiteralPath $hintSoundPath) -and @($releaseSoundPaths | Where-Object { -not (Test-Path -LiteralPath $_) }).Count -eq 0 -and $gameBoard -match 'func\s+start_player_hint_feedback\(\)[\s\S]*play_interact_hint_feedback\(\)' -and $gameBoard -match 'func\s+start_block_hint_feedback\([^)]*\)[\s\S]*play_interact_hint_feedback\(\)' -and $audioFeedback -match 'INTERACT_HINT_STREAM:\s*AudioStream[\s\S]*bong_001\.ogg' -and $audioFeedback -match 'RELEASE_DISSIPATE_STREAMS:\s*Array\[AudioStream\][\s\S]*impactPlank_medium_000\.ogg[\s\S]*impactPlank_medium_004\.ogg' -and $playerBoardView -match 'elif\s+is_blocked_release:[\s\S]*tween_callback\(\s*play_blocked_release_contact_feedback\s*\)[\s\S]*set_blocked_release_shake_progress' -and $playerBoardView -match 'func\s+play_blocked_release_contact_feedback\(\)[\s\S]*play_release_dissipate_feedback\(\)'
+	},
+	@{
+		Name = "successful player movement uses concrete footstep variants"
+		Pass = @($moveSoundPaths | Where-Object { -not (Test-Path -LiteralPath $_) }).Count -eq 0 -and $gameBoard -match 'Moved through empty space\.[\s\S]*play_player_move_feedback\(\)[\s\S]*start_player_displacement\(' -and $audioFeedback -match 'PLAYER_MOVE_STREAMS:\s*Array\[AudioStream\][\s\S]*footstep_concrete_000\.ogg[\s\S]*footstep_concrete_004\.ogg' -and $audioFeedback -match 'func\s+play_player_move\(\)[\s\S]*nonrepeating_index\('
 	},
 	@{
 		Name = "blocked releases shake without becoming errors"
