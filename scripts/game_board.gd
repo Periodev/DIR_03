@@ -2,6 +2,7 @@ extends Node2D
 
 const BoardView = preload("res://scripts/board_view.gd")
 const GameHud = preload("res://scripts/game_hud.gd")
+const AudioFeedback = preload("res://scripts/audio_feedback.gd")
 
 const MAX_DEBUG_LINES := 10
 
@@ -56,6 +57,7 @@ var install_tutorial_completed := false
 
 var board_view
 var game_hud
+var audio_feedback: DirAudioFeedback
 var debug_panel
 var hud_layer: CanvasLayer
 
@@ -63,6 +65,9 @@ var hud_layer: CanvasLayer
 func _ready() -> void:
 	if not load_initial_level():
 		return
+
+	audio_feedback = AudioFeedback.new()
+	add_child(audio_feedback)
 
 	board_view = create_board_view()
 	board_view.initialize(self)
@@ -174,7 +179,7 @@ func show_ineffective_command_feedback(command: String) -> void:
 		"T":
 			set_message("Nothing installed to release.")
 			append_debug_log("Release unavailable: no installed vectors.")
-			start_player_error_feedback()
+			start_player_hint_feedback()
 	update_hud()
 
 
@@ -357,7 +362,7 @@ func trigger_vector() -> void:
 	if install_order.is_empty():
 		set_message("Nothing installed to release.")
 		append_debug_log("Release unavailable: no installed vectors.")
-		start_player_error_feedback()
+		start_player_hint_feedback()
 		end_atomic_input()
 		return
 
@@ -993,22 +998,40 @@ func start_trigger_displacement(
 	return true
 
 
-func start_player_error_feedback() -> void:
-	if board_view == null or not board_view.has_method("play_player_error_flash"):
+func start_player_hint_feedback() -> void:
+	play_interact_hint_feedback()
+	if board_view == null or not board_view.has_method("play_player_hint_flash"):
 		return
-	board_view.play_player_error_flash(player_cell)
+	board_view.play_player_hint_flash(player_cell)
 
 
 func start_block_error_feedback(block_cell: Vector2i) -> void:
+	play_error_red_feedback()
 	if board_view == null or not board_view.has_method("play_block_error_flash"):
 		return
 	board_view.play_block_error_flash(block_cell)
 
 
+func play_error_red_feedback() -> void:
+	if audio_feedback != null:
+		audio_feedback.play_error_red()
+
+
 func start_block_hint_feedback(block_cell: Vector2i) -> void:
+	play_interact_hint_feedback()
 	if board_view == null or not board_view.has_method("play_block_hint_flash"):
 		return
 	board_view.play_block_hint_flash(block_cell)
+
+
+func play_interact_hint_feedback() -> void:
+	if audio_feedback != null:
+		audio_feedback.play_interact_hint()
+
+
+func play_release_dissipate_feedback() -> void:
+	if audio_feedback != null:
+		audio_feedback.play_release_dissipate()
 
 
 func finish_displacement_action(check_completion: bool) -> void:

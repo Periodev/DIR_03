@@ -24,7 +24,7 @@ func run_checks() -> void:
 	await check_adaptive_board_fit(game)
 	check_undo_deadlock_prompt(game)
 	await check_install_tutorial_hint(game)
-	await check_empty_release_error(game)
+	await check_empty_release_hint(game)
 	check_air_install_ignored(game)
 	await check_empty_install_hint(game)
 	await check_loaded_block_rejects_install(game)
@@ -312,7 +312,7 @@ func check_install_tutorial_hint(game: Node) -> void:
 	Campaign.active_level_id = previous_level_id
 
 
-func check_empty_release_error(game: Node) -> void:
+func check_empty_release_hint(game: Node) -> void:
 	require_level(game, "@..")
 	var view: Node = game.board_view
 	var command_count_before: int = game.command_history.size()
@@ -333,12 +333,20 @@ func check_empty_release_error(game: Node) -> void:
 		"empty release should target the player's cell"
 	)
 	require(
-		float(view.error_flash_alpha) > 0.65,
-		"empty release should start with a visible red overlay"
+		int(view.error_flash_subject) == int(view.ERROR_FLASH_PLAYER),
+		"empty release should hint on the player"
 	)
-	await create_timer(VisualStyle.ERROR_FLASH_SECONDS + 0.05).timeout
-	require(float(view.error_flash_alpha) < 0.01, "error overlay should fade out")
-	require(Vector2i(view.error_flash_cell) == Vector2i(-1, -1), "error cell should clear")
+	require(
+		String(view.error_flash_color_key) == "hint_flash",
+		"empty release should use the neutral hint color"
+	)
+	require(
+		is_equal_approx(float(view.error_flash_alpha), VisualStyle.HINT_FLASH_MAX_ALPHA),
+		"empty release hint should stay low intensity"
+	)
+	await create_timer(VisualStyle.HINT_FLASH_SECONDS + 0.05).timeout
+	require(float(view.error_flash_alpha) < 0.01, "hint overlay should fade out")
+	require(Vector2i(view.error_flash_cell) == Vector2i(-1, -1), "hint cell should clear")
 
 
 func check_air_install_ignored(game: Node) -> void:

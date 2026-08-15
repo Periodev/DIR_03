@@ -3,6 +3,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $mainPath = Join-Path $root "scripts/main.gd"
 $gameBoardPath = Join-Path $root "scripts/game_board.gd"
+$audioFeedbackPath = Join-Path $root "scripts/audio_feedback.gd"
 $boardViewPath = Join-Path $root "scripts/board_view.gd"
 $playerBoardViewPath = Join-Path $root "scripts/player_board_view.gd"
 $gameHudPath = Join-Path $root "scripts/game_hud.gd"
@@ -37,9 +38,15 @@ $extraEnergySlotPath = Join-Path $root "scripts/extra_mode/EnergySlot.gd"
 $extraComboBotPath = Join-Path $root "scripts/extra_mode/ComboBot.gd"
 $extraCharacterDataPath = Join-Path $root "scripts/extra_mode/CharacterData.gd"
 $extraScoreManagerPath = Join-Path $root "scripts/extra_mode/ScoreManager.gd"
+$errorSound005Path = Join-Path $root "assets/audio/sfx/error/error_005.ogg"
+$hintSoundPath = Join-Path $root "assets/audio/sfx/hint/bong_001.ogg"
+$releaseSoundPaths = 0..4 | ForEach-Object {
+	Join-Path $root ("assets/audio/sfx/release/impactPlank_medium_{0:D3}.ogg" -f $_)
+}
 
 $mainEntry = Get-Content -LiteralPath $mainPath -Raw
 $gameBoard = Get-Content -LiteralPath $gameBoardPath -Raw
+$audioFeedback = Get-Content -LiteralPath $audioFeedbackPath -Raw
 $boardView = Get-Content -LiteralPath $boardViewPath -Raw
 $playerBoardView = Get-Content -LiteralPath $playerBoardViewPath -Raw
 $gameHud = Get-Content -LiteralPath $gameHudPath -Raw
@@ -459,8 +466,16 @@ $checks = @(
 		Pass = $playerAnimationCheck -match "check_player_displacement" -and $playerAnimationCheck -match "check_grid_line_toggle" -and $playerAnimationCheck -match "is_goal_visually_occupied" -and $playerAnimationCheck -match "stored_vector_center" -and $playerAnimationCheck -match "check_push_displacement" -and $playerAnimationCheck -match "check_install_reveal" -and $playerAnimationCheck -match "check_free_trigger_sequence" -and $playerAnimationCheck -match "check_blocked_trigger_sequence" -and $playerAnimationCheck -match "check_collision_trigger_sequence" -and $playerAnimationCheck -match "check_reset_cancels_animation"
 	},
 	@{
-		Name = "empty release flashes the player as an input error"
-		Pass = $gameBoard -match 'install_order\.is_empty\(\)[\s\S]*Nothing installed to release\.[\s\S]*start_player_error_feedback\(\)' -and $playerBoardView -match 'func\s+play_player_error_flash\(cell:\s*Vector2i\)[\s\S]*ERROR_FLASH_PLAYER[\s\S]*"error_flash"[\s\S]*ERROR_FLASH_MAX_ALPHA[\s\S]*ERROR_FLASH_SECONDS' -and $playerBoardView -match 'draw_player_body\(\)[\s\S]*draw_player_error_flash\(\)[\s\S]*draw_player_stored_vector\(\)' -and $playerBoardView -match 'func\s+draw_player_error_flash\(\)[\s\S]*ERROR_FLASH_PLAYER[\s\S]*palette\[error_flash_color_key\][\s\S]*draw_colored_polygon\([\s\S]*player_body_points' -and $visualStyle -match 'ERROR_FLASH_MAX_ALPHA\s*:=\s*180\.0\s*/\s*255\.0' -and $visualStyle -match '"error_flash":\s*Color\("#ff3232"\)' -and $playerAnimationCheck -match 'check_empty_release_error\(game\)'
+		Name = "empty release gives the player a weak neutral hint"
+		Pass = $gameBoard -match 'install_order\.is_empty\(\)[\s\S]*Nothing installed to release\.[\s\S]*start_player_hint_feedback\(\)' -and $playerBoardView -match 'func\s+play_player_hint_flash\(cell:\s*Vector2i\)[\s\S]*ERROR_FLASH_PLAYER[\s\S]*"hint_flash"[\s\S]*HINT_FLASH_MAX_ALPHA[\s\S]*HINT_FLASH_SECONDS' -and $playerBoardView -match 'draw_player_body\(\)[\s\S]*draw_player_error_flash\(\)[\s\S]*draw_player_stored_vector\(\)' -and $playerBoardView -match 'func\s+draw_player_error_flash\(\)[\s\S]*ERROR_FLASH_PLAYER[\s\S]*palette\[error_flash_color_key\][\s\S]*draw_colored_polygon\([\s\S]*player_body_points' -and $playerAnimationCheck -match 'check_empty_release_hint\(game\)'
+	},
+	@{
+		Name = "red error flashes share one error sound"
+		Pass = (Test-Path -LiteralPath $errorSound005Path) -and $gameBoard -match 'func\s+start_block_error_feedback\([^)]*\)[\s\S]*play_error_red_feedback\(\)' -and $gameBoard -notmatch 'start_player_error_feedback|play_player_error_flash' -and $audioFeedback -match 'ERROR_RED_STREAM:\s*AudioStream[\s\S]*error_005\.ogg' -and $audioFeedback -notmatch 'error_006\.ogg|last_error_red_index'
+	},
+	@{
+		Name = "neutral hints and blocked releases use distinct sound families"
+		Pass = (Test-Path -LiteralPath $hintSoundPath) -and @($releaseSoundPaths | Where-Object { -not (Test-Path -LiteralPath $_) }).Count -eq 0 -and $gameBoard -match 'func\s+start_player_hint_feedback\(\)[\s\S]*play_interact_hint_feedback\(\)' -and $gameBoard -match 'func\s+start_block_hint_feedback\([^)]*\)[\s\S]*play_interact_hint_feedback\(\)' -and $audioFeedback -match 'INTERACT_HINT_STREAM:\s*AudioStream[\s\S]*bong_001\.ogg' -and $audioFeedback -match 'RELEASE_DISSIPATE_STREAMS:\s*Array\[AudioStream\][\s\S]*impactPlank_medium_000\.ogg[\s\S]*impactPlank_medium_004\.ogg' -and $playerBoardView -match 'elif\s+is_blocked_release:[\s\S]*tween_callback\(\s*play_blocked_release_contact_feedback\s*\)[\s\S]*set_blocked_release_shake_progress' -and $playerBoardView -match 'func\s+play_blocked_release_contact_feedback\(\)[\s\S]*play_release_dissipate_feedback\(\)'
 	},
 	@{
 		Name = "blocked releases shake without becoming errors"

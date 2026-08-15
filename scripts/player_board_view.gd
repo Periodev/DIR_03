@@ -184,13 +184,13 @@ func finish_completion_feedback() -> void:
 	completion_pulse_tween = null
 
 
-func play_player_error_flash(cell: Vector2i) -> void:
+func play_player_hint_flash(cell: Vector2i) -> void:
 	play_error_flash(
 		ERROR_FLASH_PLAYER,
 		cell,
-		"error_flash",
-		VisualStyle.ERROR_FLASH_MAX_ALPHA,
-		VisualStyle.ERROR_FLASH_SECONDS
+		"hint_flash",
+		VisualStyle.HINT_FLASH_MAX_ALPHA,
+		VisualStyle.HINT_FLASH_SECONDS
 	)
 
 
@@ -391,6 +391,9 @@ func play_trigger_displacement(
 			VisualStyle.COLLISION_TARGET_FOLLOW_SECONDS
 		)
 	elif is_blocked_release:
+		displacement_tween.tween_callback(
+			play_blocked_release_contact_feedback
+		)
 		displacement_tween.tween_method(
 			set_blocked_release_shake_progress,
 			0.0,
@@ -417,6 +420,13 @@ func play_trigger_displacement(
 			VisualStyle.TRIGGER_FLASH_OUT_SECONDS
 		).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	displacement_tween.tween_callback(finish_displacement)
+
+
+func play_blocked_release_contact_feedback() -> void:
+	if game_board != null and game_board.has_method(
+		"play_release_dissipate_feedback"
+	):
+		game_board.play_release_dissipate_feedback()
 
 
 func prepare_displacement(
