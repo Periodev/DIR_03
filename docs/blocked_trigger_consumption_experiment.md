@@ -1,8 +1,11 @@
-# Blocked Trigger Consumption Experiment
+# Blocked Trigger Consumption Decision
 
-Branch: `codex/test-blocked-trigger-consumption`
+Status: **Accepted and implemented**
 
-## Experimental rule
+Originally tested on branch `codex/test-blocked-trigger-consumption`; now part
+of the authoritative Godot and Python rules.
+
+## Current rule
 
 When the oldest installed vector cannot produce movement, `T` still consumes
 that vector and removes its carrier from `install_order`. The board positions do
@@ -15,7 +18,7 @@ not change. This applies to:
 
 An empty `install_order` remains a no-op.
 
-## Verification
+## Adoption verification
 
 - Python engine tests cover all four blocked cases.
 - Godot runtime verification covers a carrier pointing into the board edge.
@@ -23,7 +26,11 @@ An empty `install_order` remains a no-op.
 - Every level keeps the same shortest command count and the same shortest
   command string recorded under the locked-vector rule.
 
-## BFS comparison
+## BFS comparison at adoption time
+
+The following measurements cover the 33 campaign levels that existed when the
+rule was evaluated. They are retained as historical decision evidence, not as
+the current campaign level count.
 
 | Area | Levels | Baseline discovered | Experimental discovered | Change |
 |---|---:|---:|---:|---:|
@@ -58,5 +65,6 @@ a bad installation is no longer a permanent lock, so some reset-only traps
 become recoverable. The current campaign therefore keeps its solution depth but
 loses part of its irreversible-error pressure.
 
-This branch is suitable for playtesting whether reduced restart friction is
-worth that loss. BFS alone does not justify replacing the locked-vector rule.
+The reduced restart friction was accepted. Blocked release therefore remains a
+state-changing action: positions stay fixed, while the oldest installed vector
+is removed. Future rule changes must update both Godot and the Python solver.

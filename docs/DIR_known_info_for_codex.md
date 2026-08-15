@@ -1,7 +1,7 @@
 # DIR Known Information for Codex
 
-Last updated: 2026-06-23
-Project: DIR, not DIV
+Last updated: 2026-08-15
+Project: DIR
 Purpose: implementation/design handoff for Codex. This document records known decisions, unresolved questions, and puzzle requirements. It should not invent new mechanics unless explicitly marked as proposal.
 
 ---
@@ -14,7 +14,7 @@ Earlier versions:
 
 - **DIR1.0**: store/release only. U/D/L/R were fixed. Player displacement was the main observable effect.
 - **DIR2.0**: added composition and turning. Produced many multi-solution movement-efficiency puzzles, but the design drifted toward efficient movement rather than a distinct direction-resource puzzle language.
-- **DIR**: direction is treated as something that can be generated, stored, transferred, and released. The goal is to produce puzzles not expressible as DIV-style split/merge or DIR2.0 movement optimization.
+- **DIR**: direction is treated as something that can be generated, stored, transferred, and released. The goal is to produce puzzles that cannot be reduced to split/merge operations or DIR2.0 movement optimization.
 
 Core framing:
 
@@ -68,7 +68,7 @@ Terminology approximation:
 
 - An **interact key** is being considered.
 - It may handle adjacent release or transfer.
-- This is inspired partly by DIV having separate object/world interaction, but DIR must not become DIV.
+- This keeps object interaction separate from movement, but it must remain subordinate to direction transfer and release.
 
 Current likely use of interact:
 
@@ -297,23 +297,14 @@ Status:
 
 ---
 
-## 8. Relationship to DIV
-
-Important: do not confuse DIR with DIV.
-
-DIV:
-
-- centered on split/merge
-- two interactions were considered: object interaction and world interaction
-- deals with overlapping or combining solution states
-
-DIR:
+## 8. Identity boundaries
 
 - centered on direction as stored resource
 - push remains the first-level operation
-- interact, if added, should support direction transfer/release rather than become DIV-like state manipulation
+- interact, if added, should support direction transfer/release rather than direct state manipulation
+- avoid mechanics centered on splitting, merging, overlapping, or directly combining solution states
 
-Implementation naming should avoid DIV assumptions.
+Implementation naming should describe DIR concepts rather than inherit assumptions from unrelated systems.
 
 ---
 
@@ -355,7 +346,7 @@ Suggested model objects:
 
 Naming caution:
 
-- Avoid `DIV` names.
+- Avoid names inherited from unrelated split/merge systems.
 - Avoid overly abstract names that hide whether something is a stored direction, a trigger, or a movement result.
 
 ---
