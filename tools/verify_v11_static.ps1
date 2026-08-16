@@ -28,6 +28,8 @@ $projectPath = Join-Path $root "project.godot"
 $editorPath = Join-Path $root "tools/level_editor.html"
 $playerAnimationCheckPath = Join-Path $root "tools/verify_player_animation.gd"
 $initialFacingCheckPath = Join-Path $root "tools/verify_initial_facing.gd"
+$campaignFlowCheckPath = Join-Path $root "tools/verify_campaign_flow.gd"
+$classicLevelSelectCheckPath = Join-Path $root "tools/verify_classic_level_select.gd"
 $pyprojectPath = Join-Path $root "pyproject.toml"
 $solverCliPath = Join-Path $root "solver/cli.py"
 $extraBoardPath = Join-Path $root "scripts/extra_mode/Board.gd"
@@ -82,6 +84,8 @@ $level = Get-Content -LiteralPath $levelPath -Raw
 $project = Get-Content -LiteralPath $projectPath -Raw
 $editor = Get-Content -LiteralPath $editorPath -Raw
 $playerAnimationCheck = Get-Content -LiteralPath $playerAnimationCheckPath -Raw
+$campaignFlowCheck = Get-Content -LiteralPath $campaignFlowCheckPath -Raw
+$classicLevelSelectCheck = Get-Content -LiteralPath $classicLevelSelectCheckPath -Raw
 $initialFacingCheck = Get-Content -LiteralPath $initialFacingCheckPath -Raw
 $pyproject = Get-Content -LiteralPath $pyprojectPath -Raw
 $solverCli = Get-Content -LiteralPath $solverCliPath -Raw
@@ -567,6 +571,10 @@ $checks = @(
 	@{
 		Name = "campaign levels use one named cell-edge catalog"
 		Pass = $campaign -match 'preload\("res://scripts/level_catalog\.gd"\)' -and $campaign -match 'const\s+AREAS\s*:=\s*LevelCatalogData\.AREAS' -and $campaign -notmatch 'collection_path|load_collection_sections' -and ([regex]::Matches($levelCatalog, '"id":\s*"')).Count -eq 36 -and ([regex]::Matches($levelCatalog, '"name":\s*"')).Count -eq 36 -and ([regex]::Matches($levelCatalog, '"source":\s*"!cell-edge-v1')).Count -eq 36
+	},
+	@{
+		Name = "campaign progress persists automatically through ConfigFile"
+		Pass = $campaign -match 'SAVE_VERSION\s*:=\s*1' -and $campaign -match 'DEFAULT_SAVE_PATH\s*:=\s*"user://progress\.cfg"' -and $campaign -match 'func\s+_ready\(\)[\s\S]*load_progress\(\)' -and $campaign -match 'func\s+complete_level\([^)]*\)[\s\S]*completed_levels\[level_id\]\s*=\s*true[\s\S]*save_progress\(\)' -and $campaign -match 'func\s+reset_progress\(\)[\s\S]*completed_levels\.clear\(\)[\s\S]*save_progress\(\)' -and $campaign -match 'func\s+save_progress\(\)[\s\S]*ConfigFile\.new\(\)[\s\S]*config\.save\(save_path\)' -and $campaign -match 'func\s+load_progress\(\)[\s\S]*config\.load\(save_path\)[\s\S]*is_known_level_id\(level_id\)' -and $campaignFlowCheck -match 'Saved completion did not reload from ConfigFile' -and $campaignFlowCheck -match 'Reset progress did not overwrite the persisted completion state' -and $classicLevelSelectCheck -match 'Campaign\.save_path\s*=\s*TEST_SAVE_PATH'
 	},
 	@{
 		Name = "area three hard branches jointly unlock Fin"

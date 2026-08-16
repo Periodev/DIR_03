@@ -2,6 +2,7 @@ extends SceneTree
 
 const CampaignScript = preload("res://scripts/campaign.gd")
 const AsciiMapParserScript = preload("res://scripts/ascii_map.gd")
+const TEST_SAVE_PATH := "user://verify_campaign_progress.cfg"
 
 
 func _initialize() -> void:
@@ -9,7 +10,9 @@ func _initialize() -> void:
 
 
 func run_verification() -> void:
+	remove_test_save()
 	var campaign: Node = CampaignScript.new()
+	campaign.save_path = TEST_SAVE_PATH
 	var verified_levels := 0
 	var verified_ids: Dictionary = {}
 
@@ -41,8 +44,8 @@ func run_verification() -> void:
 				return
 			verified_levels += 1
 
-	if verified_levels != 34:
-		fail("Expected 34 campaign levels; found %s." % verified_levels)
+	if verified_levels != 36:
+		fail("Expected 36 campaign levels; found %s." % verified_levels)
 		return
 	if campaign.level_name_for("1-0") != "Push" or campaign.level_name_for("3-11") != "Phase" or campaign.level_name_for("3-12") != "Fin":
 		fail("Campaign level names are not available through the catalog.")
@@ -65,16 +68,38 @@ func run_verification() -> void:
 	if campaign.return_area != 1 or campaign.return_cell != Vector2i(0, 0):
 		fail("Return position was not retained.")
 		return
+	var reloaded_campaign: Node = CampaignScript.new()
+	reloaded_campaign.save_path = TEST_SAVE_PATH
+	reloaded_campaign.load_progress()
+	if not reloaded_campaign.is_completed("1-0"):
+		fail("Saved completion did not reload from ConfigFile.")
+		return
 
 	campaign.leave_active_level()
 	if campaign.has_active_level():
 		fail("Active level was not cleared on map return.")
 		return
 
+	reloaded_campaign.reset_progress()
+	var reset_campaign: Node = CampaignScript.new()
+	reset_campaign.save_path = TEST_SAVE_PATH
+	reset_campaign.load_progress()
+	if reset_campaign.is_completed("1-0"):
+		fail("Reset progress did not overwrite the persisted completion state.")
+		return
+
+	remove_test_save()
 	print("Campaign flow verification passed for %s levels." % verified_levels)
 	quit(0)
 
 
 func fail(message: String) -> void:
+	remove_test_save()
 	push_error(message)
 	quit(1)
+
+
+func remove_test_save() -> void:
+	var absolute_path := ProjectSettings.globalize_path(TEST_SAVE_PATH)
+	if FileAccess.file_exists(TEST_SAVE_PATH):
+		DirAccess.remove_absolute(absolute_path)

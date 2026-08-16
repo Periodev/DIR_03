@@ -2,6 +2,7 @@ extends Node
 
 const SELECT_SCENE := preload("res://scenes/classic_level_select.tscn")
 const THUMBNAIL_RENDERER := preload("res://scripts/level_thumbnail_renderer.gd")
+const TEST_SAVE_PATH := "user://verify_classic_level_select_progress.cfg"
 
 
 func _ready() -> void:
@@ -9,21 +10,23 @@ func _ready() -> void:
 
 
 func run_verification() -> void:
+	remove_test_save()
+	Campaign.save_path = TEST_SAVE_PATH
 	Campaign.reset_progress()
 	var selector: Node2D = SELECT_SCENE.instantiate()
 	add_child(selector)
 	await get_tree().process_frame
 
-	if selector.entries.size() != 34:
-		fail("Expected 34 classic selector entries, got %s." % selector.entries.size())
+	if selector.entries.size() != 36:
+		fail("Expected 36 classic selector entries, got %s." % selector.entries.size())
 		return
 	if (
 		selector.area_entries.size() != 3
 		or selector.area_entries[0].size() != 12
 		or selector.area_entries[1].size() != 12
-		or selector.area_entries[2].size() != 10
+		or selector.area_entries[2].size() != 12
 	):
-		fail("Classic selector pages do not match the 12/12/10 campaign areas.")
+		fail("Classic selector pages do not match the 12/12/12 campaign areas.")
 		return
 	if Campaign.level_select_scene_path != Campaign.CLASSIC_LEVEL_SELECT_SCENE_PATH:
 		fail("Classic selector did not register itself as the return scene.")
@@ -54,8 +57,8 @@ func run_verification() -> void:
 		if not completed_block_cells.has(Vector2i(goal_value)):
 			fail("Completed thumbnail omitted a goal cell.")
 			return
-	if not is_equal_approx(selector.slot_size_for(Vector2(1440, 960)), 216.0):
-		fail("Classic selector did not use 216px slots at 1440x960.")
+	if not is_equal_approx(selector.slot_size_for(Vector2(1440, 960)), 208.0):
+		fail("Classic selector did not use the current 208px adaptive slots at 1440x960.")
 		return
 	var layout_viewport := Vector2(1440, 960)
 	var first_rect: Rect2 = selector.entry_rect_for(0, layout_viewport)
@@ -154,10 +157,18 @@ func run_verification() -> void:
 		fail("F3 unlock state did not make every area available.")
 		return
 
+	remove_test_save()
 	print("Classic level select verification passed for %s levels." % selector.entries.size())
 	get_tree().quit(0)
 
 
 func fail(message: String) -> void:
+	remove_test_save()
 	push_error(message)
 	get_tree().quit(1)
+
+
+func remove_test_save() -> void:
+	var absolute_path := ProjectSettings.globalize_path(TEST_SAVE_PATH)
+	if FileAccess.file_exists(TEST_SAVE_PATH):
+		DirAccess.remove_absolute(absolute_path)
