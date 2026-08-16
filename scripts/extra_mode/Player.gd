@@ -182,12 +182,12 @@ func _draw_ultimate_dash_arrows() -> void:
 		draw_polyline(arrow, Color(0.08, 0.09, 0.11, 0.95), OUTLINE_WIDTH, true)
 		draw_polyline(arrow, ULT_COLOR, FILL_WIDTH, true)
 
-func play_move(from_pos: Vector2, move_duration_override: float = -1.0) -> void:
+func play_move(from_pos: Vector2, move_duration_override: float = -1.0, play_sound: bool = true) -> void:
 	if _move_tween != null and _move_tween.is_valid():
 		_move_tween.kill()
 	var to_pos := position          # already set by Board
 	position = from_pos             # snap back to start
-	_move_tween = _char_impl.play_move(self, from_pos, to_pos, move_duration_override)
+	_move_tween = _char_impl.play_move(self, from_pos, to_pos, move_duration_override, play_sound)
 	movement_started.emit()
 	_move_tween.finished.connect(_finish_move, CONNECT_ONE_SHOT)
 

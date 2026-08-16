@@ -26,7 +26,8 @@ func play_move(
 	player: Node2D,
 	from_pos: Vector2,
 	to_pos: Vector2,
-	move_duration_override: float = -1.0
+	move_duration_override: float = -1.0,
+	play_sound: bool = true
 ) -> Tween:
 	var move_duration: float = MOVE_DURATION if move_duration_override < 0.0 else move_duration_override
 	var trail := Node2D.new()
@@ -36,7 +37,8 @@ func play_move(
 	var tw := player.create_tween()
 	tw.tween_property(player, "position", to_pos, move_duration)\
 	  .set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
-	play_move_sound(player)
+	if play_sound:
+		play_move_sound(player)
 	return tw
 
 func play_attack(player: Node2D, dir: int, success: bool, is_dash: bool) -> void:
@@ -127,7 +129,7 @@ func trigger_move(board: Node2D, move_duration: float = MOVE_DURATION) -> void:
 	)
 	if from_pos != to_pos:
 		board.player_node.position = to_pos
-		board.player_node.play_move(from_pos, move_duration)
+		board.player_node.play_move(from_pos, move_duration, false)
 
 func resolve_kill_visual() -> void:
 	pending_kill_pos = Vector2i(-1, -1)
