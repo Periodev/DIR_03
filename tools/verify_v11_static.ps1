@@ -30,6 +30,7 @@ $playerAnimationCheckPath = Join-Path $root "tools/verify_player_animation.gd"
 $initialFacingCheckPath = Join-Path $root "tools/verify_initial_facing.gd"
 $campaignFlowCheckPath = Join-Path $root "tools/verify_campaign_flow.gd"
 $classicLevelSelectCheckPath = Join-Path $root "tools/verify_classic_level_select.gd"
+$extraBonusStepCheckPath = Join-Path $root "tools/verify_extra_bonus_step.gd"
 $pyprojectPath = Join-Path $root "pyproject.toml"
 $solverCliPath = Join-Path $root "solver/cli.py"
 $extraBoardPath = Join-Path $root "scripts/extra_mode/Board.gd"
@@ -86,6 +87,7 @@ $editor = Get-Content -LiteralPath $editorPath -Raw
 $playerAnimationCheck = Get-Content -LiteralPath $playerAnimationCheckPath -Raw
 $campaignFlowCheck = Get-Content -LiteralPath $campaignFlowCheckPath -Raw
 $classicLevelSelectCheck = Get-Content -LiteralPath $classicLevelSelectCheckPath -Raw
+$extraBonusStepCheck = Get-Content -LiteralPath $extraBonusStepCheckPath -Raw
 $initialFacingCheck = Get-Content -LiteralPath $initialFacingCheckPath -Raw
 $pyproject = Get-Content -LiteralPath $pyprojectPath -Raw
 $solverCli = Get-Content -LiteralPath $solverCliPath -Raw
@@ -617,8 +619,12 @@ $checks = @(
 		Pass = $extraBoard -match 'var\s+ultimate_ready:\s*bool\s*=\s*game_state\.is_idle\(\)\s+and\s+ultimate_dashes_remaining\s*>\s*0' -and $extraBoard -match 'player_node\.set_ultimate_dash_ready\(ultimate_ready\)' -and $extraPlayer -match 'func\s+set_ultimate_dash_ready\(ready:\s*bool\)' -and $extraPlayer -match 'func\s+_draw_ultimate_dash_arrows\(\)' -and $extraPlayer -match 'ARROW_DISTANCE\s*:=\s*70\.0' -and $extraPlayer -match 'ARROW_HALF_HEIGHT\s*:=\s*8\.0' -and $extraPlayer -match 'ULT_COLOR\s*:=\s*Color\(0\.28,\s*0\.92,\s*0\.48\)'
 	},
 	@{
-		Name = "EXTRA grants one opening charge turn before spawn progression"
-		Pass = $extraBoard -match 'OPENING_GRACE_TURNS\s*:=\s*1' -and $extraBoard -match '_opening_grace_turns_remaining\s*=\s*OPENING_GRACE_TURNS' -and $extraBoard -match 'func\s+_complete_turn_after_motion\(\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+_opening_grace_turns_remaining\s*>\s*0:(?:(?!\r?\nfunc\s)[\s\S])*?_opening_grace_turns_remaining\s*-=\s*1(?:(?!\r?\nfunc\s)[\s\S])*?else:\s*\r?\n\s*_advance_cycle\(\)'
+		Name = "EXTRA starts spawn progression on the first normal turn"
+		Pass = $extraBoard -notmatch 'OPENING_GRACE_TURNS|_opening_grace_turns_remaining' -and $extraBoard -match 'func\s+_complete_turn_after_motion\(\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+not\s+freeze_spawn_cycle:\s*\r?\n\s*_advance_cycle\(\)'
+	},
+	@{
+		Name = "EXTRA plays one restrained sound when a warning batch appears"
+		Pass = $extraBoard -match 'SPAWN_CYCLE_STEPS\s*:=\s*3' -and $extraBoard -match 'SPAWNS_PER_CYCLE\s*:=\s*3' -and $extraBoard -match 'elif\s+cycle_counter\s*==\s*SPAWN_CYCLE_STEPS\s*-\s*1:\s*\r?\n\s*_start_new_cycle\(\)' -and $extraBoard -match 'SPAWN_WARNING_SOUND:\s*AudioStream[\s\S]*extra_spawn/question_004\.ogg' -and $extraBoard -match 'SPAWN_WARNING_VOLUME_DB\s*:=\s*-14\.0' -and $extraBoard -match 'spawn_warning_player\.stream\s*=\s*SPAWN_WARNING_SOUND' -and $extraBoard -match 'func\s+_start_new_cycle\(\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+not\s+candidate_cells\.is_empty\(\):\s*\r?\n\s*play_spawn_warning_sound\(\)' -and $extraBonusStepCheck -match 'The first turn of a spawn cycle was not empty' -and $extraBonusStepCheck -match 'The second turn did not reveal its three-enemy warning batch' -and $extraBonusStepCheck -match 'An enemy spawned during the warning turn' -and $extraBonusStepCheck -match 'The third normal turn did not spawn all three warned enemies'
 	},
 	@{
 		Name = "EXTRA resolves movement before spawning and unlocking input"

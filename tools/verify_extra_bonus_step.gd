@@ -45,6 +45,42 @@ func run_verification() -> void:
 	var board: Node2D = BoardScript.new()
 	root.add_child(board)
 	await process_frame
+	board.spawn_warning_player.stop()
+	board._advance_cycle()
+	if board.cycle_counter != 1 or not board.candidate_cells.is_empty() \
+			or board.spawn_warning_player.playing:
+		fail("The first turn of a spawn cycle was not empty.")
+		return
+	board._advance_cycle()
+	if board.candidate_cells.size() != 3 or not board.spawn_warning_player.playing:
+		fail("The second turn did not reveal its three-enemy warning batch.")
+		return
+	board.spawn_warning_player.stop()
+	var spawn_targets: Array[Vector2i] = []
+	for row in board.ROWS:
+		for column in board.COLS:
+			var spawn_target := Vector2i(column, row)
+			if spawn_target != board.player_pos and board._is_spawnable_live_cell(spawn_target):
+				spawn_targets.append(spawn_target)
+				if spawn_targets.size() == 3:
+					break
+		if spawn_targets.size() == 3:
+			break
+	board.candidate_cells.assign(spawn_targets)
+	for spawn_target in spawn_targets:
+		if board.grid[spawn_target.y][spawn_target.x] != CharacterData.CellType.LIVE:
+			fail("An enemy spawned during the warning turn.")
+			return
+	board._advance_cycle()
+	if board.cycle_counter != 0 or not board.candidate_cells.is_empty():
+		fail("Three-turn spawning did not resolve and reset on turn three.")
+		return
+	for spawn_target in spawn_targets:
+		if board.grid[spawn_target.y][spawn_target.x] != CharacterData.CellType.DEAD:
+			fail("The third normal turn did not spawn all three warned enemies.")
+			return
+	board.restart()
+	await process_frame
 	if board._player_move_visual_pending:
 		fail("Fresh Board startup created a false player movement tween.")
 		return
@@ -52,12 +88,6 @@ func run_verification() -> void:
 	var danger_target: Vector2i = board.player_pos + CharacterData.DIR_VECTOR[danger_direction]
 	board.candidate_cells = [danger_target]
 	board.cycle_counter = board.SPAWN_CYCLE_STEPS - 1
-	board._opening_grace_turns_remaining = 1
-	board._sync_player_move_ready()
-	if danger_direction in board.player_node.danger_move_directions:
-		fail("Opening grace incorrectly marked a move as immediate spawn danger.")
-		return
-	board._opening_grace_turns_remaining = 0
 	board._sync_player_move_ready()
 	if danger_direction not in board.player_node.danger_move_directions:
 		fail("A move into this turn's spawn cell was not marked as dangerous.")
