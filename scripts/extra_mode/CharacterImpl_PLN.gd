@@ -7,7 +7,7 @@ const MOVE_SOUND: AudioStream = preload(
 	"res://assets/audio/sfx/extra_attack/slash_666herohero_21834.mp3"
 )
 const ATTACK_SOUND: AudioStream = preload(
-	"res://assets/audio/sfx/extra_attack/sword_freesound_36274.wav"
+	"res://assets/audio/sfx/extra_attack/sword_slash_54427377.wav"
 )
 
 const WINDUP := PLNSlashEffect.WINDUP
