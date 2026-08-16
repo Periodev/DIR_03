@@ -19,6 +19,9 @@ const CELL_STEP := CELL_SIZE + CELL_GAP
 const SPAWN_HIT_SETTLE_SECONDS := 0.08
 const SPAWN_HIT_FEEDBACK_SECONDS := 0.24
 const SPAWN_FADE_SECONDS := 0.16
+const BONUS_STEP_SOUND: AudioStream = preload(
+	"res://assets/audio/sfx/extra_attack/switch_003.ogg"
+)
 
 signal game_over_signal(final_score: int)
 signal board_updated
@@ -321,11 +324,19 @@ func try_energy_bonus_step() -> bool:
 		return false
 	energy_quarter_units -= ENERGY_SLOT_COST
 	bonus_step_armed = true
+	play_bonus_step_sound()
 	_refresh_visuals()
 	return true
 
 func get_energy_quarter_units() -> int:
 	return energy_quarter_units
+
+func play_bonus_step_sound() -> void:
+	var sound := AudioStreamPlayer.new()
+	sound.stream = BONUS_STEP_SOUND
+	add_child(sound)
+	sound.finished.connect(sound.queue_free)
+	sound.play()
 
 func try_energy_ultimate() -> bool:
 	if not game_state.is_idle():
