@@ -35,7 +35,7 @@ const HOVER_FRAME_GROW := 2.0
 const HOVER_FRAME_WIDTH := 2.0
 const AREA_ARROW_SCALE := 2.0
 const AREA_ARROW_HIT_SIZE := Vector2(32.0, 44.0) * AREA_ARROW_SCALE
-const TITLE_BUTTON_ICON_SIZE := 36.0
+const TITLE_BUTTON_ICON_SIZE := 54.0
 const TITLE_BUTTON_GAP := 10.0
 const TITLE_BUTTON_FONT_SIZE := 24
 const TITLE_BUTTON_MARGIN_X := 18.0
@@ -542,16 +542,24 @@ func draw_confirm_hint() -> void:
 func draw_title_button() -> void:
 	var rect := title_button_rect()
 	var color: Color = palette["text"] if title_button_hovered else palette["text_dim"]
+	var visual_center_y := rect.get_center().y
 	var icon_rect := Rect2(
-		rect.position + Vector2(0.0, (rect.size.y - TITLE_BUTTON_ICON_SIZE) * 0.5),
+		Vector2(rect.position.x, visual_center_y - TITLE_BUTTON_ICON_SIZE * 0.5),
 		Vector2.ONE * TITLE_BUTTON_ICON_SIZE
 	)
 	draw_texture_rect(ESCAPE_KEY_TEXTURE, icon_rect, false, color)
-	var text_rect := Rect2(
-		rect.position + Vector2(TITLE_BUTTON_ICON_SIZE + TITLE_BUTTON_GAP, 0.0),
-		Vector2(rect.size.x - TITLE_BUTTON_ICON_SIZE - TITLE_BUTTON_GAP, rect.size.y)
+	var text_ascent := ui_font.get_ascent(TITLE_BUTTON_FONT_SIZE)
+	var text_descent := ui_font.get_descent(TITLE_BUTTON_FONT_SIZE)
+	var text_baseline_y := visual_center_y + (text_ascent - text_descent) * 0.5
+	draw_string(
+		ui_font,
+		Vector2(icon_rect.end.x + TITLE_BUTTON_GAP, text_baseline_y),
+		"TITLE",
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		TITLE_BUTTON_FONT_SIZE,
+		color
 	)
-	draw_text_centered(text_rect, "TITLE", TITLE_BUTTON_FONT_SIZE, color)
 
 
 func draw_selected_level_name() -> void:

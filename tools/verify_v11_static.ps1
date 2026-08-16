@@ -738,7 +738,7 @@ $checks = @(
 	},
 	@{
 		Name = "classic level selector supports mouse hover and click alongside keyboard nav"
-		Pass = $classicLevelSelect -match 'func\s+handle_mouse_motion\(pos:\s*Vector2\)' -and $classicLevelSelect -match 'func\s+handle_mouse_click\(pos:\s*Vector2\)' -and $classicLevelSelect -match 'func\s+title_button_rect\(\)\s*->\s*Rect2' -and $classicLevelSelect -match 'SceneTransition\.transition_to\(Campaign\.TITLE_SCREEN_SCENE_PATH\)' -and $classicLevelSelect -match 'func\s+draw_hovered_level_name\(\)[\s\S]*hovered_index\s*==\s*-1\s*or\s+hovered_index\s*==\s*selected_index' -and $classicLevelSelect -match 'elif\s+index\s*==\s*hovered_index\s+and\s+unlocked:' -and $classicLevelSelect -match 'const\s+AREA_ARROW_SCALE\s*:=\s*2\.0'
+		Pass = $classicLevelSelect -match 'func\s+handle_mouse_motion\(pos:\s*Vector2\)' -and $classicLevelSelect -match 'func\s+handle_mouse_click\(pos:\s*Vector2\)' -and $classicLevelSelect -match 'func\s+title_button_rect\(\)\s*->\s*Rect2' -and $classicLevelSelect -match 'SceneTransition\.transition_to\(Campaign\.TITLE_SCREEN_SCENE_PATH\)' -and $classicLevelSelect -match 'func\s+draw_hovered_level_name\(\)[\s\S]*hovered_index\s*==\s*-1\s*or\s+hovered_index\s*==\s*selected_index' -and $classicLevelSelect -match 'elif\s+index\s*==\s*hovered_index\s+and\s+unlocked:' -and $classicLevelSelect -match 'const\s+AREA_ARROW_SCALE\s*:=\s*2\.0' -and $classicLevelSelect -match 'TITLE_BUTTON_ICON_SIZE\s*:=\s*54\.0' -and $classicLevelSelect -match 'func\s+draw_title_button\(\)[\s\S]*text_ascent[\s\S]*text_descent[\s\S]*text_baseline_y'
 	},
 	@{
 		Name = "EXTRA combo meter uses four staged undirected energy slots"
