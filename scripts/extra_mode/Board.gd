@@ -22,6 +22,9 @@ const SPAWN_FADE_SECONDS := 0.16
 const BONUS_STEP_SOUND: AudioStream = preload(
 	"res://assets/audio/sfx/extra_attack/switch_003.ogg"
 )
+const ULTIMATE_ACTIVATION_SOUND: AudioStream = preload(
+	"res://assets/audio/sfx/extra_attack/sword_slash_54427377.wav"
+)
 
 signal game_over_signal(final_score: int)
 signal board_updated
@@ -342,6 +345,13 @@ func play_bonus_step_sound() -> void:
 	sound.finished.connect(sound.queue_free)
 	sound.play()
 
+func play_ultimate_activation_sound() -> void:
+	var sound := AudioStreamPlayer.new()
+	sound.stream = ULTIMATE_ACTIVATION_SOUND
+	add_child(sound)
+	sound.finished.connect(sound.queue_free)
+	sound.play()
+
 func try_energy_ultimate() -> bool:
 	if not game_state.is_idle():
 		return false
@@ -355,6 +365,7 @@ func try_energy_ultimate() -> bool:
 	energy_quarter_units = 0
 	ultimate_dashes_remaining = ULT_DASH_COUNT
 	_ultimate_chain_started = false
+	play_ultimate_activation_sound()
 	_refresh_visuals()
 	return true
 
