@@ -6,6 +6,9 @@ signal movement_finished
 
 const CharacterImpl_PLN = preload("res://scripts/extra_mode/CharacterImpl_PLN.gd")
 const PLAYER_BODY_SCALE := 0.8
+const HIT_SOUND: AudioStream = preload(
+	"res://assets/audio/sfx/extra_attack/error_006.ogg"
+)
 
 var character_name: String = "PLN"
 var character_color: Color = Color(0.2, 0.8, 0.3)
@@ -224,6 +227,14 @@ func play_spawn_hit() -> void:
 	_feedback_tween.tween_property(self, "position", origin + Vector2(-5.0, 0.0), 0.045)
 	_feedback_tween.tween_property(self, "position", origin + Vector2(4.0, 0.0), 0.04)
 	_feedback_tween.tween_property(self, "position", origin, 0.04)
+	play_hit_sound()
+
+func play_hit_sound() -> void:
+	var sound := AudioStreamPlayer.new()
+	sound.stream = HIT_SOUND
+	add_child(sound)
+	sound.finished.connect(sound.queue_free)
+	sound.play()
 
 func cancel_feedback() -> void:
 	if _move_tween != null and _move_tween.is_valid():
