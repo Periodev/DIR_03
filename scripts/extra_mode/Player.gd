@@ -192,8 +192,8 @@ func _finish_move() -> void:
 	_move_tween = null
 	movement_finished.emit()
 
-func play_attack(dir: int, success: bool, is_dash: bool = false) -> void:
-	_char_impl.play_attack(self, dir, success, is_dash)
+func play_attack(dir: int, success: bool, is_dash: bool = false, is_ult: bool = false) -> void:
+	_char_impl.play_attack(self, dir, success, is_dash, is_ult)
 	emit_animation_done_after(get_hit_delay(is_dash))
 
 func emit_animation_done_after(delay: float) -> void:
