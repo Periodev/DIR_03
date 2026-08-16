@@ -116,8 +116,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if is_cancel_key(event):
 		if menu_mode == MenuMode.CONFIG:
+			play_confirm_feedback()
 			play_config_action(leave_config)
 		elif menu_mode == MenuMode.INFO:
+			play_confirm_feedback()
 			play_config_action(leave_info)
 		return
 	if is_unlock_extra_key(event):
@@ -147,9 +149,11 @@ func handle_config_input(event: InputEvent) -> void:
 	var option_count := config_option_count()
 	if event.is_action_pressed("move_up"):
 		config_index = posmod(config_index - 1, option_count)
+		play_turn_feedback()
 		queue_redraw()
 	elif event.is_action_pressed("move_down"):
 		config_index = posmod(config_index + 1, option_count)
+		play_turn_feedback()
 		queue_redraw()
 	elif event.is_action_pressed("move_left"):
 		adjust_config(-1)
@@ -161,6 +165,7 @@ func handle_config_input(event: InputEvent) -> void:
 
 func handle_info_input(event: InputEvent) -> void:
 	if event.is_action_pressed("move_right") or is_confirm_key(event):
+		play_confirm_feedback()
 		play_config_action(leave_info)
 
 
@@ -203,13 +208,14 @@ func handle_mouse_click(pos: Vector2) -> void:
 			for index in config_option_count():
 				if config_option_rect(index).has_point(pos):
 					config_index = index
-					if index == 2:
-						queue_redraw()
+					if index == 2 and audio_slider_rect().grow(8.0).has_point(pos):
+						set_audio_volume_from_mouse(pos)
 					else:
 						adjust_config(1)
 					return
 		MenuMode.INFO:
 			if info_back_rect().has_point(pos):
+				play_confirm_feedback()
 				play_config_action(leave_info)
 
 
@@ -349,18 +355,47 @@ func adjust_config(delta: int) -> void:
 	match config_index:
 		0:
 			toggle_fullscreen()
-			play_config_action()
 		1:
 			Campaign.grid_lines_visible = not Campaign.grid_lines_visible
-			play_config_action()
 		2:
+			var previous_volume := Campaign.audio_volume_percent
 			Campaign.set_audio_volume(
 				Campaign.audio_volume_percent + delta * CONFIG_AUDIO_STEP
 			)
-			play_config_action()
+			if Campaign.audio_volume_percent == previous_volume:
+				queue_redraw()
+				return
 		3:
+			play_confirm_feedback()
 			play_config_action(leave_config)
+			queue_redraw()
+			return
+	play_confirm_feedback()
+	play_config_action()
 	queue_redraw()
+
+
+func set_audio_volume_from_mouse(pos: Vector2) -> void:
+	var slider_rect := audio_slider_rect()
+	var fill_ratio := clampf(
+		(pos.x - slider_rect.position.x) / slider_rect.size.x,
+		0.0,
+		1.0
+	)
+	var volume_percent := roundi(fill_ratio * 100.0)
+	if volume_percent == Campaign.audio_volume_percent:
+		queue_redraw()
+		return
+	Campaign.set_audio_volume(volume_percent)
+	play_confirm_feedback()
+	play_config_action()
+	queue_redraw()
+
+
+func audio_slider_rect() -> Rect2:
+	var center := config_option_center(2)
+	var slider_center := center + Vector2(32.0, 0.0)
+	return Rect2(slider_center - AUDIO_SLIDER_SIZE / 2.0, AUDIO_SLIDER_SIZE)
 
 
 func play_config_action(on_finished := Callable()) -> void:
@@ -647,8 +682,8 @@ func draw_audio_option(center: Vector2, selected: bool, hovered: bool = false) -
 	)
 	draw_centered_text(center + Vector2(-118.0, 0.0), "AUDIO", OPTION_FONT_SIZE, text_color)
 
-	var slider_center := center + Vector2(32.0, 0.0)
-	var slider_rect := Rect2(slider_center - AUDIO_SLIDER_SIZE / 2.0, AUDIO_SLIDER_SIZE)
+	var slider_rect := audio_slider_rect()
+	var slider_center := slider_rect.get_center()
 	draw_rect(slider_rect, palette["hair"])
 	var fill_ratio := float(Campaign.audio_volume_percent) / 100.0
 	var fill_size := Vector2(AUDIO_SLIDER_SIZE.x * fill_ratio, AUDIO_SLIDER_FILL_HEIGHT)

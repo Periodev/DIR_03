@@ -4,6 +4,14 @@ const VisualStyle = preload("res://scripts/visual_style.gd")
 const AsciiMapData = preload("res://scripts/ascii_map.gd")
 const ThumbnailRenderer = preload("res://scripts/level_thumbnail_renderer.gd")
 const ESCAPE_KEY_TEXTURE = preload("res://assets/input_prompts/keyboard_escape_outline.svg")
+const NAVIGATION_STREAM: AudioStream = preload(
+	"res://assets/audio/sfx/turn/click2.ogg"
+)
+const NAVIGATION_VOLUME_DB := -8.0
+const CONFIRM_STREAM: AudioStream = preload(
+	"res://assets/audio/sfx/confirm/switch34.ogg"
+)
+const CONFIRM_VOLUME_DB := -4.0
 
 const GRID_COLUMNS := 6
 const MAX_SLOT_SIZE := 216.0
@@ -44,11 +52,21 @@ var ui_font: Font
 var hovered_index := -1
 var area_arrow_hovered := Vector2i.ZERO
 var title_button_hovered := false
+var navigation_player: AudioStreamPlayer
+var confirm_player: AudioStreamPlayer
 
 
 func _ready() -> void:
 	Campaign.set_level_select_scene(Campaign.CLASSIC_LEVEL_SELECT_SCENE_PATH)
 	ui_font = ThemeDB.fallback_font
+	navigation_player = AudioStreamPlayer.new()
+	navigation_player.name = "NavigationPlayer"
+	navigation_player.volume_db = NAVIGATION_VOLUME_DB
+	add_child(navigation_player)
+	confirm_player = AudioStreamPlayer.new()
+	confirm_player.name = "ConfirmPlayer"
+	confirm_player.volume_db = CONFIRM_VOLUME_DB
+	add_child(confirm_player)
 	if Campaign.is_single_level_mode():
 		call_deferred("open_single_level_test")
 		return
@@ -76,6 +94,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			handle_mouse_click(button_event.position)
 		return
 	if is_cancel_key(event):
+		play_confirm_feedback()
 		SceneTransition.transition_to(Campaign.TITLE_SCREEN_SCENE_PATH)
 		return
 	if event.is_action_pressed("reset_level"):
@@ -163,6 +182,7 @@ func handle_mouse_motion(pos: Vector2) -> void:
 
 func handle_mouse_click(pos: Vector2) -> void:
 	if title_button_rect().has_point(pos):
+		play_confirm_feedback()
 		SceneTransition.transition_to(Campaign.TITLE_SCREEN_SCENE_PATH)
 		return
 	if current_area_index > 0 and left_arrow_rect().has_point(pos):
@@ -267,6 +287,7 @@ func move_selection(direction: Vector2i) -> void:
 		return
 	selected_index = target_index
 	area_selection_indices[current_area_index] = selected_index
+	play_navigation_feedback()
 	queue_redraw()
 
 
@@ -279,6 +300,7 @@ func switch_area(offset: int) -> void:
 		return
 	current_area_index = target_area_index
 	selected_index = area_selection_indices[current_area_index]
+	play_navigation_feedback()
 	queue_redraw()
 
 
@@ -312,7 +334,22 @@ func start_selected_level() -> void:
 	):
 		queue_redraw()
 		return
+	play_confirm_feedback()
 	SceneTransition.transition_to("res://scenes/main.tscn")
+
+
+func play_navigation_feedback() -> void:
+	if navigation_player == null:
+		return
+	navigation_player.stream = NAVIGATION_STREAM
+	navigation_player.play()
+
+
+func play_confirm_feedback() -> void:
+	if confirm_player == null:
+		return
+	confirm_player.stream = CONFIRM_STREAM
+	confirm_player.play()
 
 
 func reset_progress() -> void:
