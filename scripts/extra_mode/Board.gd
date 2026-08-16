@@ -153,6 +153,10 @@ func debug_preview_charge() -> void:
 	_sync_player_move_ready()
 	player_node.play_attack(player_facing_dir, true, true)
 
+func debug_fill_energy() -> void:
+	energy_quarter_units = ENERGY_QUARTER_UNITS_MAX
+	_refresh_visuals()
+
 func try_move(dir: int) -> bool:
 	if not game_state.is_idle():
 		return false
