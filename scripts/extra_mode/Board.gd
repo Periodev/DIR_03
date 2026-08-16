@@ -4,9 +4,8 @@ const CharacterImpl_PLN = preload("res://scripts/extra_mode/CharacterImpl_PLN.gd
 
 const COLS := 5
 const ROWS := 5
-const SPAWN_CYCLE_STEPS := 2
-const SPAWNS_PER_CYCLE := 2
-const OPENING_GRACE_TURNS := 1
+const SPAWN_CYCLE_STEPS := 3
+const SPAWNS_PER_CYCLE := 3
 const ENERGY_QUARTER_UNITS_MAX := 16
 const ENERGY_SLOT_COST := 4
 const ULT_DASH_COUNT := 4
@@ -19,6 +18,10 @@ const CELL_STEP := CELL_SIZE + CELL_GAP
 const SPAWN_HIT_SETTLE_SECONDS := 0.08
 const SPAWN_HIT_FEEDBACK_SECONDS := 0.24
 const SPAWN_FADE_SECONDS := 0.16
+const SPAWN_WARNING_SOUND: AudioStream = preload(
+	"res://assets/audio/sfx/extra_spawn/question_004.ogg"
+)
+const SPAWN_WARNING_VOLUME_DB := -14.0
 const BONUS_STEP_SOUND: AudioStream = preload(
 	"res://assets/audio/sfx/extra_attack/switch_003.ogg"
 )
@@ -35,7 +38,6 @@ var player_pos: Vector2i = Vector2i(int(COLS / 2.0), int(ROWS / 2.0))
 var player_facing_dir: int = CharacterData.Direction.UP
 var candidate_cells: Array = []  # Array of Vector2i
 var cycle_counter: int = 0
-var _opening_grace_turns_remaining: int = OPENING_GRACE_TURNS
 var _spawn_hit_pending: bool = false
 var _spawn_fade_pending: bool = false
 var _player_move_visual_pending: bool = false
@@ -62,11 +64,17 @@ var _char_impl  # CharacterImpl_PLN
 
 var _cell_scene: PackedScene
 var _hit_effect_scene: PackedScene
+var spawn_warning_player: AudioStreamPlayer
 
 func _ready() -> void:
 	_cell_scene = load("res://scenes/extra_mode/cell.tscn")
 	_hit_effect_scene = load("res://scenes/extra_mode/hit_effect.tscn")
 	var player_scene = load("res://scenes/extra_mode/player.tscn")
+	spawn_warning_player = AudioStreamPlayer.new()
+	spawn_warning_player.name = "SpawnWarningPlayer"
+	spawn_warning_player.stream = SPAWN_WARNING_SOUND
+	spawn_warning_player.volume_db = SPAWN_WARNING_VOLUME_DB
+	add_child(spawn_warning_player)
 
 	inventory = Inventory.new()
 	score_manager = ScoreManager.new()
@@ -114,7 +122,6 @@ func restart() -> void:
 	player_facing_dir = CharacterData.Direction.UP
 	candidate_cells.clear()
 	cycle_counter = 0
-	_opening_grace_turns_remaining = OPENING_GRACE_TURNS
 	cycle_resolved = false
 	_spawn_hit_pending = false
 	_spawn_fade_pending = false
@@ -283,8 +290,6 @@ func _get_move_memory_token(dir: int) -> int:
 	return dir
 
 func _will_spawn_hit_target_this_turn(target: Vector2i) -> bool:
-	if _opening_grace_turns_remaining > 0:
-		return false
 	if cycle_resolved:
 		return false
 	if cycle_counter + 1 < SPAWN_CYCLE_STEPS:
@@ -526,7 +531,7 @@ func _advance_cycle() -> void:
 		if cycle_counter >= SPAWN_CYCLE_STEPS:
 			cycle_counter = 0
 			cycle_resolved = false
-	elif cycle_counter == 1:
+	elif cycle_counter == SPAWN_CYCLE_STEPS - 1:
 		_start_new_cycle()
 	elif cycle_counter >= SPAWN_CYCLE_STEPS:
 		_clean_candidates()
@@ -548,6 +553,13 @@ func _start_new_cycle() -> void:
 	var count = min(SPAWNS_PER_CYCLE, available.size())
 	for i in count:
 		candidate_cells.append(available[i])
+	if not candidate_cells.is_empty():
+		play_spawn_warning_sound()
+
+func play_spawn_warning_sound() -> void:
+	if spawn_warning_player == null:
+		return
+	spawn_warning_player.play()
 
 func _clean_candidates() -> void:
 	var cleaned: Array = []
@@ -708,10 +720,7 @@ func _complete_turn_after_motion() -> void:
 	var freeze_spawn_cycle: bool = _turn_freezes_spawn
 	_turn_freezes_spawn = false
 	if not freeze_spawn_cycle:
-		if _opening_grace_turns_remaining > 0:
-			_opening_grace_turns_remaining -= 1
-		else:
-			_advance_cycle()
+		_advance_cycle()
 	_refresh_visuals()
 	if _spawn_fade_pending:
 		get_tree().create_timer(SPAWN_FADE_SECONDS).timeout.connect(

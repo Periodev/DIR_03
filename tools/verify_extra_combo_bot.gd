@@ -98,6 +98,7 @@ func run_verification() -> void:
 
 	_reset_fixture(board)
 	board.cycle_counter = board.SPAWN_CYCLE_STEPS - 1
+	board.cycle_resolved = false
 	board.candidate_cells = [Vector2i(3, 2)]
 	if bot.choose_action(board) != DIRExtraComboBot.ACTION_MOVE \
 		or bot.chosen_direction == CharacterData.Direction.RIGHT:
@@ -118,8 +119,8 @@ func _reset_fixture(board: Node2D) -> void:
 	board.bonus_step_armed = false
 	board.ultimate_dashes_remaining = 0
 	board.candidate_cells.clear()
-	board.cycle_counter = 0
-	board._opening_grace_turns_remaining = 10
+	board.cycle_counter = -1000
+	board.cycle_resolved = true
 	board.game_state.reset()
 
 func _wait_until_idle(board: Node2D) -> void:
