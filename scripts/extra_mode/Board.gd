@@ -451,7 +451,8 @@ func _perform_dash_kill(target: Vector2i, dir: int) -> void:
 			CharacterImpl_PLN.ULT_SLASH_WIDTH,
 			CharacterImpl_PLN.ULT_MOVE_DURATION,
 			1.0,
-			CharacterImpl_PLN.ULT_WINDUP
+			CharacterImpl_PLN.ULT_WINDUP,
+			true
 		)
 		game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
 		player_node.emit_animation_done_after(
@@ -464,7 +465,7 @@ func _perform_dash_kill(target: Vector2i, dir: int) -> void:
 	else:
 		_action_animation_pending = true
 		game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
-		player_node.play_attack(dir, false, true)
+		player_node.play_attack(dir, false, true, true)
 
 func _is_inside_board(pos: Vector2i) -> bool:
 	return pos.x >= 0 and pos.x < COLS and pos.y >= 0 and pos.y < ROWS
