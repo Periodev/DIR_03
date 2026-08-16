@@ -54,7 +54,7 @@ func _ready() -> void:
 	inventory_panel.add_child(inv_hbox)
 
 	ultimate_action_label = Label.new()
-	ultimate_action_label.text = "[Z] ULT"
+	ultimate_action_label.text = "[Z] DASH"
 	ultimate_action_label.add_theme_font_size_override("font_size", 20)
 	ultimate_action_label.add_theme_color_override("font_color", Color(0.28, 0.92, 0.48))
 	ultimate_action_label.custom_minimum_size = Vector2(104, 36)
@@ -63,7 +63,7 @@ func _ready() -> void:
 	inv_hbox.add_child(ultimate_action_label)
 
 	dash_action_label = Label.new()
-	dash_action_label.text = "[X] DASH"
+	dash_action_label.text = "[X] STEP"
 	dash_action_label.add_theme_font_size_override("font_size", 20)
 	dash_action_label.add_theme_color_override("font_color", Color("#C8E64A"))
 	dash_action_label.custom_minimum_size = Vector2(116, 36)
@@ -231,9 +231,9 @@ func update_energy(quarter_units: int, bonus_step_armed: bool, ultimate_steps: i
 	dash_action_label.modulate = Color.WHITE if quarter_units >= 4 or bonus_step_armed else Color(1.0, 1.0, 1.0, 0.28)
 	ultimate_action_label.modulate = Color.WHITE if quarter_units >= 16 or ultimate_steps > 0 else Color(1.0, 1.0, 1.0, 0.28)
 	if ultimate_steps > 0:
-		ultimate_action_label.text = "[Z] ULT %d" % ultimate_steps
+		ultimate_action_label.text = "[Z] DASH %d" % ultimate_steps
 	else:
-		ultimate_action_label.text = "[Z] ULT"
+		ultimate_action_label.text = "[Z] DASH"
 
 func update_ai_status(enabled: bool) -> void:
 	ai_status_label.text = "[F4] AI ON" if enabled else "[F4] AI"
