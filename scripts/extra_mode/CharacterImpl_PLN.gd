@@ -3,10 +3,10 @@ extends RefCounted
 const PLNSlashEffect = preload("res://scripts/extra_mode/PLNSlashEffect.gd")
 const PLNChargeGlow  = preload("res://scripts/extra_mode/PLNChargeGlow.gd")
 const PLNMoveTrail   = preload("res://scripts/extra_mode/PLNMoveTrail.gd")
-const SLASH_SOUND: AudioStream = preload(
+const MOVE_SOUND: AudioStream = preload(
 	"res://assets/audio/sfx/extra_attack/slash_666herohero_21834.mp3"
 )
-const ULT_SLASH_SOUND: AudioStream = preload(
+const ATTACK_SOUND: AudioStream = preload(
 	"res://assets/audio/sfx/extra_attack/sword_freesound_36274.wav"
 )
 
@@ -36,9 +36,10 @@ func play_move(
 	var tw := player.create_tween()
 	tw.tween_property(player, "position", to_pos, move_duration)\
 	  .set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	play_move_sound(player)
 	return tw
 
-func play_attack(player: Node2D, dir: int, success: bool, is_dash: bool, is_ult: bool = false) -> void:
+func play_attack(player: Node2D, dir: int, success: bool, is_dash: bool) -> void:
 	if is_dash:
 		play_charge_preview(player, dir)
 		var dv: Vector2 = Vector2(CharacterData.DIR_VECTOR[dir])
@@ -46,7 +47,7 @@ func play_attack(player: Node2D, dir: int, success: bool, is_dash: bool, is_ult:
 		fx.set_script(PLNSlashEffect)
 		player.add_child(fx)
 		fx.setup(dv, not success)   # short=true when blocked
-		play_slash_sound(player, is_ult)
+		play_attack_sound(player)
 	else:
 		var dv: Vector2i = CharacterData.DIR_VECTOR[dir]
 		var origin := player.position
@@ -96,8 +97,7 @@ func begin_kill_anim(
 	slash_width_override: float = NORMAL_SLASH_WIDTH,
 	move_duration_override: float = MOVE_DURATION,
 	charge_scale: float = NORMAL_CHARGE_SCALE,
-	windup_duration: float = WINDUP,
-	is_ult: bool = false
+	windup_duration: float = WINDUP
 ) -> void:
 	pending_kill_pos = target
 	defer_player_move = true
@@ -112,7 +112,7 @@ func begin_kill_anim(
 	board.add_child(slash_fx)
 	var slash_length: float = NORMAL_SLASH_LENGTH if slash_length_override < 0.0 else slash_length_override
 	slash_fx.setup(Vector2(dv), false, windup_duration, true, slash_length, slash_width_override)
-	play_slash_sound(board, is_ult)
+	play_attack_sound(board)
 	board.get_tree().create_timer(windup_duration + 0.03 + 0.10).timeout.connect(
 		func(): trigger_move(board, move_duration_override))
 
@@ -132,9 +132,16 @@ func trigger_move(board: Node2D, move_duration: float = MOVE_DURATION) -> void:
 func resolve_kill_visual() -> void:
 	pending_kill_pos = Vector2i(-1, -1)
 
-func play_slash_sound(host: Node2D, is_ult: bool = false) -> void:
+func play_attack_sound(host: Node2D) -> void:
 	var sound := AudioStreamPlayer.new()
-	sound.stream = ULT_SLASH_SOUND if is_ult else SLASH_SOUND
+	sound.stream = ATTACK_SOUND
+	host.add_child(sound)
+	sound.finished.connect(sound.queue_free)
+	sound.play()
+
+func play_move_sound(host: Node2D) -> void:
+	var sound := AudioStreamPlayer.new()
+	sound.stream = MOVE_SOUND
 	host.add_child(sound)
 	sound.finished.connect(sound.queue_free)
 	sound.play()
