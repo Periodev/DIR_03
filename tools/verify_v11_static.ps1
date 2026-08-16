@@ -761,8 +761,8 @@ $checks = @(
 		Pass = $extraScoreManager -match 'var\s+max_combo:\s*int\s*=\s*0' -and $extraScoreManager -match 'max_combo\s*=\s*maxi\(max_combo,\s*combo_counter\)' -and $extraScoreManager -match 'func\s+reset\(\)(?:(?!\r?\nfunc\s)[\s\S])*?max_combo\s*=\s*0' -and $extraHud -match 'func\s+show_game_over\(final_score:\s*int,\s*max_combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?"MAX COMBO x%d"\s*%\s*max_combo' -and $extraMain -match 'hud\.show_game_over\(final_score,\s*board\.score_manager\.max_combo\)'
 	},
 	@{
-		Name = "EXTRA places Z ULT and X DASH together left of DIR"
-		Pass = $extraHud -match 'ultimate_action_label\.text\s*=\s*"\[Z\] ULT"(?:(?!var\s+q_label)[\s\S])*?inv_hbox\.add_child\(ultimate_action_label\)(?:(?!var\s+q_label)[\s\S])*?dash_action_label\.text\s*=\s*"\[X\] DASH"(?:(?!var\s+q_label)[\s\S])*?inv_hbox\.add_child\(dash_action_label\)(?:(?!energy_container)[\s\S])*?var\s+q_label' -and $extraHud -match 'dash_action_label\.modulate\s*=\s*Color\.WHITE\s+if\s+quarter_units\s*>=\s*4\s+or\s+bonus_step_armed' -and $extraHud -match 'ultimate_action_label\.modulate\s*=\s*Color\.WHITE\s+if\s+quarter_units\s*>=\s*16\s+or\s+ultimate_steps\s*>\s*0' -and $extraHud -notmatch 'Space/X:\s*Wait'
+		Name = "EXTRA places Z DASH and X STEP together left of DIR"
+		Pass = $extraHud -match 'ultimate_action_label\.text\s*=\s*"\[Z\] DASH"(?:(?!var\s+q_label)[\s\S])*?inv_hbox\.add_child\(ultimate_action_label\)(?:(?!var\s+q_label)[\s\S])*?dash_action_label\.text\s*=\s*"\[X\] STEP"(?:(?!var\s+q_label)[\s\S])*?inv_hbox\.add_child\(dash_action_label\)(?:(?!energy_container)[\s\S])*?var\s+q_label' -and $extraHud -match 'dash_action_label\.modulate\s*=\s*Color\.WHITE\s+if\s+quarter_units\s*>=\s*4\s+or\s+bonus_step_armed' -and $extraHud -match 'ultimate_action_label\.modulate\s*=\s*Color\.WHITE\s+if\s+quarter_units\s*>=\s*16\s+or\s+ultimate_steps\s*>\s*0' -and $extraHud -notmatch 'Space/X:\s*Wait'
 	},
 	@{
 		Name = "EXTRA exposes an optional combo-seeking F4 bot"
