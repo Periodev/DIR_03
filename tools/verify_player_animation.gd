@@ -836,7 +836,7 @@ func check_collision_trigger_sequence(game: Node) -> void:
 			audio.trigger_activation_player.volume_db,
 			DirAudioFeedback.TRIGGER_ACTIVATION_VOLUME_DB
 		),
-		"collision whoosh should keep full volume before contact"
+		"collision release sound should keep full volume before contact"
 	)
 	for _frame in range(4):
 		await get_tree().process_frame
@@ -851,7 +851,7 @@ func check_collision_trigger_sequence(game: Node) -> void:
 			audio.trigger_activation_player.volume_db,
 			DirAudioFeedback.TRIGGER_ACTIVATION_COLLISION_VOLUME_DB
 		),
-		"collision contact should duck the release whoosh"
+		"collision contact should duck the release sound"
 	)
 	require(
 		is_equal_approx(

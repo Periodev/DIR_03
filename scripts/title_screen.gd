@@ -49,6 +49,8 @@ const CONFIG_ACTION_RETREAT_SECONDS := 0.030
 const CONFIG_ACTION_HOLD_SECONDS := 0.020
 const CONFIG_ACTION_EXTEND_SECONDS := 0.050
 const CONFIG_ACTION_RETURN_SECONDS := 0.030
+const RESET_FADE_SECONDS := 0.15
+const RESET_BLACK_HOLD_SECONDS := 0.30
 
 enum MenuMode {
 	MAIN,
@@ -70,6 +72,11 @@ var config_action_offset := 0.0:
 var config_action_tween: Tween
 var config_action_callback := Callable()
 var hovered_config_index := -1
+var reset_progress_armed := false
+var reset_feedback_alpha := 0.0:
+	set(value):
+		reset_feedback_alpha = value
+		queue_redraw()
 var info_back_hovered := false
 var confirm_hint_alpha := 0.78:
 	set(value):
@@ -148,19 +155,21 @@ func _unhandled_input(event: InputEvent) -> void:
 func handle_config_input(event: InputEvent) -> void:
 	var option_count := config_option_count()
 	if event.is_action_pressed("move_up"):
+		cancel_reset_progress_confirmation()
 		config_index = posmod(config_index - 1, option_count)
 		play_turn_feedback()
 		queue_redraw()
 	elif event.is_action_pressed("move_down"):
+		cancel_reset_progress_confirmation()
 		config_index = posmod(config_index + 1, option_count)
 		play_turn_feedback()
 		queue_redraw()
 	elif event.is_action_pressed("move_left"):
-		adjust_config(-1)
+		adjust_config(-1, false)
 	elif event.is_action_pressed("move_right"):
-		adjust_config(1)
+		adjust_config(1, false)
 	elif is_confirm_key(event):
-		adjust_config(1)
+		adjust_config(1, true)
 
 
 func handle_info_input(event: InputEvent) -> void:
@@ -207,11 +216,13 @@ func handle_mouse_click(pos: Vector2) -> void:
 		MenuMode.CONFIG:
 			for index in config_option_count():
 				if config_option_rect(index).has_point(pos):
+					if index != config_index:
+						cancel_reset_progress_confirmation()
 					config_index = index
 					if index == 2 and audio_slider_rect().grow(8.0).has_point(pos):
 						set_audio_volume_from_mouse(pos)
 					else:
-						adjust_config(1)
+						adjust_config(1, true)
 					return
 		MenuMode.INFO:
 			if info_back_rect().has_point(pos):
@@ -248,6 +259,7 @@ func config_labels() -> Array[String]:
 		"FULLSCREEN  %s" % fullscreen_label(),
 		"GRID  %s" % ("ON" if Campaign.grid_lines_visible else "OFF"),
 		"AUDIO",
+		"RESET PROGRESS?" if reset_progress_armed else "RESET PROGRESS",
 		"BACK",
 	]
 
@@ -351,13 +363,16 @@ func confirm_selection_after_action() -> void:
 		SceneTransition.transition_to(Campaign.EXTRA_MODE_SCENE_PATH)
 
 
-func adjust_config(delta: int) -> void:
+func adjust_config(delta: int, allow_destructive_action: bool) -> void:
 	match config_index:
 		0:
+			cancel_reset_progress_confirmation()
 			toggle_fullscreen()
 		1:
+			cancel_reset_progress_confirmation()
 			Campaign.grid_lines_visible = not Campaign.grid_lines_visible
 		2:
+			cancel_reset_progress_confirmation()
 			var previous_volume := Campaign.audio_volume_percent
 			Campaign.set_audio_volume(
 				Campaign.audio_volume_percent + delta * CONFIG_AUDIO_STEP
@@ -366,12 +381,54 @@ func adjust_config(delta: int) -> void:
 				queue_redraw()
 				return
 		3:
+			if not allow_destructive_action:
+				return
+			if not reset_progress_armed:
+				reset_progress_armed = true
+				play_confirm_feedback()
+				play_config_action()
+				queue_redraw()
+				return
+			begin_reset_progress_transition()
+			return
+		4:
+			cancel_reset_progress_confirmation()
 			play_confirm_feedback()
 			play_config_action(leave_config)
 			queue_redraw()
 			return
 	play_confirm_feedback()
 	play_config_action()
+	queue_redraw()
+
+
+func cancel_reset_progress_confirmation() -> void:
+	if not reset_progress_armed:
+		return
+	reset_progress_armed = false
+	queue_redraw()
+
+
+func begin_reset_progress_transition() -> void:
+	activation_locked = true
+	play_confirm_feedback()
+	var fade_out := create_tween()
+	fade_out.set_trans(Tween.TRANS_SINE)
+	fade_out.set_ease(Tween.EASE_IN_OUT)
+	fade_out.tween_property(self, "reset_feedback_alpha", 1.0, RESET_FADE_SECONDS)
+	await fade_out.finished
+
+	Campaign.reset_progress()
+	reset_progress_armed = false
+	queue_redraw()
+	await get_tree().create_timer(RESET_BLACK_HOLD_SECONDS).timeout
+
+	var fade_in := create_tween()
+	fade_in.set_trans(Tween.TRANS_SINE)
+	fade_in.set_ease(Tween.EASE_IN_OUT)
+	fade_in.tween_property(self, "reset_feedback_alpha", 0.0, RESET_FADE_SECONDS)
+	await fade_in.finished
+	activation_locked = false
 	queue_redraw()
 
 
@@ -446,6 +503,7 @@ func toggle_fullscreen() -> void:
 
 
 func leave_config() -> void:
+	cancel_reset_progress_confirmation()
 	menu_mode = MenuMode.MAIN
 	selected_direction = Vector2i.RIGHT
 	config_action_offset = 0.0
@@ -521,6 +579,14 @@ func _draw() -> void:
 		draw_info_menu(menu_center)
 	else:
 		draw_main_menu(menu_center)
+
+	if reset_feedback_alpha > 0.0:
+		draw_reset_progress_feedback(viewport_rect)
+
+
+func draw_reset_progress_feedback(viewport_rect: Rect2) -> void:
+	var overlay_color := Color(0.0, 0.0, 0.0, reset_feedback_alpha)
+	draw_rect(viewport_rect, overlay_color)
 
 
 func draw_main_menu(menu_center: Vector2) -> void:

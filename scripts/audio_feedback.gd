@@ -8,9 +8,9 @@ const INTERACT_HINT_STREAM: AudioStream = preload(
 	"res://assets/audio/sfx/hint/bong_001.ogg"
 )
 const TRIGGER_ACTIVATION_STREAM: AudioStream = preload(
-	"res://assets/audio/sfx/release/dragon-studio-simple-whoosh-382724.mp3"
+	"res://assets/audio/sfx/release/cloth2.ogg"
 )
-const TRIGGER_ACTIVATION_VOLUME_DB := -4.0
+const TRIGGER_ACTIVATION_VOLUME_DB := 0.0
 const TRIGGER_ACTIVATION_COLLISION_VOLUME_DB := -16.0
 const INSTALL_STREAM: AudioStream = preload(
 	"res://assets/audio/sfx/confirm/switch34.ogg"
