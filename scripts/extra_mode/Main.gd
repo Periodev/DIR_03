@@ -79,6 +79,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
+	# Debug: fill energy to max (F2)
+	if keycode == KEY_F2:
+		board.debug_fill_energy()
+		_on_board_updated()
+		get_viewport().set_input_as_handled()
+		return
+
 	# Debug: spawn dead cell adjacent to player (F3)
 	if keycode == KEY_F3:
 		board.debug_spawn_adjacent_dead()
