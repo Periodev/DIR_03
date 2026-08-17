@@ -4,8 +4,9 @@ const CharacterImpl_PLN = preload("res://scripts/extra_mode/CharacterImpl_PLN.gd
 
 const COLS := 5
 const ROWS := 5
-const SPAWN_CYCLE_STEPS := 3
-const SPAWNS_PER_CYCLE := 3
+const SPAWN_CYCLE_STEPS := 2
+const SPAWNS_PER_CYCLE := 2
+const OPENING_GRACE_TURNS := 1
 const ENERGY_QUARTER_UNITS_MAX := 16
 const ENERGY_SLOT_COST := 4
 const ULT_DASH_COUNT := 4
@@ -38,6 +39,7 @@ var player_pos: Vector2i = Vector2i(int(COLS / 2.0), int(ROWS / 2.0))
 var player_facing_dir: int = CharacterData.Direction.UP
 var candidate_cells: Array = []  # Array of Vector2i
 var cycle_counter: int = 0
+var _opening_grace_turns_remaining: int = OPENING_GRACE_TURNS
 var _spawn_hit_pending: bool = false
 var _spawn_fade_pending: bool = false
 var _player_move_visual_pending: bool = false
@@ -122,6 +124,7 @@ func restart() -> void:
 	player_facing_dir = CharacterData.Direction.UP
 	candidate_cells.clear()
 	cycle_counter = 0
+	_opening_grace_turns_remaining = OPENING_GRACE_TURNS
 	cycle_resolved = false
 	_spawn_hit_pending = false
 	_spawn_fade_pending = false
@@ -184,21 +187,20 @@ func try_move(dir: int) -> bool:
 		return false
 
 	var target_type = grid[target.y][target.x]
-	if is_bonus_step and target_type != CharacterData.CellType.LIVE:
-		return false
 
 	if target_type == CharacterData.CellType.LIVE:
 		# Move to live cell
 		player_facing_dir = dir
 		player_pos = target
-		if not _will_spawn_hit_target_this_turn(target):
+		if is_bonus_step or not _will_spawn_hit_target_this_turn(target):
 			inventory.push(_get_move_memory_token(dir))
 			inventory.register_move(dir)
-		if not is_bonus_step:
-			score_manager.on_move_to_live()
+			if not is_bonus_step:
+				score_manager.on_move_to_live()
 
 		if is_bonus_step:
 			bonus_step_armed = false
+			return _finalize_turn_after_action(true, false)
 		return _finalize_turn_after_action()
 
 	else:
@@ -220,6 +222,9 @@ func try_move(dir: int) -> bool:
 			_action_animation_pending = true
 			game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
 			player_node.play_attack(dir, false, true)
+		if is_bonus_step:
+			bonus_step_armed = false
+			return _finalize_turn_after_action(true, false)
 		return _finalize_turn_after_action()
 
 func try_charge_action() -> bool:
@@ -288,6 +293,8 @@ func _get_move_memory_token(dir: int) -> int:
 	return dir
 
 func _will_spawn_hit_target_this_turn(target: Vector2i) -> bool:
+	if _opening_grace_turns_remaining > 0:
+		return false
 	if cycle_resolved:
 		return false
 	if cycle_counter + 1 < SPAWN_CYCLE_STEPS:
@@ -511,10 +518,8 @@ func _charge_energy_for_combo(combo: int) -> void:
 	match combo:
 		1:
 			energy_quarter_units = mini(energy_quarter_units + 1, ENERGY_QUARTER_UNITS_MAX)
-		2:
+		2, 3:
 			energy_quarter_units = mini(energy_quarter_units + 2, ENERGY_QUARTER_UNITS_MAX)
-		3:
-			energy_quarter_units = mini(energy_quarter_units + 4, ENERGY_QUARTER_UNITS_MAX)
 		4, 5:
 			energy_quarter_units = mini(energy_quarter_units + 4, ENERGY_QUARTER_UNITS_MAX)
 		_:
@@ -531,7 +536,7 @@ func _advance_cycle() -> void:
 		if cycle_counter >= SPAWN_CYCLE_STEPS:
 			cycle_counter = 0
 			cycle_resolved = false
-	elif cycle_counter == SPAWN_CYCLE_STEPS - 1:
+	elif cycle_counter == 1:
 		_start_new_cycle()
 	elif cycle_counter >= SPAWN_CYCLE_STEPS:
 		_clean_candidates()
@@ -720,7 +725,10 @@ func _complete_turn_after_motion() -> void:
 	var freeze_spawn_cycle: bool = _turn_freezes_spawn
 	_turn_freezes_spawn = false
 	if not freeze_spawn_cycle:
-		_advance_cycle()
+		if _opening_grace_turns_remaining > 0:
+			_opening_grace_turns_remaining -= 1
+		else:
+			_advance_cycle()
 	_refresh_visuals()
 	if _spawn_fade_pending:
 		get_tree().create_timer(SPAWN_FADE_SECONDS).timeout.connect(
@@ -758,10 +766,8 @@ func _sync_player_move_ready() -> void:
 			var target: Vector2i = player_pos + CharacterData.DIR_VECTOR[direction]
 			if not _is_inside_board(target):
 				continue
-			if grid[target.y][target.x] == CharacterData.CellType.LIVE:
+			if grid[target.y][target.x] == CharacterData.CellType.LIVE or _has_attack_direction(direction):
 				bonus_directions.append(direction)
-				if _will_spawn_hit_target_this_turn(target):
-					danger_directions.append(direction)
 	elif game_state.is_idle() and ultimate_dashes_remaining == 0:
 		for direction in CharacterData.DIR_VECTOR:
 			var target: Vector2i = player_pos + CharacterData.DIR_VECTOR[direction]
