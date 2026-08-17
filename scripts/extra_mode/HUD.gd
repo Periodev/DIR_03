@@ -121,7 +121,7 @@ func _ready() -> void:
 	add_child(message_label)
 
 	ai_status_label = Label.new()
-	ai_status_label.text = "[F4] CHAIN AI"
+	ai_status_label.text = "[F4] AI"
 	ai_status_label.add_theme_font_size_override("font_size", 18)
 	ai_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	ai_status_label.add_theme_color_override("font_color", Color(0.68, 0.70, 0.74))
@@ -236,7 +236,7 @@ func update_energy(quarter_units: int, bonus_step_armed: bool, ultimate_steps: i
 		ultimate_action_label.text = "[Z] DASH"
 
 func update_ai_status(enabled: bool) -> void:
-	ai_status_label.text = "[F4] CHAIN AI ON" if enabled else "[F4] CHAIN AI"
+	ai_status_label.text = "[F4] AI ON" if enabled else "[F4] AI"
 	ai_status_label.add_theme_color_override(
 		"font_color",
 		Color("#C8E64A") if enabled else Color(0.68, 0.70, 0.74)

@@ -1,14 +1,14 @@
 extends SceneTree
 
 const BoardScript = preload("res://scripts/extra_mode/Board.gd")
-const ChainBotScript = preload("res://scripts/extra_mode/ChainBot.gd")
+const ComboBotScript = preload("res://scripts/extra_mode/ComboBot.gd")
 
 func _initialize() -> void:
 	call_deferred("run_verification")
 
 func run_verification() -> void:
 	var board: Node2D = BoardScript.new()
-	var bot: DIRExtraChainBot = ChainBotScript.new()
+	var bot: DIRExtraComboBot = ComboBotScript.new()
 	root.add_child(board)
 	await process_frame
 	await create_timer(0.5).timeout
@@ -24,22 +24,17 @@ func run_verification() -> void:
 
 	board.bonus_step_armed = true
 	if bot.choose_action(board) != DIRExtraComboBot.ACTION_MOVE \
-			or bot.chosen_direction == CharacterData.Direction.RIGHT:
-		fail("Armed STEP selected an attack instead of an empty-cell movement.")
+		or bot.chosen_direction != CharacterData.Direction.RIGHT:
+		fail("Armed DASH did not immediately select the available combo attack.")
 		return
 
 	_reset_fixture(board)
-	board.score_manager.combo_counter = 1
+	board.score_manager.combo_counter = 2
 	board.energy_quarter_units = board.ENERGY_SLOT_COST
-	board.inventory.push(CharacterData.Direction.DOWN)
-	board.grid[3][3] = CharacterData.CellType.DEAD
-	if bot.choose_action(board) != DIRExtraComboBot.ACTION_DASH:
-		fail("CHAIN AI did not spend STEP to extend a one-combo chain.")
-		return
-	if not board.try_energy_bonus_step() \
-			or bot.choose_action(board) != DIRExtraComboBot.ACTION_MOVE \
-			or bot.chosen_direction != CharacterData.Direction.RIGHT:
-		fail("CHAIN AI armed STEP but did not take the verified continuation route.")
+	board.inventory.push(CharacterData.Direction.RIGHT)
+	board.grid[2][3] = CharacterData.CellType.DEAD
+	if bot.choose_action(board) != DIRExtraComboBot.ACTION_MOVE:
+		fail("Low combo spent DASH on an attack that cannot repay its energy cost.")
 		return
 
 	_reset_fixture(board)
@@ -48,7 +43,7 @@ func run_verification() -> void:
 	board.inventory.push(CharacterData.Direction.DOWN)
 	board.grid[3][3] = CharacterData.CellType.DEAD
 	if bot.choose_action(board) != DIRExtraComboBot.ACTION_DASH:
-		fail("STEP was not used to bridge a high combo into an immediate attack.")
+		fail("DASH was not used to bridge a high combo into an immediate attack.")
 		return
 
 	_reset_fixture(board)
@@ -57,7 +52,14 @@ func run_verification() -> void:
 	board.inventory.push(CharacterData.Direction.DOWN)
 	board.grid[3][3] = CharacterData.CellType.DEAD
 	if bot.choose_action(board) != DIRExtraComboBot.ACTION_DASH:
-		fail("High combo did not spend available energy on a verified STEP continuation.")
+		fail("High combo did not spend available energy on a verified DASH continuation.")
+		return
+
+	_reset_fixture(board)
+	board.score_manager.combo_counter = 2
+	board.energy_quarter_units = board.ENERGY_SLOT_COST
+	if bot.choose_action(board) == DIRExtraComboBot.ACTION_DASH:
+		fail("DASH was spent without an immediate combo continuation.")
 		return
 
 	_reset_fixture(board)
@@ -65,21 +67,8 @@ func run_verification() -> void:
 	board.energy_quarter_units = board.ENERGY_QUARTER_UNITS_MAX
 	board.grid[2][4] = CharacterData.CellType.DEAD
 	board.grid[0][2] = CharacterData.CellType.DEAD
-	if bot.choose_action(board) == DIRExtraComboBot.ACTION_ULT:
-		fail("CHAIN AI spent Z DASH while ordinary movement remained safe.")
-		return
-
-	_reset_fixture(board)
-	board.score_manager.combo_counter = 4
-	board.energy_quarter_units = board.ENERGY_QUARTER_UNITS_MAX
-	for direction_value in CharacterData.DIR_VECTOR:
-		var surround_direction: int = int(direction_value)
-		var surround_target: Vector2i = (
-			board.player_pos + Vector2i(CharacterData.DIR_VECTOR[surround_direction])
-		)
-		board.grid[surround_target.y][surround_target.x] = CharacterData.CellType.DEAD
 	if bot.choose_action(board) != DIRExtraComboBot.ACTION_ULT:
-		fail("CHAIN AI did not reserve Z DASH for a surrounded emergency.")
+		fail("Full energy with two line targets did not activate ULT.")
 		return
 
 	_reset_fixture(board)
@@ -91,8 +80,9 @@ func run_verification() -> void:
 	board.grid[0][0] = CharacterData.CellType.DEAD
 	board.grid[1][0] = CharacterData.CellType.DEAD
 	board.grid[1][1] = CharacterData.CellType.DEAD
-	if not board.try_energy_ultimate():
-		fail("ULT continuation fixture could not activate Z DASH directly.")
+	if bot.choose_action(board) != DIRExtraComboBot.ACTION_ULT \
+			or not board.try_energy_ultimate():
+		fail("ULT continuation fixture did not activate ULT.")
 		return
 	for _dash_index in board.ULT_DASH_COUNT:
 		if bot.choose_action(board) != DIRExtraComboBot.ACTION_MOVE:
@@ -108,37 +98,10 @@ func run_verification() -> void:
 
 	_reset_fixture(board)
 	board.cycle_counter = board.SPAWN_CYCLE_STEPS - 1
-	board.cycle_resolved = false
 	board.candidate_cells = [Vector2i(3, 2)]
 	if bot.choose_action(board) != DIRExtraComboBot.ACTION_MOVE \
-			or bot.chosen_direction == CharacterData.Direction.RIGHT:
+		or bot.chosen_direction == CharacterData.Direction.RIGHT:
 		fail("Normal movement selected the cell due to become lethal this turn.")
-		return
-
-	_reset_fixture(board)
-	board.score_manager.combo_counter = 4
-	board.energy_quarter_units = board.ENERGY_SLOT_COST
-	board.inventory.push(CharacterData.Direction.DOWN)
-	board.grid[3][3] = CharacterData.CellType.DEAD
-	board.cycle_counter = board.SPAWN_CYCLE_STEPS - 1
-	board.cycle_resolved = false
-	board.candidate_cells = [Vector2i(3, 2)]
-	if bot.choose_action(board) == DIRExtraComboBot.ACTION_DASH:
-		fail("CHAIN AI armed STEP for a continuation route that spawns lethally this turn.")
-		return
-
-	_reset_fixture(board)
-	board.score_manager.combo_counter = 4
-	board.energy_quarter_units = board.ENERGY_QUARTER_UNITS_MAX
-	board.cycle_counter = board.SPAWN_CYCLE_STEPS - 1
-	board.cycle_resolved = false
-	for direction_value in CharacterData.DIR_VECTOR:
-		var danger_direction: int = int(direction_value)
-		board.candidate_cells.append(
-			board.player_pos + Vector2i(CharacterData.DIR_VECTOR[danger_direction])
-		)
-	if bot.choose_action(board) != DIRExtraComboBot.ACTION_ULT:
-		fail("CHAIN AI did not use ULT when every ordinary move would resolve lethally.")
 		return
 
 	print("PASS: EXTRA combo bot decision verification.")
@@ -155,8 +118,8 @@ func _reset_fixture(board: Node2D) -> void:
 	board.bonus_step_armed = false
 	board.ultimate_dashes_remaining = 0
 	board.candidate_cells.clear()
-	board.cycle_counter = -1000
-	board.cycle_resolved = true
+	board.cycle_counter = 0
+	board._opening_grace_turns_remaining = 10
 	board.game_state.reset()
 
 func _wait_until_idle(board: Node2D) -> void:

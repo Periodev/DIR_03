@@ -1,17 +1,17 @@
 extends Node
 
-const ChainBotScript = preload("res://scripts/extra_mode/ChainBot.gd")
+const ComboBotScript = preload("res://scripts/extra_mode/ComboBot.gd")
 const AI_ACTION_INTERVAL_SECONDS := 0.16
 
 @onready var board: Node2D = $Board
 @onready var hud: CanvasLayer = $HUD
 
-var chain_bot: DIRExtraChainBot
+var combo_bot: DIRExtraComboBot
 var ai_enabled: bool = false
 var _ai_action_cooldown: float = 0.0
 
 func _ready() -> void:
-	chain_bot = ChainBotScript.new()
+	combo_bot = ComboBotScript.new()
 	board.setup_character("PLN")
 	hud.setup("PLN")
 
@@ -30,7 +30,7 @@ func _process(delta: float) -> void:
 	_ai_action_cooldown = maxf(0.0, _ai_action_cooldown - delta)
 	if _ai_action_cooldown > 0.0 or not board.game_state.is_idle():
 		return
-	var action: int = chain_bot.choose_action(board)
+	var action: int = combo_bot.choose_action(board)
 	if action == DIRExtraComboBot.ACTION_NONE:
 		return
 	_execute_ai_action(action)
@@ -39,7 +39,7 @@ func _process(delta: float) -> void:
 func _execute_ai_action(action: int) -> void:
 	match action:
 		DIRExtraComboBot.ACTION_MOVE:
-			board.try_move(chain_bot.chosen_direction)
+			board.try_move(combo_bot.chosen_direction)
 		DIRExtraComboBot.ACTION_DASH:
 			board.try_energy_bonus_step()
 		DIRExtraComboBot.ACTION_ULT:
