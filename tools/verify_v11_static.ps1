@@ -31,6 +31,7 @@ $initialFacingCheckPath = Join-Path $root "tools/verify_initial_facing.gd"
 $campaignFlowCheckPath = Join-Path $root "tools/verify_campaign_flow.gd"
 $classicLevelSelectCheckPath = Join-Path $root "tools/verify_classic_level_select.gd"
 $extraBonusStepCheckPath = Join-Path $root "tools/verify_extra_bonus_step.gd"
+$extraComboBotCheckPath = Join-Path $root "tools/verify_extra_combo_bot.gd"
 $pyprojectPath = Join-Path $root "pyproject.toml"
 $solverCliPath = Join-Path $root "solver/cli.py"
 $extraBoardPath = Join-Path $root "scripts/extra_mode/Board.gd"
@@ -39,6 +40,7 @@ $extraPlayerPath = Join-Path $root "scripts/extra_mode/Player.gd"
 $extraHudPath = Join-Path $root "scripts/extra_mode/HUD.gd"
 $extraEnergySlotPath = Join-Path $root "scripts/extra_mode/EnergySlot.gd"
 $extraComboBotPath = Join-Path $root "scripts/extra_mode/ComboBot.gd"
+$extraChainBotPath = Join-Path $root "scripts/extra_mode/ChainBot.gd"
 $extraCharacterDataPath = Join-Path $root "scripts/extra_mode/CharacterData.gd"
 $extraScoreManagerPath = Join-Path $root "scripts/extra_mode/ScoreManager.gd"
 $errorSound005Path = Join-Path $root "assets/audio/sfx/error/error_005.ogg"
@@ -88,6 +90,7 @@ $playerAnimationCheck = Get-Content -LiteralPath $playerAnimationCheckPath -Raw
 $campaignFlowCheck = Get-Content -LiteralPath $campaignFlowCheckPath -Raw
 $classicLevelSelectCheck = Get-Content -LiteralPath $classicLevelSelectCheckPath -Raw
 $extraBonusStepCheck = Get-Content -LiteralPath $extraBonusStepCheckPath -Raw
+$extraComboBotCheck = Get-Content -LiteralPath $extraComboBotCheckPath -Raw
 $initialFacingCheck = Get-Content -LiteralPath $initialFacingCheckPath -Raw
 $pyproject = Get-Content -LiteralPath $pyprojectPath -Raw
 $solverCli = Get-Content -LiteralPath $solverCliPath -Raw
@@ -97,6 +100,7 @@ $extraPlayer = Get-Content -LiteralPath $extraPlayerPath -Raw
 $extraHud = Get-Content -LiteralPath $extraHudPath -Raw
 $extraEnergySlot = Get-Content -LiteralPath $extraEnergySlotPath -Raw
 $extraComboBot = Get-Content -LiteralPath $extraComboBotPath -Raw
+$extraChainBot = Get-Content -LiteralPath $extraChainBotPath -Raw
 $extraCharacterData = Get-Content -LiteralPath $extraCharacterDataPath -Raw
 $extraScoreManager = Get-Content -LiteralPath $extraScoreManagerPath -Raw
 $legacyProductName = "DIR" + "3"
@@ -603,8 +607,12 @@ $checks = @(
 		Pass = $extraCharacterData -match '"PLN"\s*:\s*\{(?:(?!\r?\n\s*\},)[\s\S])*?"seq"\s*:\s*3' -and $extraHud -match '_max_slots\s*=\s*data\["seq"\]' -and $extraHud -match 'for\s+i\s+in\s+_max_slots' -and $extraBoard -match 'inventory\.setup\(char_name\)'
 	},
 	@{
-		Name = "EXTRA spends one full energy slot to arm a free combo-preserving bonus step"
-		Pass = $extraBoard -match 'ENERGY_QUARTER_UNITS_MAX\s*:=\s*16' -and $extraBoard -match 'ENERGY_SLOT_COST\s*:=\s*4' -and $extraBoard -match 'func\s+try_energy_bonus_step\(\)(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*<\s*ENERGY_SLOT_COST(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*-=\s*ENERGY_SLOT_COST(?:(?!\r?\nfunc\s)[\s\S])*?bonus_step_armed\s*=\s*true' -and $extraBoard -match 'func\s+try_move\(dir:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?var\s+is_bonus_step:\s*bool\s*=\s*bonus_step_armed(?:(?!\r?\nfunc\s)[\s\S])*?if\s+not\s+is_bonus_step:\s*\r?\n\s*score_manager\.on_move_to_live\(\)(?:(?!\r?\nfunc\s)[\s\S])*?_finalize_turn_after_action\(true,\s*false\)' -and $extraBoard -match 'func\s+_charge_energy_for_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?1:(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*\+\s*1(?:(?!\r?\nfunc\s)[\s\S])*?2,\s*3:(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*\+\s*2(?:(?!\r?\nfunc\s)[\s\S])*?4,\s*5:(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*\+\s*4(?:(?!\r?\nfunc\s)[\s\S])*?combo\s*>=\s*6:(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*\+\s*8' -and $extraMain -match 'KEY_X(?:(?!\r?\n\s*#)[\s\S])*?try_energy_bonus_step\(\)' -and $extraBoard -notmatch 'var\s+ultimate_ready:\s*bool\s*=\s*false'
+		Name = "EXTRA spends one full energy slot to arm a normal-turn combo-preserving STEP"
+		Pass = $extraBoard -match 'ENERGY_QUARTER_UNITS_MAX\s*:=\s*16' -and $extraBoard -match 'ENERGY_SLOT_COST\s*:=\s*4' -and $extraBoard -match 'func\s+try_energy_bonus_step\(\)(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*<\s*ENERGY_SLOT_COST(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*-=\s*ENERGY_SLOT_COST(?:(?!\r?\nfunc\s)[\s\S])*?bonus_step_armed\s*=\s*true' -and $extraBoard -match 'func\s+try_move\(dir:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?var\s+is_bonus_step:\s*bool\s*=\s*bonus_step_armed(?:(?!\r?\nfunc\s)[\s\S])*?if\s+not\s+is_bonus_step:\s*\r?\n\s*score_manager\.on_move_to_live\(\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+is_bonus_step:\s*\r?\n\s*bonus_step_armed\s*=\s*false\s*\r?\n\s*return\s+_finalize_turn_after_action\(\)' -and $extraBoard -notmatch '_finalize_turn_after_action\(true,\s*false\)' -and $extraBoard -match 'func\s+_charge_energy_for_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?1:(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*\+\s*1(?:(?!\r?\nfunc\s)[\s\S])*?2:(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*\+\s*2(?:(?!\r?\nfunc\s)[\s\S])*?3:(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*\+\s*4(?:(?!\r?\nfunc\s)[\s\S])*?4,\s*5:(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*\+\s*4(?:(?!\r?\nfunc\s)[\s\S])*?combo\s*>=\s*6:(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*\+\s*8' -and $extraMain -match 'KEY_X(?:(?!\r?\n\s*#)[\s\S])*?try_energy_bonus_step\(\)' -and $extraBoard -notmatch 'var\s+ultimate_ready:\s*bool\s*=\s*false'
+	},
+	@{
+		Name = "EXTRA STEP is movement-only and cannot freeze attacks"
+		Pass = $extraBoard -match 'var\s+target_type\s*=\s*grid\[target\.y\]\[target\.x\][\s\S]*?if\s+is_bonus_step\s+and\s+target_type\s*!=\s*CharacterData\.CellType\.LIVE:\s*\r?\n\s*return\s+false' -and $extraBoard -match 'if\s+game_state\.is_idle\(\)\s+and\s+bonus_step_armed:(?:(?!\r?\n\s*elif)[\s\S])*?if\s+grid\[target\.y\]\[target\.x\]\s*==\s*CharacterData\.CellType\.LIVE:\s*\r?\n\s*bonus_directions\.append\(direction\)' -and $extraBonusStepCheck -match 'STEP accepted an attack instead of restricting its action to movement' -and $extraBonusStepCheck -match 'A rejected STEP attack changed combat state or consumed STEP' -and $extraBonusStepCheck -match 'STEP movement did not preserve combo and energy while advancing one turn' -and $extraComboBotCheck -match 'Armed STEP selected an attack instead of an empty-cell movement'
 	},
 	@{
 		Name = "EXTRA consumes full energy on Z to activate the four-dash ULT"
@@ -763,6 +771,10 @@ $checks = @(
 		Pass = $extraHud -match 'score_label\.add_theme_font_size_override\("font_size",\s*56\)' -and $extraHud -match 'score_label\.horizontal_alignment\s*=\s*HORIZONTAL_ALIGNMENT_LEFT' -and $extraHud -match 'combo_label\.add_theme_font_size_override\("font_size",\s*32\)' -and $extraHud -match 'func\s+update_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+combo\s*>=\s*2:' -and $extraHud -notmatch 'defeats_label|turns_label|BREAK 0|TURN 0|func\s+update_defeats|func\s+update_turns' -and $extraMain -notmatch 'hud\.update_defeats|hud\.update_turns|defeat_changed\.connect\(hud\.update_defeats\)'
 	},
 	@{
+		Name = "EXTRA scores kills from a one-point base"
+		Pass = $extraScoreManager -match 'BASE_KILL_SCORE\s*:=\s*1' -and $extraScoreManager -match 'var\s+points:\s*int\s*=\s*BASE_KILL_SCORE\s*\*\s*multiplier' -and $extraBonusStepCheck -match 'awarded_points\s*!=\s*4\s+or\s+score_fixture\.score\s*!=\s*4'
+	},
+	@{
 		Name = "EXTRA Game Over reports the session max combo"
 		Pass = $extraScoreManager -match 'var\s+max_combo:\s*int\s*=\s*0' -and $extraScoreManager -match 'max_combo\s*=\s*maxi\(max_combo,\s*combo_counter\)' -and $extraScoreManager -match 'func\s+reset\(\)(?:(?!\r?\nfunc\s)[\s\S])*?max_combo\s*=\s*0' -and $extraHud -match 'func\s+show_game_over\(final_score:\s*int,\s*max_combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?"MAX COMBO x%d"\s*%\s*max_combo' -and $extraMain -match 'hud\.show_game_over\(final_score,\s*board\.score_manager\.max_combo\)'
 	},
@@ -771,8 +783,8 @@ $checks = @(
 		Pass = $extraHud -match 'ultimate_action_label\.text\s*=\s*"\[Z\] DASH"(?:(?!var\s+q_label)[\s\S])*?inv_hbox\.add_child\(ultimate_action_label\)(?:(?!var\s+q_label)[\s\S])*?dash_action_label\.text\s*=\s*"\[X\] STEP"(?:(?!var\s+q_label)[\s\S])*?inv_hbox\.add_child\(dash_action_label\)(?:(?!energy_container)[\s\S])*?var\s+q_label' -and $extraHud -match 'dash_action_label\.modulate\s*=\s*Color\.WHITE\s+if\s+quarter_units\s*>=\s*4\s+or\s+bonus_step_armed' -and $extraHud -match 'ultimate_action_label\.modulate\s*=\s*Color\.WHITE\s+if\s+quarter_units\s*>=\s*16\s+or\s+ultimate_steps\s*>\s*0' -and $extraHud -notmatch 'Space/X:\s*Wait'
 	},
 	@{
-		Name = "EXTRA exposes an optional combo-seeking F4 bot"
-		Pass = $extraMain -match 'KEY_F4' -and $extraMain -match 'combo_bot\.choose_action\(board\)' -and $extraMain -match 'not\s+board\.game_state\.is_idle\(\)' -and $extraComboBot -match 'class_name\s+DIRExtraComboBot' -and $extraComboBot -match 'LOOKAHEAD_DEPTH\s*:=\s*3' -and $extraComboBot -match 'func\s+_lookahead_score\(' -and $extraComboBot -match 'func\s+_should_spend_dash_for_continuation\(' -and $extraComboBot -match 'combo\s*<\s*4\s+or\s+energy\s*<\s*board\.ENERGY_SLOT_COST' -and $extraComboBot -match 'func\s+_ultimate_sequence_score\(' -and $extraComboBot -match 'continuation_count\)\s*\*\s*1800\.0' -and $extraComboBot -match 'return\s+ACTION_ULT'
+		Name = "EXTRA exposes an optional combo-chain F4 bot"
+		Pass = $extraMain -match 'KEY_F4' -and $extraMain -match 'chain_bot\.choose_action\(board\)' -and $extraMain -match 'not\s+board\.game_state\.is_idle\(\)' -and $extraMain -match 'ChainBot\.gd' -and $extraHud -match '\[F4\]\s+CHAIN AI' -and $extraChainBot -match 'class_name\s+DIRExtraChainBot' -and $extraChainBot -match 'extends\s+DIRExtraComboBot' -and $extraChainBot -match 'combo\s*>\s*0\s+and\s+can_step[\s\S]*?_best_step_continuation_direction\(board\)[\s\S]*?return\s+ACTION_DASH' -and $extraChainBot -match 'func\s+_best_step_continuation_direction\(board:\s*Node\)(?:(?!\r?\nfunc\s)[\s\S])*?board\._will_spawn_hit_target_this_turn\(target\)(?:(?!\r?\nfunc\s)[\s\S])*?_future_attack_count' -and $extraChainBot -notmatch 'if\s+can_step\s+and\s+_has_live_neighbor\(board\)' -and $extraChainBot -match 'func\s+_is_extreme_danger\(board:\s*Node\)(?:(?!\r?\nfunc\s)[\s\S])*?_has_safe_live_neighbor\(board\)' -and $extraComboBot -match 'func\s+_ultimate_sequence_score\(' -and $extraBonusStepCheck -match 'The third normal turn did not spawn all three warned enemies' -and $extraComboBotCheck -match 'CHAIN AI did not spend STEP to extend a one-combo chain' -and $extraComboBotCheck -match 'CHAIN AI armed STEP for a continuation route that spawns lethally this turn' -and $extraComboBotCheck -match 'CHAIN AI did not use ULT when every ordinary move would resolve lethally'
 	}
 )
 

@@ -17,7 +17,10 @@ func run_verification() -> void:
 
 	var score_fixture := ScoreManager.new()
 	score_fixture.combo_counter = 4
-	score_fixture.on_kill(CharacterData.CellType.DEAD)
+	var awarded_points: int = score_fixture.on_kill(CharacterData.CellType.DEAD)
+	if awarded_points != 4 or score_fixture.score != 4:
+		fail("ScoreManager did not use a one-point kill base with combo multiplication.")
+		return
 	score_fixture.reset_combo()
 	if score_fixture.max_combo != 4:
 		fail("ScoreManager did not preserve the session max combo after the chain ended.")
@@ -94,8 +97,8 @@ func run_verification() -> void:
 		return
 	board.bonus_step_armed = true
 	board._sync_player_move_ready()
-	if not board.player_node.danger_move_directions.is_empty():
-		fail("A spawn-frozen bonus step retained an immediate danger marker.")
+	if danger_direction not in board.player_node.danger_move_directions:
+		fail("STEP movement hid an immediate spawn danger despite advancing the cycle.")
 		return
 	board.restart()
 	await process_frame
@@ -134,21 +137,23 @@ func run_verification() -> void:
 	board._charge_energy_for_combo(1)
 	board._charge_energy_for_combo(2)
 	board._charge_energy_for_combo(3)
-	if board.get_energy_quarter_units() != 5 or not board.try_energy_bonus_step():
-		fail("The first three combo steps must cumulatively grant 1.25 energy slots.")
+	if board.get_energy_quarter_units() != 7 or not board.try_energy_bonus_step():
+		fail("The first three combo steps must cumulatively grant 1.75 energy slots.")
 		return
-	if board.get_energy_quarter_units() != 1 or not board.bonus_step_armed:
-		fail("X must spend one energy slot, preserve the remaining quarter, and arm DASH.")
+	if board.get_energy_quarter_units() != 3 or not board.bonus_step_armed:
+		fail("X must spend one energy slot, preserve the remaining charge, and arm DASH.")
 		return
 
 	board.score_manager.combo_counter = 3
 	board.survival_turns = 5
 	board.cycle_counter = 1
+	board.candidate_cells.clear()
 	if not board.try_move(CharacterData.Direction.RIGHT):
 		fail("A valid live-cell bonus step was rejected.")
 		return
-	if board.survival_turns != 5 or board.cycle_counter != 1:
-		fail("A bonus step advanced the turn or spawn cycle.")
+	await create_timer(0.6).timeout
+	if board.survival_turns != 6 or board.cycle_counter != 2:
+		fail("STEP movement did not advance the turn and spawn cycle exactly once.")
 		return
 	if board.score_manager.combo_counter != 3 or board.bonus_step_armed:
 		fail("A bonus step broke combo or remained armed after use.")
@@ -162,18 +167,29 @@ func run_verification() -> void:
 	board.inventory.push(CharacterData.Direction.RIGHT)
 	var target: Vector2i = board.player_pos + CharacterData.DIR_VECTOR[CharacterData.Direction.RIGHT]
 	board.grid[target.y][target.x] = CharacterData.CellType.DEAD
-	if not board.try_energy_bonus_step() or not board.try_move(CharacterData.Direction.RIGHT):
-		fail("A valid bonus attack was rejected.")
+	if not board.try_energy_bonus_step() or board.try_move(CharacterData.Direction.RIGHT):
+		fail("STEP accepted an attack instead of restricting its action to movement.")
 		return
-	if board.score_manager.combo_counter != 4:
-		fail("A bonus attack did not continue the combo.")
+	if not board.bonus_step_armed or board.score_manager.combo_counter != 3 \
+			or board.grid[target.y][target.x] != CharacterData.CellType.DEAD:
+		fail("A rejected STEP attack changed combat state or consumed STEP.")
 		return
-	if board.get_energy_quarter_units() != 5 or board.survival_turns != 0:
-		fail("Four combo did not add one energy slot, or the bonus attack counted as a turn.")
+	if not board.try_move(CharacterData.Direction.LEFT):
+		fail("STEP could not be redirected to a valid empty-cell movement.")
+		return
+	await create_timer(0.6).timeout
+	if board.bonus_step_armed or board.score_manager.combo_counter != 3 \
+			or board.get_energy_quarter_units() != 3 or board.survival_turns != 1 \
+			or board.cycle_counter != 1:
+		fail("STEP movement did not preserve combo and energy while advancing one turn.")
 		return
 
+	board._charge_energy_for_combo(4)
+	if board.get_energy_quarter_units() != 7:
+		fail("Four combo did not add one energy slot after STEP movement.")
+		return
 	board._charge_energy_for_combo(5)
-	if board.get_energy_quarter_units() != 9:
+	if board.get_energy_quarter_units() != 11:
 		fail("Five combo did not add one energy slot.")
 		return
 	board.energy_quarter_units = 12
@@ -186,13 +202,14 @@ func run_verification() -> void:
 		return
 
 	await create_timer(0.6).timeout
+	var combo_before_ult: int = board.score_manager.combo_counter
 	if not board.try_energy_ultimate():
 		fail("Full energy did not activate ULT.")
 		return
 	if board.get_energy_quarter_units() != 0 or board.get_ultimate_dashes_remaining() != 4:
 		fail("ULT did not consume all four energy slots or grant four dashes.")
 		return
-	if board.score_manager.combo_counter != 4:
+	if board.score_manager.combo_counter != combo_before_ult:
 		fail("ULT activation did not preserve the active combo chain.")
 		return
 	if not board.player_node.ultimate_dash_ready:
@@ -227,7 +244,8 @@ func run_verification() -> void:
 	if not board.try_move(ult_direction):
 		fail("A valid ULT attack was rejected.")
 		return
-	if board.score_manager.combo_counter != 5 or board.get_ultimate_dashes_remaining() != 3:
+	if board.score_manager.combo_counter != combo_before_ult + 1 \
+			or board.get_ultimate_dashes_remaining() != 3:
 		fail("ULT attack did not continue combo or consume exactly one dash.")
 		return
 	if board.get_energy_quarter_units() != 0:
