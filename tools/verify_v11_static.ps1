@@ -226,6 +226,10 @@ $checks = @(
 		Pass = $commandPlayer -notmatch "undo_command|undo_last_command"
 	},
 	@{
+		Name = "command player waits for animations without skipping commands"
+		Pass = $commandPlayer -match 'func\s+execute_next_command\(\)[\s\S]*?if\s+input_locked:[\s\S]*?return[\s\S]*?if\s+not\s+execute_command\(command\):[\s\S]*?return[\s\S]*?playback_index\s*\+=\s*1'
+	},
+	@{
 		Name = "main.gd does not draw block labels in board cells"
 		Pass = $main -notmatch "add_centered_label\(object_layer,\s*cell,\s*block_label"
 	},

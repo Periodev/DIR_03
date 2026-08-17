@@ -256,9 +256,25 @@ func execute_next_command() -> void:
 	if level_completed:
 		finish_playback(true)
 		return
+	if input_locked:
+		update_playback_status(
+			"Waiting for animation: %s / %s." % [playback_index, playback_commands.size()]
+		)
+		return
 
-	var command := playback_commands[playback_index]
-	execute_command(command)
+	var command: String = playback_commands[playback_index]
+	if not execute_command(command):
+		playback_timer.stop()
+		playback_running = false
+		pause_button.text = "Pause"
+		update_playback_status(
+			"Command %s rejected at %s / %s." % [
+				command,
+				playback_index + 1,
+				playback_commands.size(),
+			]
+		)
+		return
 	playback_index += 1
 
 	if level_completed:
