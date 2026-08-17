@@ -14,7 +14,7 @@
 | 8 | 連續碰撞 + 拉回 | 20 | 1,122 | 1,057 | 163 | `DDDLDRXRRDXDRTXTTRDD` |
 | 9 | 接力碰撞 | 22 | 1,224 | 1,180 | 118 | `DRRRUXDRRLUXDRRRLUTXTT` |
 | 10 | 折返反轉 + 十字接力 | 45 | 62,010 | 56,537 | 5,669 | `UUULUURDXDDRRXLLDDRRTTXLLLDDRUUULURXRRTTRRDXT` |
-| 11 | 碰撞L轉 | 14 | 734 | 593 | 143 | `DDDXLDLDRRRXTT` |
+| 11 | 碰撞L轉 | 26 | 3,702 | 3,353 | 405 | `RDDDXLLDDLDRRURRXLUURRDTDT` |
 | 12 | 方向分散 + 折返 + 碰撞L轉 | 25 | 11,146 | 10,771 | 947 | `DDUXUDRXRURXLTUUDRTXTTRUU` |
 
 `Discovered` 是去重後曾見過的狀態總數；`Expanded` 是實際從 BFS

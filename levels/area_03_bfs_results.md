@@ -4,7 +4,7 @@
 
 | # | 關卡 | 最短指令數 | Discovered | Expanded | Peak frontier | 最短解 |
 |---:|---|---:|---:|---:|---:|---|
-| 1 | 解鎖 | 10 | 54 | 53 | 13 | `RRUXTULURR` |
+| 1 | 解鎖 | 10 | 54 | 52 | 13 | `UULXTLDLUU` |
 | 2 | 點火 | 29 | 1,157 | 1,090 | 84 | `ULURRDDXTDRRURRXLLDRRLUURRXTT` |
 | 3 | 鑰匙回收 | 30 | 788 | 736 | 68 | `DLLUXDLLLUXTTURRDLDXTDRRUXDRRT` |
 | 4 | 翻牆 | 37 | 410,836 | 353,880 | 56,964 | `LUURRUUULLRXLTRRLXUTDDLXTLDDRXTRDDRDD` |
