@@ -14,7 +14,7 @@
 | 1-7 | 折返閃避 | 14 | 391 | 342 | 62 | `DDDRDRUXUURTLL` |
 | 1-8 | 折返拉回 | 19 | 977 | 891 | 102 | `DDDLUXURDXULLTRRRRT` |
 | 1-9 | Exchange | 16 | 618 | 522 | 119 | `URRDLXRTLLRXUTDD` |
-| 1-10 | 反轉 | 17 | 622 | 585 | 80 | `LLLULLDRXRURTDXDT` |
+| 1-10 | 反轉 | 16 | 457 | 423 | 70 | `LLULLDRXRURTDXDT` |
 | 1-11 | 發條 | 31 | 10,443 | 10,089 | 692 | `RDLLUXDLLUULTRXRUXRRUTTXRRRUTXT` |
 
 `Discovered` 是去重後曾見過的狀態總數；`Expanded` 是實際從 BFS
