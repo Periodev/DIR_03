@@ -697,7 +697,21 @@ $checks = @(
 	},
 	@{
 		Name = "title info opens as the left branch"
-		Pass = $titleScreen -match 'selected_direction\s*==\s*Vector2i\.LEFT[\s\S]*menu_mode\s*=\s*MenuMode\.INFO' -and $titleScreen -match 'func\s+draw_info_menu\(' -and $titleScreen -match 'Vector2\.LEFT\s*\*\s*INFO_PANEL_OFFSET_X' -and $titleScreen -match 'A DIRECTIONAL BLOCK PUZZLE' -and $titleScreen -match 'BUILT WITH GODOT ENGINE' -and $titleScreen -match 'UI ASSETS BY KENNEY' -and $titleScreen -match 'draw_config_option\("BACK"' -and $titleScreen -match 'handle_info_input[\s\S]*move_right[\s\S]*play_config_action\(leave_info\)'
+		Pass = $titleScreen -match 'selected_direction\s*==\s*Vector2i\.LEFT[\s\S]*menu_mode\s*=\s*MenuMode\.INFO' -and $titleScreen -match 'func\s+draw_info_menu\(' -and $titleScreen -match 'Vector2\.LEFT\s*\*\s*INFO_PANEL_OFFSET_X' -and $titleScreen -match 'A PUZZLE ABOUT MOVING DIRECTIONS' -and $titleScreen -match 'BUILT WITH GODOT ENGINE' -and $titleScreen -match 'ADDITIONAL SOUNDS FROM PIXABAY' -and $titleScreen -match "USES KENNEY'S UI AND SOUND ASSETS" -and $titleScreen -notmatch 'draw_centered_text\([\s\S]{0,80}"INFO"' -and $titleScreen -match 'func\s+info_line_height\(line:\s*Dictionary\)\s*->\s*float' -and $titleScreen -match 'draw_config_option\(\s*"BACK"' -and $titleScreen -match 'handle_info_input[\s\S]*move_right[\s\S]*play_config_action\(leave_info\)'
+	},
+	@{
+		Name = "title info BACK is laid out from the same stack as its text, not a fixed offset"
+		Pass = $titleScreen -match 'const\s+INFO_LINE_GAP\s*:=\s*22\.0' -and $titleScreen -match 'const\s+INFO_BACK_GAP\s*:=\s*40\.0' -and $titleScreen -notmatch 'INFO_BACK_OFFSET_Y' -and $titleScreen -match 'func\s+info_lines\(\)\s*->\s*Array\[Dictionary\]' -and $titleScreen -match 'func\s+info_text_block_height\(lines:\s*Array\[Dictionary\]\)\s*->\s*float' -and $titleScreen -match 'func\s+info_back_center\(panel_center:\s*Vector2\)\s*->\s*Vector2' -and $titleScreen -match 'func\s+draw_info_menu\(menu_center:\s*Vector2\)\s*->\s*void:(?:(?!
+?
+func\s)[\s\S])*?var\s+lines\s*:=\s*info_lines\(\)(?:(?!
+?
+func\s)[\s\S])*?var\s+text_height\s*:=\s*info_text_block_height\(lines\)(?:(?!
+?
+func\s)[\s\S])*?draw_config_option\(\s*
+?
+\s*"BACK"' -and $titleScreen -match 'func\s+info_back_rect\(\)\s*->\s*Rect2:(?:(?!
+?
+func\s)[\s\S])*?var\s+center\s*:=\s*info_back_center\(panel_center\)'
 	},
 	@{
 		Name = "title config orders screen grid audio reset and back"
