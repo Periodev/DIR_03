@@ -4,7 +4,9 @@ const BoardScript = preload("res://scripts/extra_mode/Board.gd")
 const ComboBotScript = preload("res://scripts/extra_mode/ComboBot.gd")
 const MAX_DECISIONS := 2000
 const TIMEOUT_MSEC := 30000
-const BENCHMARK_SEEDS := [20260811, 20260812]
+# Two seeds cannot separate two policies: they disagreed on which of the last
+# two bots survived longer. Six is still small, but it is enough to see a mean.
+const BENCHMARK_SEEDS := [20260811, 20260812, 20260813, 20260814, 20260815, 20260816]
 
 func _initialize() -> void:
 	call_deferred("run_benchmark")
@@ -45,13 +47,13 @@ func _run_board(benchmark_seed: int) -> void:
 		decisions += 1
 		await process_frame
 	print(
-		"BENCH seed=%d: score=%d defeats=%d turns=%d decisions=%d combo=%d" % [
+		"BENCH seed=%d: score=%d defeats=%d turns=%d decisions=%d maxcombo=%d" % [
 			benchmark_seed,
 			board.score_manager.score,
 			board.score_manager.defeat_count,
 			board.survival_turns,
 			decisions,
-			board.score_manager.combo_counter,
+			board.score_manager.max_combo,
 		]
 	)
 	board.queue_free()

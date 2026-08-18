@@ -22,6 +22,43 @@ func run_verification() -> void:
 	if score_fixture.max_combo != 4:
 		fail("ScoreManager did not preserve the session max combo after the chain ended.")
 		return
+
+	var cap_fixture := ScoreManager.new()
+	for _kill in 12:
+		cap_fixture.advance_combo()
+	# The counter keeps counting past the top tier -- it is the chain the player
+	# actually built -- while the payout saturates.
+	if cap_fixture.combo_counter != 12:
+		fail(
+			"The combo counter stopped early at %s instead of counting every link."
+			% cap_fixture.combo_counter
+		)
+		return
+	if ScoreManager.COMBO_SCORE_MULTIPLIERS.size() != ScoreManager.MAX_COMBO_TIER \
+			or ScoreManager.MAX_COMBO_TIER != 6:
+		fail("The score multiplier curve does not carry one entry per reward tier.")
+		return
+	if cap_fixture.combo_tier(50) != ScoreManager.MAX_COMBO_TIER:
+		fail("A chain past the top tier did not clamp to it.")
+		return
+	var expected_multipliers: Array = [1, 2, 3, 5, 10, 20]
+	for step in expected_multipliers.size():
+		if cap_fixture.combo_multiplier(step + 1) != int(expected_multipliers[step]):
+			fail(
+				"Combo %s paid x%s, expected x%s." % [
+					step + 1,
+					cap_fixture.combo_multiplier(step + 1),
+					expected_multipliers[step],
+				]
+			)
+			return
+	var capped_points: int = cap_fixture.on_kill(CharacterData.CellType.DEAD)
+	if capped_points != 10 * 20:
+		fail("A kill at the combo cap did not pay the top multiplier exactly once.")
+		return
+	if cap_fixture.combo_multiplier(99) != 20:
+		fail("A combo past the table paid more than the top multiplier.")
+		return
 	score_fixture.reset()
 	if score_fixture.max_combo != 0:
 		fail("ScoreManager did not clear max combo on restart.")
@@ -122,6 +159,13 @@ func run_verification() -> void:
 	board.score_manager.combo_counter = 3
 	board.survival_turns = 5
 	board.cycle_counter = 1
+	board.inventory.reset()
+	for filler_direction in [
+		CharacterData.Direction.UP,
+		CharacterData.Direction.DOWN,
+		CharacterData.Direction.LEFT,
+	]:
+		board.inventory.push(filler_direction)
 	if not board.try_move(CharacterData.Direction.RIGHT):
 		fail("A valid live-cell bonus step was rejected.")
 		return
@@ -130,6 +174,23 @@ func run_verification() -> void:
 		return
 	if board.score_manager.combo_counter != 3 or board.bonus_step_armed:
 		fail("A bonus step broke combo or remained armed after use.")
+		return
+	if board.inventory.queue.size() != board.inventory.capacity() \
+			or not board.inventory.is_overflowing() \
+			or board.inventory.queue[0] != CharacterData.Direction.UP:
+		fail("A bonus step did not keep the oldest direction in a temporary overflow slot.")
+		return
+
+	await create_timer(0.6).timeout
+	if not board.game_state.is_idle():
+		fail("The board never returned to idle after a bonus step.")
+		return
+	if not board.try_move(CharacterData.Direction.RIGHT):
+		fail("A normal move after a bonus step was rejected.")
+		return
+	if board.inventory.queue.size() != board.inventory.max_size \
+			or board.inventory.is_overflowing():
+		fail("A normal move did not trim the temporary bonus overflow slot.")
 		return
 
 	board.restart()
@@ -146,12 +207,18 @@ func run_verification() -> void:
 	if board.score_manager.combo_counter != 4:
 		fail("A bonus attack did not continue the combo.")
 		return
-	if board.get_energy_quarter_units() != 5 or board.survival_turns != 0:
-		fail("Four combo did not add one energy slot, or the bonus attack counted as a turn.")
+	if board.get_energy_quarter_units() != 1 or board.survival_turns != 0:
+		fail("A bonus attack recharged energy, or it counted as a turn.")
+		return
+	if board.inventory.find_direction(CharacterData.Direction.RIGHT) < 0:
+		fail("A bonus attack consumed its direction instead of keeping it for the chain.")
+		return
+	if board.get_bonus_step_cost() != board.ENERGY_SLOT_COST:
+		fail("X no longer costs one flat energy slot.")
 		return
 
 	board._charge_energy_for_combo(5)
-	if board.get_energy_quarter_units() != 9:
+	if board.get_energy_quarter_units() != 5:
 		fail("Five combo did not add one energy slot.")
 		return
 	board.energy_quarter_units = 12
@@ -241,6 +308,47 @@ func run_verification() -> void:
 	await create_timer(0.6).timeout
 	if not movement_board.player_node.ultimate_dash_ready:
 		fail("ULT direction arrows did not return after movement completed.")
+		return
+
+	var flat_price_board: Node2D = BoardScript.new()
+	root.add_child(flat_price_board)
+	await process_frame
+	flat_price_board.spawn_warning_player.stop()
+	# X keeps one flat price no matter how deep the chain runs; what caps a
+	# STEP run is that an X-paid kill returns nothing, so the bar only drains.
+	flat_price_board.energy_quarter_units = board.ENERGY_QUARTER_UNITS_MAX
+	var frozen_actions: int = 0
+	while flat_price_board.try_energy_bonus_step():
+		frozen_actions += 1
+		flat_price_board.bonus_step_armed = false
+		if frozen_actions > 8:
+			break
+	if frozen_actions != board.ENERGY_QUARTER_UNITS_MAX / board.ENERGY_SLOT_COST:
+		fail(
+			"A full energy bar armed %s STEPs, expected exactly four."
+			% frozen_actions
+		)
+		return
+	if flat_price_board.get_energy_quarter_units() != 0:
+		fail("Four STEPs did not drain the whole bar at one flat slot each.")
+		return
+
+	var normal_attack_board: Node2D = BoardScript.new()
+	root.add_child(normal_attack_board)
+	await process_frame
+	normal_attack_board.spawn_warning_player.stop()
+	normal_attack_board.inventory.push(CharacterData.Direction.RIGHT)
+	var normal_target: Vector2i = normal_attack_board.player_pos \
+			+ CharacterData.DIR_VECTOR[CharacterData.Direction.RIGHT]
+	normal_attack_board.grid[normal_target.y][normal_target.x] = CharacterData.CellType.DEAD
+	if not normal_attack_board.try_move(CharacterData.Direction.RIGHT):
+		fail("A valid normal attack was rejected.")
+		return
+	if normal_attack_board.inventory.find_direction(CharacterData.Direction.RIGHT) >= 0:
+		fail("A normal attack kept its direction instead of consuming it.")
+		return
+	if normal_attack_board.get_energy_quarter_units() != 1:
+		fail("A normal attack kill did not charge energy for the first combo.")
 		return
 
 	print("PASS: EXTRA energy bonus-step verification.")

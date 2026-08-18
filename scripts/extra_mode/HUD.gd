@@ -1,7 +1,11 @@
 extends CanvasLayer
 
+const ENERGY_GAIN_COLOR := Color(0.28, 0.92, 0.48)
+const ENERGY_GAIN_IDLE_COLOR := Color(1.0, 1.0, 1.0, 0.28)
+
 var score_label: Label
 var combo_label: Label
+var energy_gain_label: Label
 var inventory_container: HBoxContainer
 var inventory_panel: PanelContainer
 var energy_container: HBoxContainer
@@ -87,6 +91,17 @@ func _ready() -> void:
 		energy_container.add_child(energy_slot)
 		energy_slots.append(energy_slot)
 
+	# What the next kill would add to the bar. Reads +0 while a STEP or an ULT
+	# chain is queued, because those kills are energy-sterile.
+	energy_gain_label = Label.new()
+	energy_gain_label.text = "+0"
+	energy_gain_label.add_theme_font_size_override("font_size", 20)
+	energy_gain_label.add_theme_color_override("font_color", ENERGY_GAIN_COLOR)
+	energy_gain_label.custom_minimum_size = Vector2(44, 36)
+	energy_gain_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	energy_gain_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	inv_hbox.add_child(energy_gain_label)
+
 	var energy_separator := VSeparator.new()
 	inv_hbox.add_child(energy_separator)
 
@@ -151,7 +166,7 @@ func _ready() -> void:
 	vbox.add_child(gameover_score)
 
 	gameover_max_combo = Label.new()
-	gameover_max_combo.text = "MAX COMBO x0"
+	gameover_max_combo.text = "MAX COMBO 0"
 	gameover_max_combo.add_theme_font_size_override("font_size", 26)
 	gameover_max_combo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	gameover_max_combo.add_theme_color_override("font_color", Color(0.86, 0.88, 0.91))
@@ -178,12 +193,17 @@ func setup(char_name: String) -> void:
 		child.queue_free()
 	slot_labels.clear()
 
-	for i in _max_slots:
+	for i in _max_slots + Inventory.BONUS_OVERFLOW_SLOTS:
 		var slot = Label.new()
 		slot.text = "-"
 		slot.add_theme_font_size_override("font_size", 28)
 		slot.custom_minimum_size = Vector2(36, 36)
 		slot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		if i >= _max_slots:
+			# Temporary X (STEP) slot: shown only while it actually holds a
+			# direction, tinted with the STEP colour.
+			slot.add_theme_color_override("font_color", Color("#C8E64A"))
+			slot.visible = false
 		inventory_container.add_child(slot)
 		slot_labels.append(slot)
 
@@ -198,11 +218,14 @@ func setup(char_name: String) -> void:
 	gameover_panel.visible = false
 
 func update_inventory(inv: Inventory) -> void:
-	for i in _max_slots:
+	for i in slot_labels.size():
+		var slot: Label = slot_labels[i]
+		if i >= _max_slots:
+			slot.visible = i < inv.queue.size()
 		if i < inv.queue.size():
-			slot_labels[i].text = CharacterData.DIR_ARROWS[inv.queue[i]]
+			slot.text = CharacterData.DIR_ARROWS[inv.queue[i]]
 		else:
-			slot_labels[i].text = "-"
+			slot.text = "-"
 
 	if _has_hold:
 		hold_slot.text = CharacterData.DIR_ARROWS[inv.hold] if inv.hold != CharacterData.Direction.NONE else "-"
@@ -218,17 +241,31 @@ func update_score(score: int) -> void:
 	score_label.text = str(score)
 
 func update_combo(combo: int) -> void:
+	# The chain length, not a multiplier: combo 6 pays x20, so writing "x6"
+	# would name a number the player never receives.
 	if combo >= 2:
-		combo_label.text = "COMBO x%d" % combo
+		combo_label.text = "COMBO %d" % combo
 	else:
 		combo_label.text = ""
 
-func update_energy(quarter_units: int, bonus_step_armed: bool, ultimate_steps: int) -> void:
+func update_energy_gain(quarter_units: int) -> void:
+	energy_gain_label.text = "+%d" % quarter_units
+	energy_gain_label.add_theme_color_override(
+		"font_color",
+		ENERGY_GAIN_COLOR if quarter_units > 0 else ENERGY_GAIN_IDLE_COLOR
+	)
+
+func update_energy(
+	quarter_units: int,
+	bonus_step_armed: bool,
+	ultimate_steps: int,
+	bonus_step_cost: int = 4
+) -> void:
 	for i in energy_slots.size():
 		var slot_quarter_units: int = clampi(quarter_units - i * 4, 0, 4)
 		var fill_ratio: float = float(slot_quarter_units) / 4.0
 		energy_slots[i].set_fill_ratio(fill_ratio)
-	dash_action_label.modulate = Color.WHITE if quarter_units >= 4 or bonus_step_armed else Color(1.0, 1.0, 1.0, 0.28)
+	dash_action_label.modulate = Color.WHITE if quarter_units >= bonus_step_cost or bonus_step_armed else Color(1.0, 1.0, 1.0, 0.28)
 	ultimate_action_label.modulate = Color.WHITE if quarter_units >= 16 or ultimate_steps > 0 else Color(1.0, 1.0, 1.0, 0.28)
 	if ultimate_steps > 0:
 		ultimate_action_label.text = "[Z] DASH %d" % ultimate_steps
@@ -269,7 +306,8 @@ func update_state(_state: int) -> void:
 
 func show_game_over(final_score: int, max_combo: int) -> void:
 	gameover_score.text = str(final_score)
-	gameover_max_combo.text = "MAX COMBO x%d" % max_combo
+	# A chain length, not a multiplier, same as the in-game label.
+	gameover_max_combo.text = "MAX COMBO %d" % max_combo
 	gameover_panel.visible = true
 
 func _layout_ui() -> void:
