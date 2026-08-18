@@ -1,5 +1,10 @@
 class_name Inventory
 
+# X (STEP) repositioning may hold this many directions beyond the character's
+# own queue size. The extra slot is temporary: the next normal move trims the
+# queue back to max_size.
+const BONUS_OVERFLOW_SLOTS := 1
+
 var queue: Array = []  # Array of Direction values, index 0 = oldest
 var hold: int = CharacterData.Direction.NONE
 var max_size: int = 3
@@ -24,9 +29,24 @@ func reset() -> void:
 	charge_value = 0
 
 func push(dir: int) -> void:
-	if queue.size() >= max_size:
+	# Trims any leftover bonus overflow, so a normal move always lands the queue
+	# back at max_size.
+	while queue.size() >= max_size:
 		queue.pop_front()
 	queue.push_back(dir)
+
+func push_bonus(dir: int) -> void:
+	# X-paid repositioning keeps the older directions instead of evicting them.
+	var overflow_limit: int = max_size + BONUS_OVERFLOW_SLOTS
+	while queue.size() >= overflow_limit:
+		queue.pop_front()
+	queue.push_back(dir)
+
+func capacity() -> int:
+	return max_size + BONUS_OVERFLOW_SLOTS
+
+func is_overflowing() -> bool:
+	return queue.size() > max_size
 
 func pop() -> int:
 	if queue.is_empty():

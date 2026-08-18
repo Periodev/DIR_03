@@ -51,6 +51,7 @@ var _pending_kill_visual: Array[Vector2i] = []  # 正在等待延遲視覺更新
 var survival_turns: int = 0
 var energy_quarter_units: int = 0
 var bonus_step_armed: bool = false
+var _bonus_step_kill_active: bool = false
 var ultimate_dashes_remaining: int = 0
 var _ultimate_chain_started: bool = false
 
@@ -137,6 +138,7 @@ func restart() -> void:
 	survival_turns = 0
 	energy_quarter_units = 0
 	bonus_step_armed = false
+	_bonus_step_kill_active = false
 	ultimate_dashes_remaining = 0
 	_ultimate_chain_started = false
 	player_node.cancel_feedback()
@@ -192,11 +194,15 @@ func try_move(dir: int) -> bool:
 		# Move to live cell
 		player_facing_dir = dir
 		player_pos = target
-		if is_bonus_step or not _will_spawn_hit_target_this_turn(target):
+		if is_bonus_step:
+			# X-paid repositioning fills the temporary overflow slot instead of
+			# evicting the oldest direction, so the chain keeps its options.
+			inventory.push_bonus(_get_move_memory_token(dir))
+			inventory.register_move(dir)
+		elif not _will_spawn_hit_target_this_turn(target):
 			inventory.push(_get_move_memory_token(dir))
 			inventory.register_move(dir)
-			if not is_bonus_step:
-				score_manager.on_move_to_live()
+			score_manager.on_move_to_live()
 
 		if is_bonus_step:
 			bonus_step_armed = false
@@ -205,13 +211,20 @@ func try_move(dir: int) -> bool:
 
 	else:
 		# Dead cell - check inventory for matching direction (any position)
-		if not _consume_attack_direction(dir):
+		if is_bonus_step:
+			# X-paid attacks keep their direction token: the chain limiter is
+			# the direction queue, not the energy bar.
+			if not _has_attack_direction(dir):
+				return false  # No matching direction in queue
+		elif not _consume_attack_direction(dir):
 			return false  # No matching direction in queue
 		_clear_attack_prompts()
 
 		var origin := player_pos
 		player_facing_dir = dir
+		_bonus_step_kill_active = is_bonus_step
 		_resolve_attack(dir, target, target_type)
+		_bonus_step_kill_active = false
 		if grid[target.y][target.x] == CharacterData.CellType.LIVE:
 			player_pos = target
 			_action_animation_pending = true
@@ -330,6 +343,9 @@ func _finalize_turn_after_action(freeze_spawn_cycle: bool = false, count_turn: b
 		call_deferred("_complete_turn_after_motion")
 	return true
 
+func get_bonus_step_cost() -> int:
+	return ENERGY_SLOT_COST
+
 func try_energy_bonus_step() -> bool:
 	if not game_state.is_idle():
 		return false
@@ -337,9 +353,10 @@ func try_energy_bonus_step() -> bool:
 		return false
 	if bonus_step_armed or ultimate_dashes_remaining > 0:
 		return false
-	if energy_quarter_units < ENERGY_SLOT_COST:
+	var cost: int = get_bonus_step_cost()
+	if energy_quarter_units < cost:
 		return false
-	energy_quarter_units -= ENERGY_SLOT_COST
+	energy_quarter_units -= cost
 	bonus_step_armed = true
 	play_bonus_step_sound()
 	_refresh_visuals()
@@ -507,24 +524,46 @@ func _on_player_animation_done() -> void:
 func _kill_flow(pos: Vector2i, attack_dir: int, cell_type: int) -> void:
 	# Set to LIVE
 	grid[pos.y][pos.x] = CharacterData.CellType.LIVE
-	score_manager.combo_counter += 1
+	score_manager.advance_combo()
 	score_manager.on_kill(cell_type)
-	if not _ultimate_chain_started:
+	# Frozen actions never pay for themselves: an X-paid kill and an ULT chain
+	# kill both grant score and combo but no energy, so energy income only ever
+	# happens on turns that advance the spawn clock.
+	if not _ultimate_chain_started and not _bonus_step_kill_active:
 		_charge_energy_for_combo(score_manager.combo_counter)
 	_spawn_hit_effect(pos)
 	_char_impl.on_kill(self, pos, attack_dir)
 
-func _charge_energy_for_combo(combo: int) -> void:
+func energy_gain_for_combo(combo: int) -> int:
 	match combo:
 		1:
-			energy_quarter_units = mini(energy_quarter_units + 1, ENERGY_QUARTER_UNITS_MAX)
+			return 1
 		2, 3:
-			energy_quarter_units = mini(energy_quarter_units + 2, ENERGY_QUARTER_UNITS_MAX)
+			return 2
 		4, 5:
-			energy_quarter_units = mini(energy_quarter_units + 4, ENERGY_QUARTER_UNITS_MAX)
+			return 4
 		_:
 			if combo >= 6:
-				energy_quarter_units = mini(energy_quarter_units + 8, ENERGY_QUARTER_UNITS_MAX)
+				return 8
+	return 0
+
+func get_next_kill_energy_gain() -> int:
+	# What the next kill would put in the bar, which is zero while a frozen
+	# action is queued up: X-paid and ULT kills are energy-sterile.
+	if ultimate_dashes_remaining > 0 or bonus_step_armed:
+		return 0
+	# energy_gain_for_combo already saturates past the top tier, so the raw
+	# chain length can go straight in.
+	return mini(
+		energy_gain_for_combo(score_manager.combo_counter + 1),
+		ENERGY_QUARTER_UNITS_MAX - energy_quarter_units
+	)
+
+func _charge_energy_for_combo(combo: int) -> void:
+	energy_quarter_units = mini(
+		energy_quarter_units + energy_gain_for_combo(combo),
+		ENERGY_QUARTER_UNITS_MAX
+	)
 
 var cycle_resolved: bool = false  # true = this cycle already spawned, remaining turns idle
 
