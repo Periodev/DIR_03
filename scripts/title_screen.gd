@@ -40,6 +40,8 @@ const CONFIG_OPTION_GAP := 78.0
 const CONFIG_PANEL_VERTICAL_MARGIN := 80.0
 const CONFIG_PANEL_OFFSET_X := 370.0
 const INFO_PANEL_OFFSET_X := 370.0
+const INFO_LINE_GAP := 22.0
+const INFO_BACK_GAP := 40.0
 const CONFIG_AUDIO_STEP := 10
 const AUDIO_SLIDER_SIZE := Vector2(128.0, 8.0)
 const AUDIO_SLIDER_FILL_HEIGHT := 14.0
@@ -289,7 +291,7 @@ func config_option_rect(index: int) -> Rect2:
 
 func info_back_rect() -> Rect2:
 	var panel_center := compute_menu_center() + Vector2.LEFT * INFO_PANEL_OFFSET_X
-	var center := panel_center + Vector2(0.0, 145.0)
+	var center := info_back_center(panel_center)
 	return Rect2(center - CONFIG_OPTION_BOX_SIZE / 2.0, CONFIG_OPTION_BOX_SIZE)
 
 
@@ -670,32 +672,72 @@ func draw_config_menu(menu_center: Vector2) -> void:
 func draw_info_menu(menu_center: Vector2) -> void:
 	draw_player_mark(menu_center)
 	var panel_center := menu_center + Vector2.LEFT * INFO_PANEL_OFFSET_X
-	draw_centered_text(panel_center + Vector2(0.0, -145.0), "INFO", 34, palette["text_hi"])
-	draw_centered_text(
-		panel_center + Vector2(0.0, -82.0),
-		"A DIRECTIONAL BLOCK PUZZLE",
-		20,
-		palette["text"]
+	var lines := info_lines()
+
+	# The text block and BACK are laid out as one stack and centred together,
+	# rather than each centred on panel_center independently -- two blocks
+	# centred separately can only avoid overlapping by luck once either one's
+	# size changes (a line added, a font size changed).
+	var text_height := info_text_block_height(lines)
+	var total_height := text_height + INFO_BACK_GAP + CONFIG_OPTION_BOX_SIZE.y
+	var cursor: float = panel_center.y - total_height / 2.0
+
+	for i in lines.size():
+		var line: Dictionary = lines[i]
+		var line_text: String = line["text"]
+		var line_size: int = int(line["size"])
+		var line_color: Color = line["color"]
+		var line_height: float = info_line_height(line)
+		draw_centered_text(
+			Vector2(panel_center.x, cursor + line_height / 2.0),
+			line_text,
+			line_size,
+			line_color
+		)
+		cursor += line_height
+		if i < lines.size() - 1:
+			cursor += INFO_LINE_GAP
+
+	draw_config_option(
+		"BACK",
+		Vector2(panel_center.x, cursor + INFO_BACK_GAP + CONFIG_OPTION_BOX_SIZE.y / 2.0),
+		true,
+		info_back_hovered
 	)
-	draw_centered_text(
-		panel_center + Vector2(0.0, -24.0),
-		"BUILT WITH GODOT ENGINE",
-		18,
-		palette["text_dim"]
-	)
-	draw_centered_text(
-		panel_center + Vector2(0.0, 18.0),
-		"UI ASSETS BY KENNEY",
-		18,
-		palette["text_dim"]
-	)
-	draw_centered_text(
-		panel_center + Vector2(0.0, 60.0),
-		"PROTOTYPE BUILD",
-		18,
-		palette["text_dim"]
-	)
-	draw_config_option("BACK", panel_center + Vector2(0.0, 145.0), true, info_back_hovered)
+
+func info_lines() -> Array[Dictionary]:
+	return [
+		{"text": "A PUZZLE ABOUT MOVING DIRECTIONS", "size": 20, "color": palette["text"]},
+		{"text": "BUILT WITH GODOT ENGINE", "size": 20, "color": palette["text_dim"]},
+		{"text": "USES KENNEY'S UI AND SOUND ASSETS", "size": 20, "color": palette["text_dim"]},
+		{"text": "ADDITIONAL SOUNDS FROM PIXABAY", "size": 20, "color": palette["text_dim"]},
+		{"text": "PROTOTYPE BUILD", "size": 20, "color": palette["text_dim"]},
+	]
+
+func info_text_block_height(lines: Array[Dictionary]) -> float:
+	var total_height := 0.0
+	for line_value in lines:
+		var line: Dictionary = line_value
+		total_height += info_line_height(line)
+	total_height += INFO_LINE_GAP * float(lines.size() - 1)
+	return total_height
+
+func info_back_center(panel_center: Vector2) -> Vector2:
+	var lines := info_lines()
+	var text_height := info_text_block_height(lines)
+	var total_height := text_height + INFO_BACK_GAP + CONFIG_OPTION_BOX_SIZE.y
+	var back_top: float = panel_center.y - total_height / 2.0 + text_height + INFO_BACK_GAP
+	return Vector2(panel_center.x, back_top + CONFIG_OPTION_BOX_SIZE.y / 2.0)
+
+func info_line_height(line: Dictionary) -> float:
+	var line_text: String = line["text"]
+	var line_size: int = int(line["size"])
+	return ui_font.get_string_size(
+		line_text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		line_size
+	).y
 
 
 func fullscreen_label() -> String:
