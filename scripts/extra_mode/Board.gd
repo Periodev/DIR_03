@@ -46,6 +46,7 @@ var _opening_grace_turns_remaining: int = OPENING_GRACE_TURNS
 var _spawn_hit_pending: bool = false
 var _spawn_fade_pending: bool = false
 var _player_move_visual_pending: bool = false
+var _hold_stored_direction_visual_until_idle: bool = false
 var _action_animation_pending: bool = false
 var _turn_resolution_pending: bool = false
 var _turn_freezes_spawn: bool = false
@@ -133,6 +134,7 @@ func restart() -> void:
 	_spawn_hit_pending = false
 	_spawn_fade_pending = false
 	_player_move_visual_pending = false
+	_hold_stored_direction_visual_until_idle = false
 	_action_animation_pending = false
 	_turn_resolution_pending = false
 	_turn_freezes_spawn = false
@@ -194,26 +196,11 @@ func try_move(dir: int) -> bool:
 	var target_type = grid[target.y][target.x]
 
 	if target_type == CharacterData.CellType.LIVE:
-		# Move to live cell
-		player_facing_dir = dir
-		player_pos = target
-		if is_bonus_step:
-			# X-paid repositioning fills the temporary overflow slot instead of
-			# evicting the oldest direction, so the chain keeps its options.
-			inventory.push_bonus(_get_move_memory_token(dir))
-			inventory.register_move(dir)
-		elif not _will_spawn_hit_target_this_turn(target):
-			inventory.push(_get_move_memory_token(dir))
-			inventory.register_move(dir)
-			score_manager.on_move_to_live()
-
-		if is_bonus_step:
-			bonus_step_armed = false
-			return _finalize_turn_after_action(true, false)
-		return _finalize_turn_after_action()
+		return _complete_live_move(dir, target, is_bonus_step)
 
 	else:
 		# Dead cell - check inventory for matching direction (any position)
+		var attack_start_directions: Array = inventory.queue.duplicate()
 		if is_bonus_step:
 			# X-paid attacks keep their direction token: the chain limiter is
 			# the direction queue, not the energy bar.
@@ -230,6 +217,13 @@ func try_move(dir: int) -> bool:
 		_bonus_step_kill_active = false
 		if grid[target.y][target.x] == CharacterData.CellType.LIVE:
 			player_pos = target
+			_hold_stored_direction_visual_until_idle = true
+			player_node.prepare_stored_direction_update(
+				attack_start_directions,
+				inventory.queue.duplicate(),
+				inventory.max_size,
+				0
+			)
 			_action_animation_pending = true
 			_char_impl.begin_kill_anim(self, origin, target, dir)
 			game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
@@ -242,6 +236,42 @@ func try_move(dir: int) -> bool:
 			bonus_step_armed = false
 			return _finalize_turn_after_action(true, false)
 		return _finalize_turn_after_action()
+
+func _complete_live_move(dir: int, target: Vector2i, is_bonus_step: bool) -> bool:
+	var previous_directions: Array = inventory.queue.duplicate()
+	var gained_direction := false
+	var memory_token := _get_move_memory_token(dir)
+	player_facing_dir = dir
+	player_pos = target
+	if is_bonus_step:
+		# X-paid repositioning fills the temporary overflow slot instead of
+		# evicting the oldest direction, so the chain keeps its options.
+		inventory.push_bonus(memory_token)
+		inventory.register_move(dir)
+		gained_direction = true
+	elif not _will_spawn_hit_target_this_turn(target):
+		inventory.push(memory_token)
+		inventory.register_move(dir)
+		score_manager.on_move_to_live()
+		gained_direction = true
+
+	var arrival_directions: Array = previous_directions.duplicate()
+	if gained_direction:
+		arrival_directions.append(memory_token)
+	var final_directions: Array = inventory.queue.duplicate()
+	var evicted_count: int = arrival_directions.size() - final_directions.size()
+	_hold_stored_direction_visual_until_idle = true
+	player_node.prepare_stored_direction_update(
+		arrival_directions,
+		final_directions,
+		inventory.max_size,
+		evicted_count
+	)
+
+	if is_bonus_step:
+		bonus_step_armed = false
+		return _finalize_turn_after_action(true, false)
+	return _finalize_turn_after_action()
 
 func try_charge_action() -> bool:
 	if not game_state.is_idle():
@@ -793,6 +823,7 @@ func _finish_spawn_stage_if_ready() -> void:
 func _finish_turn_presentation() -> void:
 	if game_state.current_state == CharacterData.GameStateEnum.GAME_OVER:
 		return
+	_hold_stored_direction_visual_until_idle = false
 	game_state.set_state(CharacterData.GameStateEnum.IDLE)
 	_check_game_over()
 	_refresh_attack_prompts()
@@ -826,7 +857,8 @@ func _sync_player_move_ready() -> void:
 	player_node.set_move_ready_directions(ready_directions, danger_directions)
 	player_node.set_bonus_step_directions(bonus_directions)
 	player_node.set_ultimate_dash_ready(ultimate_ready)
-	player_node.set_stored_direction_slots(stored_directions, inventory.max_size)
+	if not player_node.has_pending_stored_direction_update() and not _hold_stored_direction_visual_until_idle:
+		player_node.set_stored_direction_slots(stored_directions, inventory.max_size)
 
 func _clear_attack_prompts() -> void:
 	var no_directions: Array[int] = []

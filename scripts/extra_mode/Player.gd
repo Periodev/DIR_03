@@ -9,6 +9,8 @@ const PLAYER_BODY_SCALE := 0.8
 const HIT_SOUND: AudioStream = preload(
 	"res://assets/audio/sfx/extra_attack/error_006.ogg"
 )
+const DIRECTION_REPLACEMENT_BLINK_PHASE := 0.04
+const DIRECTION_REPLACEMENT_HIDDEN_HOLD := 0.02
 
 var character_name: String = "PLN"
 var character_color: Color = Color(0.2, 0.8, 0.3)
@@ -24,6 +26,15 @@ var stored_direction_max_size := 3
 var _char_impl  # CharacterImpl_PLN
 var _feedback_tween: Tween
 var _move_tween: Tween
+var _direction_fade_tween: Tween
+var _expiring_arrow_alpha := 1.0
+var _expiring_arrow_flash := 0.0
+var _expiring_count_override := -1
+var _direction_update_pending := false
+var _pending_arrival_slots: Array[int] = []
+var _pending_final_slots: Array[int] = []
+var _pending_direction_max_size := 3
+var _pending_evicted_count := 0
 
 func set_character(char_name: String) -> void:
 	character_name = char_name
@@ -76,14 +87,31 @@ func set_stored_direction_slots(directions: Array, max_size: int) -> void:
 	stored_direction_max_size = max_size
 	queue_redraw()
 
+func prepare_stored_direction_update(
+	arrival_directions: Array,
+	final_directions: Array,
+	max_size: int,
+	evicted_count: int
+) -> void:
+	_pending_arrival_slots.clear()
+	for direction_value in arrival_directions:
+		_pending_arrival_slots.append(int(direction_value))
+	_pending_final_slots.clear()
+	for direction_value in final_directions:
+		_pending_final_slots.append(int(direction_value))
+	_pending_direction_max_size = max_size
+	_pending_evicted_count = evicted_count
+	_direction_update_pending = true
+
+func has_pending_stored_direction_update() -> bool:
+	return _direction_update_pending
+
 func _draw() -> void:
 	if ultimate_dash_ready:
 		_draw_ultimate_dash_arrows()
 	elif not bonus_step_directions.is_empty():
 		_draw_bonus_step_arrows()
 	else:
-		if not move_ready_directions.is_empty():
-			_draw_move_ready_arrows()
 		if not stored_direction_slots.is_empty():
 			_draw_stored_direction_arrows()
 	var points: PackedVector2Array
@@ -104,28 +132,6 @@ func _draw() -> void:
 
 	draw_polygon(points, PackedColorArray([character_color]))
 	draw_polyline(points + PackedVector2Array([points[0]]), Color.WHITE, 2.0)
-
-func _draw_move_ready_arrows() -> void:
-	const ARROW_DISTANCE := 42.0
-	const ARROW_FRONT_DEPTH := 5.0
-	const ARROW_REAR_DEPTH := 3.0
-	const ARROW_HALF_HEIGHT := 4.0
-	const ARROW_WIDTH := 2.0
-	var danger_color := Color(0.94, 0.24, 0.20, 0.95)
-	for direction in move_ready_directions:
-		if direction not in danger_move_directions:
-			continue
-		var forward := Vector2(CharacterData.DIR_VECTOR[direction])
-		var side := Vector2(-forward.y, forward.x)
-		var center := forward * ARROW_DISTANCE
-		var tip := center + forward * ARROW_FRONT_DEPTH
-		var rear := center - forward * ARROW_REAR_DEPTH
-		var arrow := PackedVector2Array([
-			rear + side * ARROW_HALF_HEIGHT,
-			tip,
-			rear - side * ARROW_HALF_HEIGHT,
-		])
-		draw_polyline(arrow, danger_color, ARROW_WIDTH, true)
 
 func _draw_bonus_step_arrows() -> void:
 	const ARROW_DISTANCE := 40.0
@@ -151,21 +157,20 @@ func _draw_bonus_step_arrows() -> void:
 
 func _draw_stored_direction_arrows() -> void:
 	const ARROW_DISTANCE := 46.0
-	const ARROW_FRONT_DEPTH := 7.5
-	const ARROW_REAR_DEPTH := 5.0
-	const ARROW_HALF_HEIGHT := 6.25
-	const DUPLICATE_OFFSET := 6.0
-	const OUTLINE_WIDTH := 6.25
-	const FILL_WIDTH := 3.125
+	# 2 * atan(7.5 / (3.8 + 2.5)) = 100.0 degrees at the tip.
+	const ARROW_FRONT_DEPTH := 3.8
+	const ARROW_REAR_DEPTH := 2.5
+	const ARROW_HALF_HEIGHT := 7.5
+	const SEQUENCE_STEP := 7.0
+	const OUTLINE_WIDTH := 5.5
+	const FILL_WIDTH := 3.0
 	const ACTIVE_COLOR := Color(0.28, 0.92, 0.48)
 	const EXPIRING_COLOR := Color(0.48, 0.58, 0.51, 0.76)
-	var expiring_count := 0
-	if stored_direction_slots.size() >= stored_direction_max_size:
+	var expiring_count: int = _expiring_count_override
+	if expiring_count < 0 and stored_direction_slots.size() >= stored_direction_max_size:
 		expiring_count = stored_direction_slots.size() - stored_direction_max_size + 1
-	var direction_counts := {}
-	for slot_index in stored_direction_slots.size():
-		var direction: int = stored_direction_slots[slot_index]
-		direction_counts[direction] = int(direction_counts.get(direction, 0)) + 1
+	elif expiring_count < 0:
+		expiring_count = 0
 	var drawn_counts := {}
 	for slot_index in stored_direction_slots.size():
 		var direction: int = stored_direction_slots[slot_index]
@@ -173,9 +178,8 @@ func _draw_stored_direction_arrows() -> void:
 		var side := Vector2(-forward.y, forward.x)
 		var duplicate_index: int = int(drawn_counts.get(direction, 0))
 		drawn_counts[direction] = duplicate_index + 1
-		var duplicate_count: int = int(direction_counts[direction])
-		var side_offset := (float(duplicate_index) - float(duplicate_count - 1) * 0.5) * DUPLICATE_OFFSET
-		var center := forward * ARROW_DISTANCE + side * side_offset
+		var sequence_distance := ARROW_DISTANCE - float(duplicate_index) * SEQUENCE_STEP
+		var center := forward * sequence_distance
 		var tip := center + forward * ARROW_FRONT_DEPTH
 		var rear := center - forward * ARROW_REAR_DEPTH
 		var arrow := PackedVector2Array([
@@ -183,8 +187,13 @@ func _draw_stored_direction_arrows() -> void:
 			tip,
 			rear - side * ARROW_HALF_HEIGHT,
 		])
-		var arrow_color := EXPIRING_COLOR if slot_index < expiring_count else ACTIVE_COLOR
-		draw_polyline(arrow, Color(0.08, 0.09, 0.11, 0.9), OUTLINE_WIDTH, true)
+		var arrow_color: Color = EXPIRING_COLOR if slot_index < expiring_count else ACTIVE_COLOR
+		var outline_color := Color(0.08, 0.09, 0.11, 0.9)
+		if slot_index < expiring_count:
+			arrow_color = EXPIRING_COLOR.lerp(ACTIVE_COLOR, _expiring_arrow_flash)
+			arrow_color.a *= _expiring_arrow_alpha
+			outline_color.a *= _expiring_arrow_alpha
+		draw_polyline(arrow, outline_color, OUTLINE_WIDTH, true)
 		draw_polyline(arrow, arrow_color, FILL_WIDTH, true)
 
 func _draw_ultimate_dash_arrows() -> void:
@@ -219,8 +228,56 @@ func play_move(from_pos: Vector2, move_duration_override: float = -1.0, play_sou
 	movement_started.emit()
 	_move_tween.finished.connect(_finish_move, CONNECT_ONE_SHOT)
 
+func _play_pending_direction_replacement() -> void:
+	stored_direction_slots = _pending_arrival_slots.duplicate()
+	stored_direction_max_size = _pending_direction_max_size
+	_expiring_count_override = _pending_evicted_count
+	queue_redraw()
+	if _pending_evicted_count <= 0:
+		_finish_pending_direction_update()
+		return
+	if _direction_fade_tween != null and _direction_fade_tween.is_valid():
+		_direction_fade_tween.kill()
+	_expiring_arrow_alpha = 1.0
+	_expiring_arrow_flash = 0.0
+	_direction_fade_tween = create_tween()
+	_direction_fade_tween.tween_method(
+		_set_expiring_arrow_flash, 0.0, 1.0, DIRECTION_REPLACEMENT_BLINK_PHASE)\
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_direction_fade_tween.tween_method(
+		_set_expiring_arrow_flash, 1.0, 0.0, DIRECTION_REPLACEMENT_BLINK_PHASE)\
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_direction_fade_tween.tween_callback(_hide_expiring_arrows)
+	_direction_fade_tween.tween_interval(DIRECTION_REPLACEMENT_HIDDEN_HOLD)
+	_direction_fade_tween.finished.connect(_finish_pending_direction_update, CONNECT_ONE_SHOT)
+
+func _finish_pending_direction_update() -> void:
+	_direction_fade_tween = null
+	stored_direction_slots = _pending_final_slots.duplicate()
+	stored_direction_max_size = _pending_direction_max_size
+	_direction_update_pending = false
+	_pending_arrival_slots.clear()
+	_pending_final_slots.clear()
+	_pending_evicted_count = 0
+	_expiring_count_override = -1
+	_expiring_arrow_alpha = 1.0
+	_expiring_arrow_flash = 0.0
+	queue_redraw()
+	movement_finished.emit()
+
+func _set_expiring_arrow_flash(value: float) -> void:
+	_expiring_arrow_flash = value
+	queue_redraw()
+
+func _hide_expiring_arrows() -> void:
+	_expiring_arrow_alpha = 0.0
+	queue_redraw()
+
 func _finish_move() -> void:
 	_move_tween = null
+	if _direction_update_pending:
+		_play_pending_direction_replacement()
+		return
 	movement_finished.emit()
 
 func play_attack(dir: int, success: bool, is_dash: bool = false) -> void:
@@ -271,6 +328,16 @@ func cancel_feedback() -> void:
 	if _feedback_tween != null and _feedback_tween.is_valid():
 		_feedback_tween.kill()
 	_feedback_tween = null
+	if _direction_fade_tween != null and _direction_fade_tween.is_valid():
+		_direction_fade_tween.kill()
+	_direction_fade_tween = null
+	_expiring_arrow_alpha = 1.0
+	_expiring_arrow_flash = 0.0
+	_expiring_count_override = -1
+	_direction_update_pending = false
+	_pending_arrival_slots.clear()
+	_pending_final_slots.clear()
+	_pending_evicted_count = 0
 
 func _facing_to_angle(dir: int) -> float:
 	match dir:
