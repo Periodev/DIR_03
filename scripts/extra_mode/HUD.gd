@@ -2,6 +2,10 @@ extends CanvasLayer
 
 const ENERGY_GAIN_COLOR := Color(0.28, 0.92, 0.48)
 const ENERGY_GAIN_IDLE_COLOR := Color(1.0, 1.0, 1.0, 0.28)
+const SIDEBAR_MARGIN := 20.0
+const SIDEBAR_WIDTH := 320.0
+const STATUS_PANEL_TOP := 158.0
+const STATUS_PANEL_HEIGHT := 176.0
 
 var score_label: Label
 var combo_label: Label
@@ -46,16 +50,20 @@ func _ready() -> void:
 	combo_label.size = Vector2(280, 42)
 	add_child(combo_label)
 
-	# Inventory container - bottom
+	# Three-row status panel in the left sidebar.
 	inventory_panel = PanelContainer.new()
-	inventory_panel.position = Vector2(20, 700)
-	inventory_panel.size = Vector2(760, 60)
+	inventory_panel.position = Vector2(SIDEBAR_MARGIN, STATUS_PANEL_TOP)
+	inventory_panel.size = Vector2(SIDEBAR_WIDTH, STATUS_PANEL_HEIGHT)
 	add_child(inventory_panel)
 
-	var inv_hbox = HBoxContainer.new()
-	inv_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	inv_hbox.add_theme_constant_override("separation", 10)
-	inventory_panel.add_child(inv_hbox)
+	var status_vbox := VBoxContainer.new()
+	status_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	status_vbox.add_theme_constant_override("separation", 8)
+	inventory_panel.add_child(status_vbox)
+
+	var action_row := HBoxContainer.new()
+	action_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	action_row.add_theme_constant_override("separation", 10)
 
 	ultimate_action_label = Label.new()
 	ultimate_action_label.text = "[Z] DASH"
@@ -64,7 +72,7 @@ func _ready() -> void:
 	ultimate_action_label.custom_minimum_size = Vector2(104, 36)
 	ultimate_action_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	ultimate_action_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	inv_hbox.add_child(ultimate_action_label)
+	action_row.add_child(ultimate_action_label)
 
 	dash_action_label = Label.new()
 	dash_action_label.text = "[X] STEP"
@@ -73,19 +81,21 @@ func _ready() -> void:
 	dash_action_label.custom_minimum_size = Vector2(116, 36)
 	dash_action_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	dash_action_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	inv_hbox.add_child(dash_action_label)
+	action_row.add_child(dash_action_label)
 
-	var bonus_separator := VSeparator.new()
-	inv_hbox.add_child(bonus_separator)
+	var energy_row := HBoxContainer.new()
+	energy_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	energy_row.add_theme_constant_override("separation", 6)
+	status_vbox.add_child(energy_row)
 
 	var q_label = Label.new()
 	q_label.text = "DIR"
 	q_label.add_theme_font_size_override("font_size", 20)
-	inv_hbox.add_child(q_label)
+	energy_row.add_child(q_label)
 
 	energy_container = HBoxContainer.new()
 	energy_container.add_theme_constant_override("separation", 2)
-	inv_hbox.add_child(energy_container)
+	energy_row.add_child(energy_container)
 	for _i in 4:
 		var energy_slot := DIRExtraEnergySlot.new()
 		energy_container.add_child(energy_slot)
@@ -100,38 +110,41 @@ func _ready() -> void:
 	energy_gain_label.custom_minimum_size = Vector2(44, 36)
 	energy_gain_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	energy_gain_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	inv_hbox.add_child(energy_gain_label)
+	energy_row.add_child(energy_gain_label)
 
-	var energy_separator := VSeparator.new()
-	inv_hbox.add_child(energy_separator)
+	var direction_row := HBoxContainer.new()
+	direction_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	direction_row.add_theme_constant_override("separation", 6)
+	status_vbox.add_child(direction_row)
+	status_vbox.add_child(action_row)
 
 	inventory_container = HBoxContainer.new()
 	inventory_container.add_theme_constant_override("separation", 4)
-	inv_hbox.add_child(inventory_container)
+	direction_row.add_child(inventory_container)
 
 	var sep = VSeparator.new()
-	inv_hbox.add_child(sep)
+	direction_row.add_child(sep)
 
 	hold_label = Label.new()
 	hold_label.text = "HOLD "
 	hold_label.add_theme_font_size_override("font_size", 20)
-	inv_hbox.add_child(hold_label)
+	direction_row.add_child(hold_label)
 
 	hold_slot = Label.new()
 	hold_slot.text = "-"
 	hold_slot.add_theme_font_size_override("font_size", 28)
 	hold_slot.custom_minimum_size = Vector2(72, 36)
 	hold_slot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	inv_hbox.add_child(hold_slot)
+	direction_row.add_child(hold_slot)
 
-	hold_container = inv_hbox
+	hold_container = direction_row
 
 	message_label = Label.new()
 	message_label.text = "WASD: Move | Space: Wait | R: Restart"
 	message_label.add_theme_font_size_override("font_size", 14)
-	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	message_label.position = Vector2(0, 770)
-	message_label.size = Vector2(800, 30)
+	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	message_label.position = Vector2(SIDEBAR_MARGIN, STATUS_PANEL_TOP + STATUS_PANEL_HEIGHT + 10.0)
+	message_label.size = Vector2(SIDEBAR_WIDTH, 30)
 	message_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 	add_child(message_label)
 
@@ -318,14 +331,12 @@ func _layout_ui() -> void:
 	combo_label.position = Vector2(20, 68)
 	combo_label.size = Vector2(280, 42)
 
-	var inventory_width: float = min(viewport_size.x - 40.0, 960.0)
-	var inventory_x: float = (viewport_size.x - inventory_width) * 0.5
-	var inventory_y: float = viewport_size.y - 100.0
-	inventory_panel.position = Vector2(inventory_x, inventory_y)
-	inventory_panel.size = Vector2(inventory_width, 60)
+	var sidebar_width: float = min(SIDEBAR_WIDTH, viewport_size.x - SIDEBAR_MARGIN * 2.0)
+	inventory_panel.position = Vector2(SIDEBAR_MARGIN, STATUS_PANEL_TOP)
+	inventory_panel.size = Vector2(sidebar_width, STATUS_PANEL_HEIGHT)
 
-	message_label.position = Vector2(0, viewport_size.y - 30.0)
-	message_label.size = Vector2(viewport_size.x, 30)
+	message_label.position = Vector2(SIDEBAR_MARGIN, STATUS_PANEL_TOP + STATUS_PANEL_HEIGHT + 10.0)
+	message_label.size = Vector2(sidebar_width, 30)
 
 	ai_status_label.position = Vector2(20, 116)
 	ai_status_label.size = Vector2(150, 30)

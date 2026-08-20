@@ -16,6 +16,9 @@ const BLOCK_OUTER_RING_SPAWN := false
 const CELL_SIZE := 100.0
 const CELL_GAP := 8.0
 const CELL_STEP := CELL_SIZE + CELL_GAP
+const BOARD_PREFERRED_SCALE := 1.25
+const BOARD_SIDEBAR_WIDTH := 360.0
+const BOARD_VIEW_MARGIN := 32.0
 const SPAWN_HIT_SETTLE_SECONDS := 0.08
 const SPAWN_HIT_FEEDBACK_SECONDS := 0.24
 const SPAWN_FADE_SECONDS := 0.16
@@ -846,9 +849,25 @@ func _update_board_offset() -> void:
 	var board_width: float = float(COLS - 1) * CELL_STEP + CELL_SIZE
 	var board_height: float = float(ROWS - 1) * CELL_STEP + CELL_SIZE
 	var viewport_size: Vector2 = get_viewport_rect().size
+	var available_width: float = maxf(
+		viewport_size.x - BOARD_SIDEBAR_WIDTH - BOARD_VIEW_MARGIN * 2.0,
+		board_width * 0.5
+	)
+	var available_height: float = maxf(
+		viewport_size.y - BOARD_VIEW_MARGIN * 2.0,
+		board_height * 0.5
+	)
+	var board_scale: float = minf(
+		BOARD_PREFERRED_SCALE,
+		minf(available_width / board_width, available_height / board_height)
+	)
+	scale = Vector2.ONE * board_scale
+	var scaled_width: float = board_width * board_scale
+	var scaled_height: float = board_height * board_scale
+	var content_width: float = viewport_size.x - BOARD_SIDEBAR_WIDTH
 	position = Vector2(
-		(viewport_size.x - board_width) * 0.5,
-		(viewport_size.y - board_height) * 0.5
+		BOARD_SIDEBAR_WIDTH + (content_width - scaled_width) * 0.5,
+		(viewport_size.y - scaled_height) * 0.5
 	)
 
 func _get_candidate_preview_phase() -> int:
