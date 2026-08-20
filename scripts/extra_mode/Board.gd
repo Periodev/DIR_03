@@ -802,7 +802,11 @@ func _sync_player_move_ready() -> void:
 	var ready_directions: Array[int] = []
 	var danger_directions: Array[int] = []
 	var bonus_directions: Array[int] = []
+	var stored_directions: Array[int] = []
 	var ultimate_ready: bool = game_state.is_idle() and ultimate_dashes_remaining > 0
+	if game_state.is_idle():
+		for direction_value in inventory.queue:
+			stored_directions.append(int(direction_value))
 	if game_state.is_idle() and bonus_step_armed:
 		for direction in CharacterData.DIR_VECTOR:
 			var target: Vector2i = player_pos + CharacterData.DIR_VECTOR[direction]
@@ -822,6 +826,7 @@ func _sync_player_move_ready() -> void:
 	player_node.set_move_ready_directions(ready_directions, danger_directions)
 	player_node.set_bonus_step_directions(bonus_directions)
 	player_node.set_ultimate_dash_ready(ultimate_ready)
+	player_node.set_stored_direction_slots(stored_directions, inventory.max_size)
 
 func _clear_attack_prompts() -> void:
 	var no_directions: Array[int] = []

@@ -19,6 +19,8 @@ var danger_move_directions: Array[int] = []
 var attack_ready_directions: Array[int] = []
 var bonus_step_directions: Array[int] = []
 var ultimate_dash_ready: bool = false
+var stored_direction_slots: Array[int] = []
+var stored_direction_max_size := 3
 var _char_impl  # CharacterImpl_PLN
 var _feedback_tween: Tween
 var _move_tween: Tween
@@ -64,6 +66,16 @@ func set_ultimate_dash_ready(ready: bool) -> void:
 	ultimate_dash_ready = ready
 	queue_redraw()
 
+func set_stored_direction_slots(directions: Array, max_size: int) -> void:
+	var normalized: Array[int] = []
+	for direction_value in directions:
+		normalized.append(int(direction_value))
+	if stored_direction_slots == normalized and stored_direction_max_size == max_size:
+		return
+	stored_direction_slots = normalized
+	stored_direction_max_size = max_size
+	queue_redraw()
+
 func _draw() -> void:
 	if ultimate_dash_ready:
 		_draw_ultimate_dash_arrows()
@@ -72,8 +84,8 @@ func _draw() -> void:
 	else:
 		if not move_ready_directions.is_empty():
 			_draw_move_ready_arrows()
-		if not attack_ready_directions.is_empty():
-			_draw_attack_ready_arrows()
+		if not stored_direction_slots.is_empty():
+			_draw_stored_direction_arrows()
 	var points: PackedVector2Array
 	match character_shape:
 		"blade_diamond":
@@ -99,10 +111,10 @@ func _draw_move_ready_arrows() -> void:
 	const ARROW_REAR_DEPTH := 3.0
 	const ARROW_HALF_HEIGHT := 4.0
 	const ARROW_WIDTH := 2.0
-	var normal_color := Color(1.0, 1.0, 1.0, 0.72)
 	var danger_color := Color(0.94, 0.24, 0.20, 0.95)
 	for direction in move_ready_directions:
-		var arrow_color: Color = danger_color if direction in danger_move_directions else normal_color
+		if direction not in danger_move_directions:
+			continue
 		var forward := Vector2(CharacterData.DIR_VECTOR[direction])
 		var side := Vector2(-forward.y, forward.x)
 		var center := forward * ARROW_DISTANCE
@@ -113,7 +125,7 @@ func _draw_move_ready_arrows() -> void:
 			tip,
 			rear - side * ARROW_HALF_HEIGHT,
 		])
-		draw_polyline(arrow, arrow_color, ARROW_WIDTH, true)
+		draw_polyline(arrow, danger_color, ARROW_WIDTH, true)
 
 func _draw_bonus_step_arrows() -> void:
 	const ARROW_DISTANCE := 40.0
@@ -137,18 +149,33 @@ func _draw_bonus_step_arrows() -> void:
 		draw_polyline(arrow, Color(0.08, 0.09, 0.11, 0.9), OUTLINE_WIDTH, true)
 		draw_polyline(arrow, arrow_color, FILL_WIDTH, true)
 
-func _draw_attack_ready_arrows() -> void:
+func _draw_stored_direction_arrows() -> void:
 	const ARROW_DISTANCE := 46.0
-	const ARROW_FRONT_DEPTH := 6.0
-	const ARROW_REAR_DEPTH := 4.0
-	const ARROW_HALF_HEIGHT := 5.0
-	const OUTLINE_WIDTH := 5.0
-	const FILL_WIDTH := 2.5
-	var arrow_color := Color(0.28, 0.92, 0.48)
-	for direction in attack_ready_directions:
+	const ARROW_FRONT_DEPTH := 7.5
+	const ARROW_REAR_DEPTH := 5.0
+	const ARROW_HALF_HEIGHT := 6.25
+	const DUPLICATE_OFFSET := 6.0
+	const OUTLINE_WIDTH := 6.25
+	const FILL_WIDTH := 3.125
+	const ACTIVE_COLOR := Color(0.28, 0.92, 0.48)
+	const EXPIRING_COLOR := Color(0.48, 0.58, 0.51, 0.76)
+	var expiring_count := 0
+	if stored_direction_slots.size() >= stored_direction_max_size:
+		expiring_count = stored_direction_slots.size() - stored_direction_max_size + 1
+	var direction_counts := {}
+	for slot_index in stored_direction_slots.size():
+		var direction: int = stored_direction_slots[slot_index]
+		direction_counts[direction] = int(direction_counts.get(direction, 0)) + 1
+	var drawn_counts := {}
+	for slot_index in stored_direction_slots.size():
+		var direction: int = stored_direction_slots[slot_index]
 		var forward := Vector2(CharacterData.DIR_VECTOR[direction])
 		var side := Vector2(-forward.y, forward.x)
-		var center := forward * ARROW_DISTANCE
+		var duplicate_index: int = int(drawn_counts.get(direction, 0))
+		drawn_counts[direction] = duplicate_index + 1
+		var duplicate_count: int = int(direction_counts[direction])
+		var side_offset := (float(duplicate_index) - float(duplicate_count - 1) * 0.5) * DUPLICATE_OFFSET
+		var center := forward * ARROW_DISTANCE + side * side_offset
 		var tip := center + forward * ARROW_FRONT_DEPTH
 		var rear := center - forward * ARROW_REAR_DEPTH
 		var arrow := PackedVector2Array([
@@ -156,6 +183,7 @@ func _draw_attack_ready_arrows() -> void:
 			tip,
 			rear - side * ARROW_HALF_HEIGHT,
 		])
+		var arrow_color := EXPIRING_COLOR if slot_index < expiring_count else ACTIVE_COLOR
 		draw_polyline(arrow, Color(0.08, 0.09, 0.11, 0.9), OUTLINE_WIDTH, true)
 		draw_polyline(arrow, arrow_color, FILL_WIDTH, true)
 
