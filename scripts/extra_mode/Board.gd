@@ -260,6 +260,16 @@ func _complete_live_move(dir: int, target: Vector2i, is_bonus_step: bool) -> boo
 		arrival_directions.append(memory_token)
 	var final_directions: Array = inventory.queue.duplicate()
 	var evicted_count: int = arrival_directions.size() - final_directions.size()
+	var replaces_same_direction: bool = (
+		evicted_count == 1
+		and not previous_directions.is_empty()
+		and int(previous_directions[0]) == memory_token
+	)
+	if replaces_same_direction:
+		# The visible direction set is unchanged; only queue priority rotates.
+		# Skip the redundant four-arrow arrival state.
+		arrival_directions = final_directions.duplicate()
+		evicted_count = 0
 	_hold_stored_direction_visual_until_idle = true
 	player_node.prepare_stored_direction_update(
 		arrival_directions,
