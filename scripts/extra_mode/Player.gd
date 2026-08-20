@@ -121,11 +121,8 @@ func has_pending_stored_direction_update() -> bool:
 func _draw() -> void:
 	if ultimate_dash_ready:
 		_draw_ultimate_dash_arrows()
-	elif not bonus_step_directions.is_empty():
-		_draw_bonus_step_arrows()
-	else:
-		if not stored_direction_slots.is_empty():
-			_draw_stored_direction_arrows()
+	elif not stored_direction_slots.is_empty():
+		_draw_stored_direction_arrows()
 	var points: PackedVector2Array
 	match character_shape:
 		"blade_diamond":
@@ -143,41 +140,19 @@ func _draw() -> void:
 			points = _make_polygon(6, 20.0, 0.0)
 
 	draw_polygon(points, PackedColorArray([character_color]))
-	draw_polyline(points + PackedVector2Array([points[0]]), Color.WHITE, 2.0)
-
-func _draw_bonus_step_arrows() -> void:
-	const ARROW_DISTANCE := 40.0
-	const ARROW_FRONT_DEPTH := 8.0
-	const ARROW_REAR_DEPTH := 5.0
-	const ARROW_HALF_HEIGHT := 6.0
-	const OUTLINE_WIDTH := 6.0
-	const FILL_WIDTH := 3.5
-	var arrow_color := Color("#C8E64A")
-	for direction in bonus_step_directions:
-		var forward := Vector2(CharacterData.DIR_VECTOR[direction])
-		var side := Vector2(-forward.y, forward.x)
-		var center := forward * ARROW_DISTANCE
-		var tip := center + forward * ARROW_FRONT_DEPTH
-		var rear := center - forward * ARROW_REAR_DEPTH
-		var arrow := PackedVector2Array([
-			rear + side * ARROW_HALF_HEIGHT,
-			tip,
-			rear - side * ARROW_HALF_HEIGHT,
-		])
-		draw_polyline(arrow, Color(0.08, 0.09, 0.11, 0.9), OUTLINE_WIDTH, true)
-		draw_polyline(arrow, arrow_color, FILL_WIDTH, true)
 
 func _draw_stored_direction_arrows() -> void:
 	const ARROW_DISTANCE := 46.0
-	# 2 * atan(7.5 / (3.8 + 2.5)) = 100.0 degrees at the tip.
-	const ARROW_FRONT_DEPTH := 3.8
-	const ARROW_REAR_DEPTH := 2.5
-	const ARROW_HALF_HEIGHT := 7.5
-	const SEQUENCE_STEP := 7.0
-	const OUTLINE_WIDTH := 5.5
-	const FILL_WIDTH := 3.0
+	# 2 * atan(9.0 / (4.56 + 3.0)) = 100.0 degrees at the tip.
+	const ARROW_FRONT_DEPTH := 4.56
+	const ARROW_REAR_DEPTH := 3.0
+	const ARROW_HALF_HEIGHT := 9.0
+	const SEQUENCE_STEP := 8.4
+	const OUTLINE_WIDTH := 6.6
+	const FILL_WIDTH := 3.6
 	const ACTIVE_COLOR := Color(0.28, 0.92, 0.48)
 	const EXPIRING_COLOR := Color(0.40, 0.64, 0.46, 0.80)
+	const STEP_FRAME_COLOR := Color("#C8E64A")
 	var expiring_count: int = _expiring_count_override
 	if expiring_count < 0 and stored_direction_slots.size() >= stored_direction_max_size:
 		expiring_count = stored_direction_slots.size() - stored_direction_max_size + 1
@@ -245,6 +220,8 @@ func _draw_stored_direction_arrows() -> void:
 		])
 		var arrow_color: Color = ACTIVE_COLOR
 		var outline_color := Color(0.08, 0.09, 0.11, 0.9)
+		if direction in bonus_step_directions and duplicate_index == 0:
+			outline_color = STEP_FRAME_COLOR
 		if is_outgoing:
 			arrow_color = EXPIRING_COLOR
 			arrow_color.a *= _expiring_arrow_alpha
@@ -255,12 +232,12 @@ func _draw_stored_direction_arrows() -> void:
 		draw_polyline(arrow, arrow_color, FILL_WIDTH, true)
 
 func _draw_ultimate_dash_arrows() -> void:
-	const ARROW_DISTANCE := 70.0
-	const ARROW_FRONT_DEPTH := 10.0
-	const ARROW_REAR_DEPTH := 8.0
-	const ARROW_HALF_HEIGHT := 8.0
-	const OUTLINE_WIDTH := 7.0
-	const FILL_WIDTH := 3.5
+	const ARROW_DISTANCE := 58.0
+	const ARROW_FRONT_DEPTH := 12.0
+	const ARROW_REAR_DEPTH := 9.6
+	const ARROW_HALF_HEIGHT := 9.6
+	const OUTLINE_WIDTH := 6.5
+	const FILL_WIDTH := 4.2
 	const ULT_COLOR := Color(0.28, 0.92, 0.48)
 	for direction_value in CharacterData.DIR_VECTOR:
 		var direction: int = int(direction_value)
@@ -274,7 +251,7 @@ func _draw_ultimate_dash_arrows() -> void:
 			tip,
 			rear - side * ARROW_HALF_HEIGHT,
 		])
-		draw_polyline(arrow, Color(0.08, 0.09, 0.11, 0.95), OUTLINE_WIDTH, true)
+		draw_polyline(arrow, Color("#145A32"), OUTLINE_WIDTH, true)
 		draw_polyline(arrow, ULT_COLOR, FILL_WIDTH, true)
 
 func play_move(from_pos: Vector2, move_duration_override: float = -1.0, play_sound: bool = true) -> void:
