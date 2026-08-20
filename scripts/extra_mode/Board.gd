@@ -275,7 +275,8 @@ func _complete_live_move(dir: int, target: Vector2i, is_bonus_step: bool) -> boo
 		arrival_directions,
 		final_directions,
 		inventory.max_size,
-		evicted_count
+		evicted_count,
+		gained_direction
 	)
 
 	if is_bonus_step:

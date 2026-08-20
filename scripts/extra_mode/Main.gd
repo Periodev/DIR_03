@@ -9,6 +9,7 @@ const AI_ACTION_INTERVAL_SECONDS := 0.16
 var combo_bot: DIRExtraComboBot
 var ai_enabled: bool = false
 var _ai_action_cooldown: float = 0.0
+var _buffered_move_direction: int = CharacterData.Direction.NONE
 
 func _ready() -> void:
 	combo_bot = ComboBotScript.new()
@@ -25,6 +26,7 @@ func _ready() -> void:
 	hud.update_ai_status(ai_enabled)
 
 func _process(delta: float) -> void:
+	_execute_buffered_move_if_ready()
 	if not ai_enabled or board.game_state.is_game_over():
 		return
 	_ai_action_cooldown = maxf(0.0, _ai_action_cooldown - delta)
@@ -48,6 +50,15 @@ func _execute_ai_action(action: int) -> void:
 			board.try_wait()
 	_on_board_updated()
 
+func _execute_buffered_move_if_ready() -> void:
+	if _buffered_move_direction == CharacterData.Direction.NONE:
+		return
+	if ai_enabled or board.game_state.is_game_over() or not board.game_state.is_idle():
+		return
+	var direction: int = _buffered_move_direction
+	_buffered_move_direction = CharacterData.Direction.NONE
+	board.try_move(direction)
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
@@ -61,6 +72,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if keycode == KEY_F4:
 		ai_enabled = not ai_enabled
+		_buffered_move_direction = CharacterData.Direction.NONE
 		_ai_action_cooldown = 0.0
 		hud.update_ai_status(ai_enabled)
 		get_viewport().set_input_as_handled()
@@ -68,6 +80,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	# Restart
 	if keycode == KEY_R:
+		_buffered_move_direction = CharacterData.Direction.NONE
 		board.restart()
 		hud.setup("PLN")
 		_on_board_updated()
@@ -104,7 +117,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Movement
 	var dir = CharacterData.key_to_direction(keycode)
 	if dir != CharacterData.Direction.NONE:
-		board.try_move(dir)
+		if board.game_state.is_idle():
+			board.try_move(dir)
+		else:
+			_buffered_move_direction = int(dir)
 		get_viewport().set_input_as_handled()
 		return
 
@@ -151,4 +167,5 @@ func _on_spawn_hit_started(slot_count: int) -> void:
 	hud.play_inventory_hit(slot_count)
 
 func _on_game_over(final_score: int) -> void:
+	_buffered_move_direction = CharacterData.Direction.NONE
 	hud.show_game_over(final_score, board.score_manager.max_combo)

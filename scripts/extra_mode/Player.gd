@@ -9,8 +9,7 @@ const PLAYER_BODY_SCALE := 0.8
 const HIT_SOUND: AudioStream = preload(
 	"res://assets/audio/sfx/extra_attack/error_006.ogg"
 )
-const DIRECTION_REPLACEMENT_BLINK_PHASE := 0.04
-const DIRECTION_REPLACEMENT_HIDDEN_HOLD := 0.02
+const DIRECTION_REPLACEMENT_FADE_DURATION := 0.20
 
 var character_name: String = "PLN"
 var character_color: Color = Color(0.2, 0.8, 0.3)
@@ -27,14 +26,19 @@ var _char_impl  # CharacterImpl_PLN
 var _feedback_tween: Tween
 var _move_tween: Tween
 var _direction_fade_tween: Tween
+var _direction_transition_tween: Tween
 var _expiring_arrow_alpha := 1.0
-var _expiring_arrow_flash := 0.0
 var _expiring_count_override := -1
+var _next_expiring_progress := 0.0
+var _next_expiring_start_override := -1
+var _next_expiring_count_override := 0
 var _direction_update_pending := false
 var _pending_arrival_slots: Array[int] = []
 var _pending_final_slots: Array[int] = []
 var _pending_direction_max_size := 3
 var _pending_evicted_count := 0
+var _pending_next_expiring_start := -1
+var _pending_next_expiring_count := 0
 
 func set_character(char_name: String) -> void:
 	character_name = char_name
@@ -91,7 +95,8 @@ func prepare_stored_direction_update(
 	arrival_directions: Array,
 	final_directions: Array,
 	max_size: int,
-	evicted_count: int
+	evicted_count: int,
+	animate_next_expiring: bool = false
 ) -> void:
 	_pending_arrival_slots.clear()
 	for direction_value in arrival_directions:
@@ -101,6 +106,13 @@ func prepare_stored_direction_update(
 		_pending_final_slots.append(int(direction_value))
 	_pending_direction_max_size = max_size
 	_pending_evicted_count = evicted_count
+	_pending_next_expiring_start = -1
+	_pending_next_expiring_count = 0
+	if animate_next_expiring:
+		var final_expiring_count: int = maxi(0, final_directions.size() - max_size + 1)
+		if final_expiring_count > 0:
+			_pending_next_expiring_start = evicted_count
+			_pending_next_expiring_count = final_expiring_count
 	_direction_update_pending = true
 
 func has_pending_stored_direction_update() -> bool:
@@ -165,19 +177,63 @@ func _draw_stored_direction_arrows() -> void:
 	const OUTLINE_WIDTH := 5.5
 	const FILL_WIDTH := 3.0
 	const ACTIVE_COLOR := Color(0.28, 0.92, 0.48)
-	const EXPIRING_COLOR := Color(0.48, 0.58, 0.51, 0.76)
+	const EXPIRING_COLOR := Color(0.40, 0.64, 0.46, 0.80)
 	var expiring_count: int = _expiring_count_override
 	if expiring_count < 0 and stored_direction_slots.size() >= stored_direction_max_size:
 		expiring_count = stored_direction_slots.size() - stored_direction_max_size + 1
 	elif expiring_count < 0:
 		expiring_count = 0
-	var drawn_counts := {}
+	var direction_counts := {}
+	var transitioning_direction_counts := {}
+	var outgoing_direction_counts := {}
+	for slot_index in stored_direction_slots.size():
+		var counted_direction: int = stored_direction_slots[slot_index]
+		direction_counts[counted_direction] = int(direction_counts.get(counted_direction, 0)) + 1
+		var counted_as_outgoing: bool = slot_index < expiring_count
+		var counted_as_transitioning: bool = (
+			_next_expiring_start_override >= 0
+			and slot_index >= _next_expiring_start_override
+			and slot_index < _next_expiring_start_override + _next_expiring_count_override
+		)
+		if counted_as_outgoing:
+			outgoing_direction_counts[counted_direction] = (
+				int(outgoing_direction_counts.get(counted_direction, 0)) + 1
+			)
+		elif counted_as_transitioning:
+			transitioning_direction_counts[counted_direction] = (
+				int(transitioning_direction_counts.get(counted_direction, 0)) + 1
+			)
+	var active_drawn_counts := {}
+	var transitioning_drawn_counts := {}
+	var outgoing_drawn_counts := {}
 	for slot_index in stored_direction_slots.size():
 		var direction: int = stored_direction_slots[slot_index]
 		var forward := Vector2(CharacterData.DIR_VECTOR[direction])
 		var side := Vector2(-forward.y, forward.x)
-		var duplicate_index: int = int(drawn_counts.get(direction, 0))
-		drawn_counts[direction] = duplicate_index + 1
+		var is_outgoing: bool = slot_index < expiring_count
+		var is_transitioning: bool = (
+			_next_expiring_start_override >= 0
+			and slot_index >= _next_expiring_start_override
+			and slot_index < _next_expiring_start_override + _next_expiring_count_override
+		)
+		var duplicate_index: int
+		var active_count: int = (
+			int(direction_counts[direction])
+			- int(transitioning_direction_counts.get(direction, 0))
+			- int(outgoing_direction_counts.get(direction, 0))
+		)
+		if is_outgoing:
+			var transitioning_count: int = int(transitioning_direction_counts.get(direction, 0))
+			var outgoing_drawn: int = int(outgoing_drawn_counts.get(direction, 0))
+			duplicate_index = active_count + transitioning_count + outgoing_drawn
+			outgoing_drawn_counts[direction] = outgoing_drawn + 1
+		elif is_transitioning:
+			var transitioning_drawn: int = int(transitioning_drawn_counts.get(direction, 0))
+			duplicate_index = active_count + transitioning_drawn
+			transitioning_drawn_counts[direction] = transitioning_drawn + 1
+		else:
+			duplicate_index = int(active_drawn_counts.get(direction, 0))
+			active_drawn_counts[direction] = duplicate_index + 1
 		var sequence_distance := ARROW_DISTANCE - float(duplicate_index) * SEQUENCE_STEP
 		var center := forward * sequence_distance
 		var tip := center + forward * ARROW_FRONT_DEPTH
@@ -187,12 +243,14 @@ func _draw_stored_direction_arrows() -> void:
 			tip,
 			rear - side * ARROW_HALF_HEIGHT,
 		])
-		var arrow_color: Color = EXPIRING_COLOR if slot_index < expiring_count else ACTIVE_COLOR
+		var arrow_color: Color = ACTIVE_COLOR
 		var outline_color := Color(0.08, 0.09, 0.11, 0.9)
-		if slot_index < expiring_count:
-			arrow_color = EXPIRING_COLOR.lerp(ACTIVE_COLOR, _expiring_arrow_flash)
+		if is_outgoing:
+			arrow_color = EXPIRING_COLOR
 			arrow_color.a *= _expiring_arrow_alpha
 			outline_color.a *= _expiring_arrow_alpha
+		elif is_transitioning:
+			arrow_color = ACTIVE_COLOR.lerp(EXPIRING_COLOR, _next_expiring_progress)
 		draw_polyline(arrow, outline_color, OUTLINE_WIDTH, true)
 		draw_polyline(arrow, arrow_color, FILL_WIDTH, true)
 
@@ -232,45 +290,65 @@ func _play_pending_direction_replacement() -> void:
 	stored_direction_slots = _pending_arrival_slots.duplicate()
 	stored_direction_max_size = _pending_direction_max_size
 	_expiring_count_override = _pending_evicted_count
+	_next_expiring_start_override = _pending_next_expiring_start
+	_next_expiring_count_override = _pending_next_expiring_count
+	_next_expiring_progress = 0.0
 	queue_redraw()
-	if _pending_evicted_count <= 0:
+	var has_outgoing: bool = _pending_evicted_count > 0
+	var has_transitioning: bool = _pending_next_expiring_count > 0
+	if not has_outgoing and not has_transitioning:
 		_finish_pending_direction_update()
 		return
 	if _direction_fade_tween != null and _direction_fade_tween.is_valid():
 		_direction_fade_tween.kill()
+	if _direction_transition_tween != null and _direction_transition_tween.is_valid():
+		_direction_transition_tween.kill()
 	_expiring_arrow_alpha = 1.0
-	_expiring_arrow_flash = 0.0
+	if has_transitioning:
+		_direction_transition_tween = create_tween()
+		_direction_transition_tween.tween_method(
+			_set_next_expiring_progress,
+			0.0,
+			1.0,
+			DIRECTION_REPLACEMENT_FADE_DURATION
+		).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_direction_fade_tween = create_tween()
+	if not has_outgoing:
+		_direction_fade_tween.tween_interval(DIRECTION_REPLACEMENT_FADE_DURATION)
+		_direction_fade_tween.finished.connect(_finish_pending_direction_update, CONNECT_ONE_SHOT)
+		return
 	_direction_fade_tween.tween_method(
-		_set_expiring_arrow_flash, 0.0, 1.0, DIRECTION_REPLACEMENT_BLINK_PHASE)\
-		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	_direction_fade_tween.tween_method(
-		_set_expiring_arrow_flash, 1.0, 0.0, DIRECTION_REPLACEMENT_BLINK_PHASE)\
-		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	_direction_fade_tween.tween_callback(_hide_expiring_arrows)
-	_direction_fade_tween.tween_interval(DIRECTION_REPLACEMENT_HIDDEN_HOLD)
+		_set_expiring_arrow_alpha, 1.0, 0.0, DIRECTION_REPLACEMENT_FADE_DURATION)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	_direction_fade_tween.finished.connect(_finish_pending_direction_update, CONNECT_ONE_SHOT)
 
 func _finish_pending_direction_update() -> void:
 	_direction_fade_tween = null
+	if _direction_transition_tween != null and _direction_transition_tween.is_valid():
+		_direction_transition_tween.kill()
+	_direction_transition_tween = null
 	stored_direction_slots = _pending_final_slots.duplicate()
 	stored_direction_max_size = _pending_direction_max_size
 	_direction_update_pending = false
 	_pending_arrival_slots.clear()
 	_pending_final_slots.clear()
 	_pending_evicted_count = 0
+	_pending_next_expiring_start = -1
+	_pending_next_expiring_count = 0
 	_expiring_count_override = -1
+	_next_expiring_start_override = -1
+	_next_expiring_count_override = 0
+	_next_expiring_progress = 0.0
 	_expiring_arrow_alpha = 1.0
-	_expiring_arrow_flash = 0.0
 	queue_redraw()
 	movement_finished.emit()
 
-func _set_expiring_arrow_flash(value: float) -> void:
-	_expiring_arrow_flash = value
+func _set_expiring_arrow_alpha(value: float) -> void:
+	_expiring_arrow_alpha = value
 	queue_redraw()
 
-func _hide_expiring_arrows() -> void:
-	_expiring_arrow_alpha = 0.0
+func _set_next_expiring_progress(value: float) -> void:
+	_next_expiring_progress = value
 	queue_redraw()
 
 func _finish_move() -> void:
@@ -331,13 +409,20 @@ func cancel_feedback() -> void:
 	if _direction_fade_tween != null and _direction_fade_tween.is_valid():
 		_direction_fade_tween.kill()
 	_direction_fade_tween = null
+	if _direction_transition_tween != null and _direction_transition_tween.is_valid():
+		_direction_transition_tween.kill()
+	_direction_transition_tween = null
 	_expiring_arrow_alpha = 1.0
-	_expiring_arrow_flash = 0.0
 	_expiring_count_override = -1
+	_next_expiring_progress = 0.0
+	_next_expiring_start_override = -1
+	_next_expiring_count_override = 0
 	_direction_update_pending = false
 	_pending_arrival_slots.clear()
 	_pending_final_slots.clear()
 	_pending_evicted_count = 0
+	_pending_next_expiring_start = -1
+	_pending_next_expiring_count = 0
 
 func _facing_to_angle(dir: int) -> float:
 	match dir:
