@@ -41,6 +41,7 @@ var _has_hold: bool = false
 var _has_charge_marker: bool = false
 var _charge_max: int = 0
 var _slot_flash_tweens: Array[Tween] = []
+var _energy_flash_tweens: Array[Tween] = []
 
 func _ready() -> void:
 	# Score and heat - top left
@@ -350,6 +351,19 @@ func play_inventory_hit(slot_count: int) -> void:
 		tween.tween_property(slot, "modulate", Color(1.0, 0.18, 0.18), 0.045)
 		tween.tween_property(slot, "modulate", Color.WHITE, 0.07)
 
+func play_energy_hit(slot_index: int) -> void:
+	_cancel_energy_flashes()
+	if slot_index < 0 or slot_index >= energy_slots.size():
+		return
+	var slot: Control = energy_slots[slot_index]
+	slot.modulate = Color.WHITE
+	var tween := create_tween()
+	_energy_flash_tweens.append(tween)
+	tween.tween_property(slot, "modulate", Color(1.0, 0.16, 0.16), 0.05)
+	tween.tween_property(slot, "modulate", Color.WHITE, 0.06)
+	tween.tween_property(slot, "modulate", Color(1.0, 0.16, 0.16), 0.05)
+	tween.tween_property(slot, "modulate", Color.WHITE, 0.08)
+
 func _cancel_slot_flashes() -> void:
 	for tween in _slot_flash_tweens:
 		if tween != null and tween.is_valid():
@@ -357,6 +371,14 @@ func _cancel_slot_flashes() -> void:
 	_slot_flash_tweens.clear()
 	for slot_value in slot_labels:
 		var slot: Label = slot_value
+		slot.modulate = Color.WHITE
+
+func _cancel_energy_flashes() -> void:
+	for tween in _energy_flash_tweens:
+		if tween != null and tween.is_valid():
+			tween.kill()
+	_energy_flash_tweens.clear()
+	for slot in energy_slots:
 		slot.modulate = Color.WHITE
 
 func update_state(_state: int) -> void:

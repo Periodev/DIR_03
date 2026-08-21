@@ -170,8 +170,11 @@ func _on_board_updated() -> void:
 	hud.update_energy_gain(board.get_next_kill_energy_gain())
 	hud.update_state(board.game_state.current_state)
 
-func _on_spawn_hit_started(slot_count: int) -> void:
-	hud.play_inventory_hit(slot_count)
+func _on_spawn_hit_started(slot_count: int, energy_slot_index: int) -> void:
+	if energy_slot_index >= 0:
+		hud.play_energy_hit(energy_slot_index)
+	else:
+		hud.play_inventory_hit(slot_count)
 
 func _on_game_over(final_score: int) -> void:
 	_buffered_move_direction = CharacterData.Direction.NONE

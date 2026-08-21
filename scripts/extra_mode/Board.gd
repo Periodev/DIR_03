@@ -36,7 +36,7 @@ const ULTIMATE_ACTIVATION_SOUND: AudioStream = preload(
 
 signal game_over_signal(final_score: int)
 signal board_updated
-signal spawn_hit_started(slot_count: int)
+signal spawn_hit_started(slot_count: int, energy_slot_index: int)
 
 var grid: Array = []  # grid[row][col] = CellType
 var player_pos: Vector2i = Vector2i(int(COLS / 2.0), int(ROWS / 2.0))
@@ -45,6 +45,8 @@ var candidate_cells: Array = []  # Array of Vector2i
 var cycle_counter: int = 0
 var _opening_grace_turns_remaining: int = OPENING_GRACE_TURNS
 var _spawn_hit_pending: bool = false
+var _spawn_hit_uses_energy: bool = false
+var _spawn_hit_energy_slot_index: int = -1
 var _spawn_fade_pending: bool = false
 var _player_move_visual_pending: bool = false
 var _hold_stored_direction_visual_until_idle: bool = false
@@ -140,6 +142,8 @@ func restart() -> void:
 	_opening_grace_turns_remaining = OPENING_GRACE_TURNS
 	cycle_resolved = false
 	_spawn_hit_pending = false
+	_spawn_hit_uses_energy = false
+	_spawn_hit_energy_slot_index = -1
 	_spawn_fade_pending = false
 	_player_move_visual_pending = false
 	_hold_stored_direction_visual_until_idle = false
@@ -699,10 +703,20 @@ func _begin_player_spawn_hit(pos: Vector2i, cell_type: int) -> void:
 func _play_player_spawn_hit_feedback(pos: Vector2i, cell_type: int) -> void:
 	if not _spawn_hit_pending:
 		return
-	var slot_count: int = mini(2, inventory.queue.size())
-	spawn_hit_started.emit(slot_count)
+	_spawn_hit_uses_energy = energy_quarter_units >= ENERGY_SLOT_COST
+	_spawn_hit_energy_slot_index = -1
+	var slot_count: int = 0
+	if _spawn_hit_uses_energy:
+		# Spend the most recently filled complete energy unit. Partial charge is
+		# not a shield; it remains available for later use.
+		_spawn_hit_energy_slot_index = floori(
+			float(energy_quarter_units - 1) / float(ENERGY_SLOT_COST)
+		)
+	else:
+		slot_count = mini(2, inventory.queue.size())
+	spawn_hit_started.emit(slot_count, _spawn_hit_energy_slot_index)
 	player_node.play_spawn_hit()
-	if slot_count >= 2:
+	if _spawn_hit_uses_energy or slot_count >= 2:
 		_show_spawn_block_effect(pos)
 	else:
 		cell_nodes[pos.y][pos.x].set_type(cell_type)
@@ -722,6 +736,14 @@ func _resolve_player_spawn_hit(pos: Vector2i, cell_type: int) -> void:
 	if not _spawn_hit_pending:
 		return
 	_spawn_hit_pending = false
+	if _spawn_hit_uses_energy:
+		energy_quarter_units -= ENERGY_SLOT_COST
+		_spawn_hit_uses_energy = false
+		_spawn_hit_energy_slot_index = -1
+		score_manager.on_kill(cell_type)
+		_refresh_visuals()
+		_finish_spawn_stage_if_ready()
+		return
 	var consumed_count := 0
 	for i in mini(2, inventory.queue.size()):
 		inventory.pop()
