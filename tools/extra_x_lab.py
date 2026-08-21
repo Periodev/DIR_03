@@ -75,7 +75,7 @@ DIR_STEP = {UP: (0, -1), DOWN: (0, 1), LEFT: (-1, 0), RIGHT: (1, 0)}
 DIR_KEY = {UP: "W", DOWN: "S", LEFT: "A", RIGHT: "D"}
 
 # combo -> quarter units granted by a kill, mirroring _charge_energy_for_combo.
-DEFAULT_CHARGE = {1: 1, 2: 2, 3: 4, 4: 4}
+DEFAULT_CHARGE = {1: 1, 2: 2, 3: 2, 4: 4}
 DEFAULT_CHARGE_HIGH = 6  # combo >= 5
 DEFAULT_CHARGE_HIGH_FROM = 5
 

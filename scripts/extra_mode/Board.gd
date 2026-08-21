@@ -605,7 +605,7 @@ func energy_gain_for_combo(combo: int) -> int:
 		2:
 			return 2
 		3:
-			return 4
+			return 2
 		4:
 			return 4
 		_:

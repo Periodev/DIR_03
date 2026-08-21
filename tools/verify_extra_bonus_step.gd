@@ -151,10 +151,10 @@ func run_verification() -> void:
 	board._charge_energy_for_combo(1)
 	board._charge_energy_for_combo(2)
 	board._charge_energy_for_combo(3)
-	if board.get_energy_quarter_units() != 7 or not board.try_energy_bonus_step():
-		fail("The first three combo steps must cumulatively grant 1.75 energy slots.")
+	if board.get_energy_quarter_units() != 5 or not board.try_energy_bonus_step():
+		fail("The first three combo steps must cumulatively grant 1.25 energy slots.")
 		return
-	if board.get_energy_quarter_units() != 3 or not board.bonus_step_armed:
+	if board.get_energy_quarter_units() != 1 or not board.bonus_step_armed:
 		fail("X must spend one energy slot, preserve the remaining quarters, and arm DASH.")
 		return
 
@@ -202,7 +202,7 @@ func run_verification() -> void:
 	if board.score_manager.combo_counter != 4:
 		fail("A bonus attack did not continue the combo.")
 		return
-	if board.get_energy_quarter_units() != 3 or board.survival_turns != 0:
+	if board.get_energy_quarter_units() != 1 or board.survival_turns != 0:
 		fail("A bonus attack recharged energy, or it counted as a turn.")
 		return
 	if board.inventory.find_direction(CharacterData.Direction.RIGHT) < 0:
@@ -213,7 +213,7 @@ func run_verification() -> void:
 		return
 
 	board._charge_energy_for_combo(5)
-	if board.get_energy_quarter_units() != 9:
+	if board.get_energy_quarter_units() != 7:
 		fail("Five heat did not add 1.5 energy slots.")
 		return
 	board.energy_quarter_units = 12

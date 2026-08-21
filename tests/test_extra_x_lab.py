@@ -30,13 +30,13 @@ class EnergyAnalysisTest(unittest.TestCase):
     def test_legacy_rules_are_farmable(self):
         economy = lab.analyze(variant("legacy"))
         self.assertTrue(economy.farmable)
-        self.assertEqual(economy.refund_max, 4)
-        self.assertEqual(economy.net_first, 0)
+        self.assertEqual(economy.refund_max, 6)
+        self.assertEqual(economy.net_first, 2)
         self.assertEqual(economy.frozen_cap, 0)  # the ladder never terminates
 
     def test_partial_refund_drains_energy(self):
         economy = lab.analyze(variant("half_charge"))
-        self.assertEqual(economy.net_first, -2)
+        self.assertEqual(economy.net_first, -1)
         self.assertFalse(economy.farmable)
 
     def test_shipped_rules_drain_on_every_x(self):

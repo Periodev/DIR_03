@@ -6,7 +6,7 @@ const ENABLE_COMBO_BONUS := true
 # describe the same state.
 const MAX_COMBO_TIER := 5
 # Score multiplier per tier. Deliberately steeper than the energy table
-# (1/2/4/4/6): energy saturates because a full bar is all the bar can hold,
+# (1/2/2/4/6): energy saturates because a full bar is all the bar can hold,
 # while score is where reaching the top of the chain earns its risk. One entry
 # per tier, so its size defines MAX_COMBO_TIER.
 const COMBO_SCORE_MULTIPLIERS := [1, 2, 5, 10, 20]

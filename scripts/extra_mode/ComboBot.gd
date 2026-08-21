@@ -12,6 +12,11 @@ const ENERGY_UNIT_VALUE := 2.0
 const FULL_BAR_INSURANCE := 800.0
 const TARGET_DISTANCE_WEIGHT := 8.0
 const APPROACH_MATCH_BONUS := 40.0
+const ENERGY_SHIELD_VALUE := 160.0
+const DIRECTION_SHIELD_VALUE := 95.0
+const ENERGY_SHIELD_SPEND_PENALTY := 110.0
+const DIRECTION_SHIELD_SPEND_PENALTY := 80.0
+const SPAWN_HIT_DEATH_PENALTY := 5000.0
 
 var chosen_direction: int = CharacterData.Direction.NONE
 
@@ -136,9 +141,18 @@ func _direction_plan_score(board: Node, direction: int, preserve_combo: bool) ->
 		reward += _combo_kill_value(combo)
 
 	if not preserve_combo:
-		if board._will_spawn_hit_target_this_turn(target):
-			reward -= 5000.0
-		elif target in board.candidate_cells:
+		var spawn_defense: Vector2i = _apply_simulated_spawn_hit(
+			board, target, simulated_queue, energy
+		)
+		energy = spawn_defense.x
+		match spawn_defense.y:
+			1:
+				reward -= ENERGY_SHIELD_SPEND_PENALTY
+			2:
+				reward -= DIRECTION_SHIELD_SPEND_PENALTY
+			-1:
+				reward -= SPAWN_HIT_DEATH_PENALTY
+		if target in board.candidate_cells and spawn_defense.y == 0:
 			reward -= 260.0
 	return reward + LOOKAHEAD_DISCOUNT * _lookahead_score(
 		board,
@@ -161,6 +175,24 @@ func _charged_energy(board: Node, energy: int, combo: int) -> int:
 	# fill, which is what makes saving toward ULT visible to the search at all.
 	var gain: int = int(board.energy_gain_for_combo(combo))
 	return mini(energy + gain, int(board.ENERGY_QUARTER_UNITS_MAX))
+
+func _apply_simulated_spawn_hit(
+	board: Node,
+	position: Vector2i,
+	queue: Array,
+	energy: int
+) -> Vector2i:
+	# Board spends a complete energy unit first. Below that threshold, the two
+	# oldest directions absorb the hit instead.
+	if not board._will_spawn_hit_target_this_turn(position):
+		return Vector2i(energy, 0)
+	if energy >= int(board.ENERGY_SLOT_COST):
+		return Vector2i(energy - int(board.ENERGY_SLOT_COST), 1)
+	if queue.size() >= 2:
+		queue.pop_front()
+		queue.pop_front()
+		return Vector2i(energy, 2)
+	return Vector2i(energy, -1)
 
 func _lookahead_score(
 	board: Node,
@@ -189,6 +221,17 @@ func _lookahead_score(
 			_push_simulated_direction(next_queue, board.inventory.max_size, direction)
 			reward -= _combo_break_penalty(next_combo)
 			next_combo = _decayed_combo(next_combo)
+			var spawn_defense: Vector2i = _apply_simulated_spawn_hit(
+				board, target, next_queue, next_energy
+			)
+			next_energy = spawn_defense.x
+			match spawn_defense.y:
+				1:
+					reward -= ENERGY_SHIELD_SPEND_PENALTY
+				2:
+					reward -= DIRECTION_SHIELD_SPEND_PENALTY
+				-1:
+					reward -= SPAWN_HIT_DEATH_PENALTY
 		else:
 			var inventory_index: int = next_queue.find(direction)
 			if inventory_index < 0:
@@ -235,7 +278,9 @@ func _simulated_state_score(
 			useful_directions += 1
 	var legal_exits: int = live_exits + attack_exits
 	var energy_max: int = int(board.ENERGY_QUARTER_UNITS_MAX)
-	if legal_exits == 0 and energy < energy_max:
+	var has_energy_shield: bool = energy >= int(board.ENERGY_SLOT_COST)
+	var has_direction_shield: bool = queue.size() >= 2
+	if legal_exits == 0 and energy < energy_max and not has_energy_shield and not has_direction_shield:
 		return -6000.0
 	var center: Vector2 = Vector2(float(board.COLS - 1), float(board.ROWS - 1)) * 0.5
 	var center_distance: float = Vector2(pos).distance_to(center)
@@ -251,6 +296,10 @@ func _simulated_state_score(
 	# quarter unit is worth far more than the ones before it. Without this the
 	# search prices energy at nothing and spends the escape without noticing.
 	score += float(energy) * ENERGY_UNIT_VALUE
+	if has_energy_shield:
+		score += ENERGY_SHIELD_VALUE
+	if has_direction_shield:
+		score += DIRECTION_SHIELD_VALUE
 	if energy >= energy_max:
 		score += FULL_BAR_INSURANCE
 
