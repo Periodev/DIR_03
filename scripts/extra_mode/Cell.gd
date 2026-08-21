@@ -2,6 +2,11 @@ extends Node2D
 
 const CELL_SIZE := 100.0
 const DIAMOND_RADIUS := 30.0
+const LIVE_COLOR := Color("#14161C")
+const DEAD_FILL_COLOR := Color("#6B242B")
+const DEAD_OUTLINE_COLOR := Color("#8E3139")
+const DEAD_OUTLINE_WIDTH := 2.0
+const SPAWN_WARNING_COLOR := Color("#FF5140")
 
 var cell_type: int = CharacterData.CellType.LIVE
 var grid_pos: Vector2i = Vector2i.ZERO
@@ -51,7 +56,7 @@ func set_bonus_step_highlight(enabled: bool) -> void:
 
 func _draw() -> void:
 	# Background
-	var bg_color := Color(0.10, 0.10, 0.13)
+	var bg_color := LIVE_COLOR
 
 	var rect = Rect2(0, 0, CELL_SIZE, CELL_SIZE)
 	draw_rect(rect, bg_color)
@@ -77,7 +82,17 @@ func _draw() -> void:
 			center + Vector2(-r, 0),
 			center + Vector2(-r * 0.7, -r * 0.7),
 		])
-		draw_polygon(octagon, PackedColorArray([Color(0.8, 0.15, 0.15, dead_indicator_alpha)]))
+		var dead_fill := DEAD_FILL_COLOR
+		dead_fill.a *= dead_indicator_alpha
+		var dead_outline := DEAD_OUTLINE_COLOR
+		dead_outline.a *= dead_indicator_alpha
+		draw_polygon(octagon, PackedColorArray([dead_fill]))
+		draw_polyline(
+			octagon + PackedVector2Array([octagon[0]]),
+			dead_outline,
+			DEAD_OUTLINE_WIDTH,
+			true
+		)
 
 	if attack_prompt_direction != CharacterData.Direction.NONE:
 		_draw_attack_chevron(center, attack_prompt_direction)
@@ -86,7 +101,6 @@ func _draw_spawn_warning_corners() -> void:
 	const INSET := 10.0
 	const ARM_LENGTH := 17.0
 	const LINE_WIDTH := 3.5
-	var warning_color := Color(0.94, 0.24, 0.20, 0.95)
 	var left := INSET
 	var right := CELL_SIZE - INSET
 	var top := INSET
@@ -98,7 +112,7 @@ func _draw_spawn_warning_corners() -> void:
 		PackedVector2Array([Vector2(right - ARM_LENGTH, bottom), Vector2(right, bottom), Vector2(right, bottom - ARM_LENGTH)]),
 	]
 	for segment: PackedVector2Array in segments:
-		draw_polyline(segment, warning_color, LINE_WIDTH, true)
+		draw_polyline(segment, SPAWN_WARNING_COLOR, LINE_WIDTH, true)
 
 
 func _draw_attack_chevron(center: Vector2, direction: int) -> void:

@@ -16,6 +16,7 @@ const BLOCK_OUTER_RING_SPAWN := false
 const CELL_SIZE := 100.0
 const CELL_GAP := 8.0
 const CELL_STEP := CELL_SIZE + CELL_GAP
+const GRID_GAP_COLOR := Color("#262A31")
 const BOARD_PREFERRED_SCALE := 1.25
 const BOARD_SIDEBAR_WIDTH := 360.0
 const BOARD_VIEW_MARGIN := 32.0
@@ -72,6 +73,13 @@ var _char_impl  # CharacterImpl_PLN
 var _cell_scene: PackedScene
 var _hit_effect_scene: PackedScene
 var spawn_warning_player: AudioStreamPlayer
+
+func _draw() -> void:
+	var board_size := Vector2(
+		float(COLS - 1) * CELL_STEP + CELL_SIZE,
+		float(ROWS - 1) * CELL_STEP + CELL_SIZE
+	)
+	draw_rect(Rect2(Vector2.ZERO, board_size), GRID_GAP_COLOR)
 
 func _ready() -> void:
 	_cell_scene = load("res://scenes/extra_mode/cell.tscn")

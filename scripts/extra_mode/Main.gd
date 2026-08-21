@@ -2,6 +2,7 @@ extends Node
 
 const ComboBotScript = preload("res://scripts/extra_mode/ComboBot.gd")
 const AI_ACTION_INTERVAL_SECONDS := 0.16
+const WINDOW_BACKGROUND_COLOR := Color("#0C0E11")
 
 @onready var board: Node2D = $Board
 @onready var hud: CanvasLayer = $HUD
@@ -10,8 +11,11 @@ var combo_bot: DIRExtraComboBot
 var ai_enabled: bool = false
 var _ai_action_cooldown: float = 0.0
 var _buffered_move_direction: int = CharacterData.Direction.NONE
+var _previous_clear_color := Color.BLACK
 
 func _ready() -> void:
+	_previous_clear_color = RenderingServer.get_default_clear_color()
+	RenderingServer.set_default_clear_color(WINDOW_BACKGROUND_COLOR)
 	combo_bot = ComboBotScript.new()
 	board.setup_character("PLN")
 	hud.setup("PLN")
@@ -24,6 +28,9 @@ func _ready() -> void:
 
 	_on_board_updated()
 	hud.update_ai_status(ai_enabled)
+
+func _exit_tree() -> void:
+	RenderingServer.set_default_clear_color(_previous_clear_color)
 
 func _process(delta: float) -> void:
 	_execute_buffered_move_if_ready()
