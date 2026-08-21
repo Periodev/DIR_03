@@ -10,6 +10,8 @@ const HIT_SOUND: AudioStream = preload(
 	"res://assets/audio/sfx/extra_attack/error_006.ogg"
 )
 const DIRECTION_REPLACEMENT_FADE_DURATION := 0.10
+const BONUS_STEP_FRAME_COLOR := Color("#2FD9A0")
+const BONUS_STEP_FRAME_WIDTH := 2.5
 
 var character_name: String = "PLN"
 var character_color: Color = Color(0.2, 0.8, 0.3)
@@ -147,6 +149,13 @@ func _draw() -> void:
 			1.5,
 			true
 		)
+	elif not bonus_step_directions.is_empty():
+		draw_polyline(
+			points + PackedVector2Array([points[0]]),
+			BONUS_STEP_FRAME_COLOR,
+			BONUS_STEP_FRAME_WIDTH,
+			true
+		)
 
 func _draw_stored_direction_arrows() -> void:
 	const ARROW_DISTANCE := 46.0
@@ -157,9 +166,8 @@ func _draw_stored_direction_arrows() -> void:
 	const SEQUENCE_STEP := 8.4
 	const OUTLINE_WIDTH := 6.0
 	const FILL_WIDTH := 3.0
-	const ACTIVE_COLOR := Color(0.28, 0.92, 0.48)
+	const ACTIVE_COLOR := Color("#7FE85A")
 	const EXPIRING_COLOR := Color("#ADDEB7")
-	const STEP_FRAME_COLOR := Color("#2FD9A0")
 	var expiring_count: int = _expiring_count_override
 	if expiring_count < 0 and stored_direction_slots.size() >= stored_direction_max_size:
 		expiring_count = stored_direction_slots.size() - stored_direction_max_size + 1
@@ -227,8 +235,6 @@ func _draw_stored_direction_arrows() -> void:
 		])
 		var arrow_color: Color = ACTIVE_COLOR
 		var outline_color := Color(0.08, 0.09, 0.11, 0.9)
-		if direction in bonus_step_directions and duplicate_index == 0:
-			outline_color = STEP_FRAME_COLOR
 		if is_outgoing:
 			arrow_color = EXPIRING_COLOR
 			arrow_color.a *= _expiring_arrow_alpha

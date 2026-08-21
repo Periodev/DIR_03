@@ -3,10 +3,11 @@ extends CanvasLayer
 const ENERGY_GAIN_COLOR := Color("#2FD9A0")
 const ENERGY_GAIN_IDLE_COLOR := Color(1.0, 1.0, 1.0, 0.28)
 const STEP_AVAILABLE_COLOR := Color("#2FD9A0")
-const STEP_UNAVAILABLE_COLOR := Color("#1E7A5C")
-const DIRECTION_ACTIVE_COLOR := Color("#47EB7A")
+const STEP_UNAVAILABLE_COLOR := Color("#4A5058")
+const DIRECTION_ACTIVE_COLOR := Color("#7FE85A")
 const DIRECTION_EXPIRING_COLOR := Color("#ADDEB7")
 const DIRECTION_EMPTY_COLOR := Color("#4A5058")
+const DASH_AVAILABLE_COLOR := Color("#47EB7A")
 const SIDEBAR_MARGIN := 20.0
 const SIDEBAR_WIDTH := 320.0
 const STATUS_PANEL_TOP := 158.0
@@ -73,7 +74,7 @@ func _ready() -> void:
 	ultimate_action_label = Label.new()
 	ultimate_action_label.text = "[Z] DASH"
 	ultimate_action_label.add_theme_font_size_override("font_size", 20)
-	ultimate_action_label.add_theme_color_override("font_color", Color(0.28, 0.92, 0.48))
+	ultimate_action_label.add_theme_color_override("font_color", DIRECTION_EMPTY_COLOR)
 	ultimate_action_label.custom_minimum_size = Vector2(104, 36)
 	ultimate_action_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	ultimate_action_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -304,7 +305,12 @@ func update_energy(
 		"font_color",
 		STEP_AVAILABLE_COLOR if step_available else STEP_UNAVAILABLE_COLOR
 	)
-	ultimate_action_label.modulate = Color.WHITE if quarter_units >= 16 or ultimate_steps > 0 else Color(1.0, 1.0, 1.0, 0.28)
+	var ultimate_available: bool = quarter_units >= 16 or ultimate_steps > 0
+	ultimate_action_label.modulate = Color.WHITE
+	ultimate_action_label.add_theme_color_override(
+		"font_color",
+		DASH_AVAILABLE_COLOR if ultimate_available else DIRECTION_EMPTY_COLOR
+	)
 	if ultimate_steps > 0:
 		ultimate_action_label.text = "[Z] DASH %d" % ultimate_steps
 	else:
