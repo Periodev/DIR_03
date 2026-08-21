@@ -19,8 +19,8 @@ func run_verification() -> void:
 	score_fixture.combo_counter = 4
 	score_fixture.on_kill(CharacterData.CellType.DEAD)
 	score_fixture.on_move_to_live()
-	if score_fixture.combo_counter != 3:
-		fail("A normal non-kill turn did not lower heat by exactly one tier.")
+	if score_fixture.combo_counter != 2:
+		fail("A normal non-kill turn did not lower heat by exactly two tiers.")
 		return
 	score_fixture.reset_combo()
 	if score_fixture.max_combo != 4:
@@ -344,6 +344,52 @@ func run_verification() -> void:
 		return
 	if normal_attack_board.get_energy_quarter_units() != 1:
 		fail("A normal attack kill did not charge energy for the first combo.")
+		return
+
+	var energy_shield_board: Node2D = BoardScript.new()
+	root.add_child(energy_shield_board)
+	await process_frame
+	energy_shield_board.spawn_warning_player.stop()
+	energy_shield_board.score_manager.combo_counter = 3
+	energy_shield_board.energy_quarter_units = energy_shield_board.ENERGY_QUARTER_UNITS_MAX
+	energy_shield_board._spawn_hit_pending = true
+	energy_shield_board._spawn_hit_uses_energy = true
+	energy_shield_board._resolve_player_spawn_hit(
+		energy_shield_board.player_pos, CharacterData.CellType.DEAD
+	)
+	if energy_shield_board.score_manager.combo_counter != 1:
+		fail(
+			"An energy-shielded spawn hit did not cool heat by two tiers, reached %s."
+			% energy_shield_board.score_manager.combo_counter
+		)
+		return
+	if energy_shield_board.score_manager.score != 1:
+		fail(
+			"An energy-shielded spawn hit scored %s instead of the post-cooldown tier."
+			% energy_shield_board.score_manager.score
+		)
+		return
+
+	var direction_shield_board: Node2D = BoardScript.new()
+	root.add_child(direction_shield_board)
+	await process_frame
+	direction_shield_board.spawn_warning_player.stop()
+	direction_shield_board.score_manager.combo_counter = 4
+	direction_shield_board.inventory.push(CharacterData.Direction.UP)
+	direction_shield_board.inventory.push(CharacterData.Direction.DOWN)
+	direction_shield_board._spawn_hit_pending = true
+	direction_shield_board._spawn_hit_uses_energy = false
+	direction_shield_board._resolve_player_spawn_hit(
+		direction_shield_board.player_pos, CharacterData.CellType.DEAD
+	)
+	if direction_shield_board.score_manager.combo_counter != 2:
+		fail(
+			"A direction-shielded spawn hit did not cool heat by two tiers, reached %s."
+			% direction_shield_board.score_manager.combo_counter
+		)
+		return
+	if direction_shield_board.inventory.queue.size() != 0:
+		fail("A direction-shielded spawn hit did not spend both direction slots.")
 		return
 
 	print("PASS: EXTRA energy bonus-step verification.")

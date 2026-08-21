@@ -626,8 +626,18 @@ $checks = @(
 		Pass = $extraHud -match 'HeatMeterScript\s*=\s*preload\("res://scripts/extra_mode/HeatMeter\.gd"\)' -and $extraHud -match 'func\s+update_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?combo_label\.text\s*=\s*"HEAT"(?:(?!\r?\nfunc\s)[\s\S])*?heat_meter\.set_heat\(combo\)' -and $extraHeatMeter -match 'SEGMENT_COUNT\s*:=\s*5' -and $extraHeatMeter -match 'func\s+set_heat\(value:\s*int\)' -and $extraHud -match 'var\s+energy_gain_label:\s*Label' -and $extraHud -match 'func\s+update_energy_gain\(quarter_units:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?"\+%d"\s*%\s*quarter_units(?:(?!\r?\nfunc\s)[\s\S])*?ENERGY_GAIN_COLOR\s+if\s+quarter_units\s*>\s*0\s+else\s+ENERGY_GAIN_IDLE_COLOR' -and $extraBoard -match 'func\s+get_next_kill_energy_gain\(\)\s*->\s*int(?:(?!\r?\nfunc\s)[\s\S])*?ultimate_dashes_remaining\s*>\s*0\s+or\s+bonus_step_armed:\s*\r?\n\s*return\s+0' -and $extraMain -match 'hud\.update_energy_gain\(board\.get_next_kill_energy_gain\(\)\)'
 	},
 	@{
-		Name = "EXTRA heat rises to six and cools one tier on interruption"
-		Pass = $extraScoreManager -match 'const\s+BASE_KILL_SCORE\s*:=\s*1' -and $extraScoreManager -match 'const\s+MAX_COMBO_TIER\s*:=\s*5' -and $extraScoreManager -match 'const\s+COMBO_SCORE_MULTIPLIERS\s*:=\s*\[1,\s*2,\s*5,\s*10,\s*20\]' -and $extraScoreManager -match 'func\s+advance_combo\(\)(?:(?!\r?\nfunc\s)[\s\S])*?mini\(combo_counter\s*\+\s*1,\s*MAX_COMBO_TIER\)' -and $extraScoreManager -match 'func\s+decay_combo\(\)(?:(?!\r?\nfunc\s)[\s\S])*?maxi\(0,\s*combo_counter\s*-\s*1\)' -and $extraScoreManager -match 'func\s+on_move_to_live\(\)\s*->\s*void:\s*\r?\n\s*decay_combo\(\)' -and $extraBoard -match 'score_manager\.advance_combo\(\)' -and $extraBoard -match 'func\s+try_wait\(\)(?:(?!\r?\nfunc\s)[\s\S])*?score_manager\.on_move_to_live\(\)' -and $extraComboBot -match 'func\s+_advanced_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?mini\(combo\s*\+\s*1,\s*ScoreManager\.MAX_COMBO_TIER\)' -and $extraComboBot -match 'func\s+_decayed_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?maxi\(0,\s*combo\s*-\s*1\)'
+		Name = "EXTRA heat rises to six and cools two tiers on interruption"
+		Pass = $extraScoreManager -match 'const\s+BASE_KILL_SCORE\s*:=\s*1' -and $extraScoreManager -match 'const\s+MAX_COMBO_TIER\s*:=\s*5' -and $extraScoreManager -match 'const\s+COMBO_SCORE_MULTIPLIERS\s*:=\s*\[1,\s*2,\s*5,\s*10,\s*20\]' -and $extraScoreManager -match 'func\s+advance_combo\(\)(?:(?!\r?\nfunc\s)[\s\S])*?mini\(combo_counter\s*\+\s*1,\s*MAX_COMBO_TIER\)' -and $extraScoreManager -match 'func\s+decay_combo\(\)(?:(?!\r?\nfunc\s)[\s\S])*?maxi\(0,\s*combo_counter\s*-\s*2\)' -and $extraScoreManager -match 'func\s+on_move_to_live\(\)\s*->\s*void:\s*\r?\n\s*decay_combo\(\)' -and $extraBoard -match 'score_manager\.advance_combo\(\)' -and $extraBoard -match 'func\s+try_wait\(\)(?:(?!\r?\nfunc\s)[\s\S])*?score_manager\.on_move_to_live\(\)' -and $extraComboBot -match 'func\s+_advanced_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?mini\(combo\s*\+\s*1,\s*ScoreManager\.MAX_COMBO_TIER\)' -and $extraComboBot -match 'func\s+_decayed_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?maxi\(0,\s*combo\s*-\s*2\)'
+	},
+	@{
+		Name = "EXTRA spawn-hit shields cool heat instead of leaving it untouched"
+		Pass = $extraBoard -match 'func\s+_resolve_player_spawn_hit\(pos:\s*Vector2i,\s*cell_type:\s*int\)(?:(?!?
+func\s)[\s\S])*?if\s+_spawn_hit_uses_energy:(?:(?!?
+func\s)[\s\S])*?score_manager\.decay_combo\(\)(?:(?!?
+func\s)[\s\S])*?score_manager\.on_kill\(cell_type\)(?:(?!?
+func\s)[\s\S])*?if\s+consumed_count\s*>=\s*2:\s*?
+\s*score_manager\.decay_combo\(\)\s*?
+\s*score_manager\.on_kill\(cell_type\)'
 	},
 	@{
 		Name = "EXTRA energy income only happens on turns that advance the spawn clock"

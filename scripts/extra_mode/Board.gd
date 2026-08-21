@@ -740,6 +740,9 @@ func _resolve_player_spawn_hit(pos: Vector2i, cell_type: int) -> void:
 		energy_quarter_units -= ENERGY_SLOT_COST
 		_spawn_hit_uses_energy = false
 		_spawn_hit_energy_slot_index = -1
+		# A shield still means the player did not land a kill this beat -- it
+		# should not be a free way to hold heat at the cap forever.
+		score_manager.decay_combo()
 		score_manager.on_kill(cell_type)
 		_refresh_visuals()
 		_finish_spawn_stage_if_ready()
@@ -749,6 +752,7 @@ func _resolve_player_spawn_hit(pos: Vector2i, cell_type: int) -> void:
 		inventory.pop()
 		consumed_count += 1
 	if consumed_count >= 2:
+		score_manager.decay_combo()
 		score_manager.on_kill(cell_type)
 	else:
 		_spawn_dead(pos, cell_type)

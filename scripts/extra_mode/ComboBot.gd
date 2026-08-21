@@ -168,7 +168,7 @@ func _advanced_combo(combo: int) -> int:
 	return mini(combo + 1, ScoreManager.MAX_COMBO_TIER)
 
 func _decayed_combo(combo: int) -> int:
-	return maxi(0, combo - 1)
+	return maxi(0, combo - 2)
 
 func _charged_energy(board: Node, energy: int, combo: int) -> int:
 	# Mirrors Board._charge_energy_for_combo so the lookahead can see the bar
