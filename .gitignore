@@ -29,3 +29,6 @@ __pycache__/
 # Local sound-effect audition library
 tools/sfx_candidates/*
 !tools/sfx_candidates/.gdignore
+
+# cma package's own run logging, written wherever it's invoked from
+outcmaes/
