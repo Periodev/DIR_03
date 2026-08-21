@@ -9,7 +9,7 @@ const PLAYER_BODY_SCALE := 0.8
 const HIT_SOUND: AudioStream = preload(
 	"res://assets/audio/sfx/extra_attack/error_006.ogg"
 )
-const DIRECTION_REPLACEMENT_FADE_DURATION := 0.20
+const DIRECTION_REPLACEMENT_FADE_DURATION := 0.10
 
 var character_name: String = "PLN"
 var character_color: Color = Color(0.2, 0.8, 0.3)
@@ -140,19 +140,26 @@ func _draw() -> void:
 			points = _make_polygon(6, 20.0, 0.0)
 
 	draw_polygon(points, PackedColorArray([character_color]))
+	if ultimate_dash_ready:
+		draw_polyline(
+			points + PackedVector2Array([points[0]]),
+			Color.WHITE,
+			1.5,
+			true
+		)
 
 func _draw_stored_direction_arrows() -> void:
 	const ARROW_DISTANCE := 46.0
-	# 2 * atan(9.0 / (4.56 + 3.0)) = 100.0 degrees at the tip.
+	# 2 * atan(11.0 / (4.56 + 3.0)) = 111.0 degrees at the tip.
 	const ARROW_FRONT_DEPTH := 4.56
 	const ARROW_REAR_DEPTH := 3.0
-	const ARROW_HALF_HEIGHT := 9.0
+	const ARROW_HALF_HEIGHT := 11.0
 	const SEQUENCE_STEP := 8.4
-	const OUTLINE_WIDTH := 6.6
-	const FILL_WIDTH := 3.6
+	const OUTLINE_WIDTH := 6.0
+	const FILL_WIDTH := 3.0
 	const ACTIVE_COLOR := Color(0.28, 0.92, 0.48)
-	const EXPIRING_COLOR := Color(0.40, 0.64, 0.46, 0.80)
-	const STEP_FRAME_COLOR := Color("#C8E64A")
+	const EXPIRING_COLOR := Color("#ADDEB7")
+	const STEP_FRAME_COLOR := Color("#38D6E8")
 	var expiring_count: int = _expiring_count_override
 	if expiring_count < 0 and stored_direction_slots.size() >= stored_direction_max_size:
 		expiring_count = stored_direction_slots.size() - stored_direction_max_size + 1
@@ -238,7 +245,8 @@ func _draw_ultimate_dash_arrows() -> void:
 	const ARROW_HALF_HEIGHT := 9.6
 	const OUTLINE_WIDTH := 6.5
 	const FILL_WIDTH := 4.2
-	const ULT_COLOR := Color(0.28, 0.92, 0.48)
+	const ULT_COLOR := Color(0.20, 0.68, 0.34)
+	const ULT_FRAME_COLOR := Color(0.28, 0.92, 0.48)
 	for direction_value in CharacterData.DIR_VECTOR:
 		var direction: int = int(direction_value)
 		var forward: Vector2 = Vector2(CharacterData.DIR_VECTOR[direction])
@@ -251,7 +259,7 @@ func _draw_ultimate_dash_arrows() -> void:
 			tip,
 			rear - side * ARROW_HALF_HEIGHT,
 		])
-		draw_polyline(arrow, Color("#145A32"), OUTLINE_WIDTH, true)
+		draw_polyline(arrow, ULT_FRAME_COLOR, OUTLINE_WIDTH, true)
 		draw_polyline(arrow, ULT_COLOR, FILL_WIDTH, true)
 
 func play_move(from_pos: Vector2, move_duration_override: float = -1.0, play_sound: bool = true) -> void:

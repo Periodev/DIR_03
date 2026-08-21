@@ -866,10 +866,21 @@ func _sync_player_move_ready() -> void:
 				if _will_spawn_hit_target_this_turn(target):
 					danger_directions.append(direction)
 	player_node.set_move_ready_directions(ready_directions, danger_directions)
+	_set_bonus_step_cell_highlights(bonus_directions)
 	player_node.set_bonus_step_directions(bonus_directions)
 	player_node.set_ultimate_dash_ready(ultimate_ready)
 	if not player_node.has_pending_stored_direction_update() and not _hold_stored_direction_visual_until_idle:
 		player_node.set_stored_direction_slots(stored_directions, inventory.max_size)
+
+func _set_bonus_step_cell_highlights(directions: Array[int]) -> void:
+	for row_value in cell_nodes:
+		var row: Array = row_value
+		for cell_value in row:
+			cell_value.set_bonus_step_highlight(false)
+	for direction in directions:
+		var target: Vector2i = player_pos + CharacterData.DIR_VECTOR[direction]
+		if _is_inside_board(target):
+			cell_nodes[target.y][target.x].set_bonus_step_highlight(true)
 
 func _clear_attack_prompts() -> void:
 	var no_directions: Array[int] = []

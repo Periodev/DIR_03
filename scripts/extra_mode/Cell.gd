@@ -7,6 +7,7 @@ var cell_type: int = CharacterData.CellType.LIVE
 var grid_pos: Vector2i = Vector2i.ZERO
 var candidate_phase: int = 0  # 0=none, positive=spawn warning visible
 var attack_prompt_direction: int = CharacterData.Direction.NONE
+var bonus_step_highlight := false
 var dead_indicator_alpha: float = 1.0
 var _spawn_fade_tween: Tween
 
@@ -42,12 +43,20 @@ func set_attack_prompt(direction: int) -> void:
 	attack_prompt_direction = direction
 	queue_redraw()
 
+func set_bonus_step_highlight(enabled: bool) -> void:
+	if bonus_step_highlight == enabled:
+		return
+	bonus_step_highlight = enabled
+	queue_redraw()
+
 func _draw() -> void:
 	# Background
 	var bg_color := Color(0.10, 0.10, 0.13)
 
 	var rect = Rect2(0, 0, CELL_SIZE, CELL_SIZE)
 	draw_rect(rect, bg_color)
+	if bonus_step_highlight:
+		draw_rect(rect, Color(0.22, 0.84, 0.91, 0.12))
 
 	# Base border remains stable; spawn warnings use separate red corner brackets.
 	draw_rect(rect, Color(0.25, 0.25, 0.30), false, 1.0)
