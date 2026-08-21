@@ -11,6 +11,7 @@ const FULL_OUTLINE_COLOR := Color("#DFFFE9")
 const FULL_OUTLINE_WIDTH := 1.5
 
 var fill_ratio: float = 0.0
+var full_charge_ready: bool = false
 
 func _init() -> void:
 	custom_minimum_size = SLOT_SIZE
@@ -21,6 +22,12 @@ func set_fill_ratio(value: float) -> void:
 	if is_equal_approx(fill_ratio, next_ratio):
 		return
 	fill_ratio = next_ratio
+	queue_redraw()
+
+func set_full_charge_ready(value: bool) -> void:
+	if full_charge_ready == value:
+		return
+	full_charge_ready = value
 	queue_redraw()
 
 func _draw() -> void:
@@ -35,8 +42,6 @@ func _draw() -> void:
 	var outline_width := OUTLINE_WIDTH
 	if fill_ratio >= 1.0:
 		draw_colored_polygon(diamond, FULL_FILL_COLOR)
-		outline_color = FULL_OUTLINE_COLOR
-		outline_width = FULL_OUTLINE_WIDTH
 	elif fill_ratio >= 0.75:
 		var lower_half := PackedVector2Array([
 			center + Vector2(-RADIUS, 0.0),
@@ -64,4 +69,7 @@ func _draw() -> void:
 			center + Vector2(RADIUS, 0.0),
 		])
 		draw_colored_polygon(lower_right_quarter, FILL_COLOR)
+	if full_charge_ready:
+		outline_color = FULL_OUTLINE_COLOR
+		outline_width = FULL_OUTLINE_WIDTH
 	draw_polyline(diamond + PackedVector2Array([diamond[0]]), outline_color, outline_width, true)

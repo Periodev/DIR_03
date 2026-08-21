@@ -280,6 +280,7 @@ func update_energy(
 		var slot_quarter_units: int = clampi(quarter_units - i * 4, 0, 4)
 		var fill_ratio: float = float(slot_quarter_units) / 4.0
 		energy_slots[i].set_fill_ratio(fill_ratio)
+		energy_slots[i].set_full_charge_ready(quarter_units >= 16)
 	var step_available: bool = quarter_units >= bonus_step_cost or bonus_step_armed
 	dash_action_label.modulate = Color.WHITE
 	dash_action_label.add_theme_color_override(
