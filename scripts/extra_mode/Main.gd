@@ -167,7 +167,7 @@ func _on_board_updated() -> void:
 		board.get_ultimate_dashes_remaining(),
 		board.get_bonus_step_cost()
 	)
-	hud.update_energy_gain(board.get_next_kill_energy_gain())
+	hud.update_energy_gain(board.get_last_energy_gain())
 	hud.update_state(board.game_state.current_state)
 
 func _on_spawn_hit_started(slot_count: int, energy_slot_index: int) -> void:

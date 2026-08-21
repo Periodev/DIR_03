@@ -57,6 +57,7 @@ var _suppress_hit_effect_once: bool = false
 var _pending_kill_visual: Array[Vector2i] = []  # 正在等待延遲視覺更新的格子
 var survival_turns: int = 0
 var energy_quarter_units: int = 0
+var last_energy_gain_quarter_units: int = 0
 var bonus_step_armed: bool = false
 var _bonus_step_kill_active: bool = false
 var ultimate_dashes_remaining: int = 0
@@ -154,6 +155,7 @@ func restart() -> void:
 	_pending_kill_visual.clear()
 	survival_turns = 0
 	energy_quarter_units = 0
+	last_energy_gain_quarter_units = 0
 	bonus_step_armed = false
 	_bonus_step_kill_active = false
 	ultimate_dashes_remaining = 0
@@ -195,6 +197,7 @@ func try_move(dir: int) -> bool:
 	if _player_move_visual_pending:
 		return false
 	if ultimate_dashes_remaining > 0:
+		last_energy_gain_quarter_units = 0
 		return _try_ultimate_dash(dir)
 	var is_bonus_step: bool = bonus_step_armed
 
@@ -208,6 +211,7 @@ func try_move(dir: int) -> bool:
 	var target_type = grid[target.y][target.x]
 
 	if target_type == CharacterData.CellType.LIVE:
+		last_energy_gain_quarter_units = 0
 		return _complete_live_move(dir, target, is_bonus_step)
 
 	else:
@@ -220,6 +224,7 @@ func try_move(dir: int) -> bool:
 				return false  # No matching direction in queue
 		elif not _consume_attack_direction(dir):
 			return false  # No matching direction in queue
+		last_energy_gain_quarter_units = 0
 		_clear_attack_prompts()
 
 		var origin := player_pos
@@ -315,6 +320,7 @@ func try_charge_action() -> bool:
 
 	if not inventory.consume_charge():
 		return false
+	last_energy_gain_quarter_units = 0
 
 	player_facing_dir = dir
 	var target_type = grid[target.y][target.x]
@@ -344,6 +350,7 @@ func try_wait() -> bool:
 		return false
 	if bonus_step_armed or ultimate_dashes_remaining > 0:
 		return false
+	last_energy_gain_quarter_units = 0
 	score_manager.on_move_to_live()
 	return _finalize_turn_after_action()
 
@@ -414,6 +421,7 @@ func try_energy_bonus_step() -> bool:
 	if energy_quarter_units < cost:
 		return false
 	energy_quarter_units -= cost
+	last_energy_gain_quarter_units = 0
 	bonus_step_armed = true
 	play_bonus_step_sound()
 	_refresh_visuals()
@@ -421,6 +429,9 @@ func try_energy_bonus_step() -> bool:
 
 func get_energy_quarter_units() -> int:
 	return energy_quarter_units
+
+func get_last_energy_gain() -> int:
+	return last_energy_gain_quarter_units
 
 func play_bonus_step_sound() -> void:
 	var sound := AudioStreamPlayer.new()
@@ -447,6 +458,7 @@ func try_energy_ultimate() -> bool:
 	if not bool(data["has_ult"]):
 		return false
 	energy_quarter_units = 0
+	last_energy_gain_quarter_units = 0
 	ultimate_dashes_remaining = ULT_DASH_COUNT
 	_ultimate_chain_started = false
 	play_ultimate_activation_sound()
@@ -626,10 +638,14 @@ func get_next_kill_energy_gain() -> int:
 	)
 
 func _charge_energy_for_combo(combo: int) -> void:
+	var energy_gain: int = energy_gain_for_combo(combo)
 	energy_quarter_units = mini(
-		energy_quarter_units + energy_gain_for_combo(combo),
+		energy_quarter_units + energy_gain,
 		ENERGY_QUARTER_UNITS_MAX
 	)
+	# The HUD reports the Heat-tier reward, even if the bar itself is already
+	# capped and can accept only part of it.
+	last_energy_gain_quarter_units = energy_gain
 
 var cycle_resolved: bool = false  # true = this cycle already spawned, remaining turns idle
 

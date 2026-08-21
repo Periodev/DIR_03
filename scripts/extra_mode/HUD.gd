@@ -14,6 +14,8 @@ const SIDEBAR_MARGIN := 20.0
 const SIDEBAR_WIDTH := 320.0
 const STATUS_PANEL_TOP := 158.0
 const STATUS_PANEL_HEIGHT := 176.0
+const ENERGY_ROW_CONTENT_WIDTH := 162.0
+const ENERGY_GAIN_WIDTH := 44.0
 
 var score_label: Label
 var combo_label: Label
@@ -125,16 +127,17 @@ func _ready() -> void:
 		energy_container.add_child(energy_slot)
 		energy_slots.append(energy_slot)
 
-	# What the next kill would add to the bar. Reads +0 while a STEP or an ULT
-	# chain is queued, because those kills are energy-sterile.
+	# Last resolved energy gain. This lives outside the HBox so changing or
+	# hiding it never shifts the DIR label and its four energy slots.
 	energy_gain_label = Label.new()
-	energy_gain_label.text = "+0"
+	energy_gain_label.text = ""
 	energy_gain_label.add_theme_font_size_override("font_size", 20)
 	energy_gain_label.add_theme_color_override("font_color", ENERGY_GAIN_COLOR)
-	energy_gain_label.custom_minimum_size = Vector2(44, 36)
+	energy_gain_label.size = Vector2(ENERGY_GAIN_WIDTH, 36)
 	energy_gain_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	energy_gain_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	energy_row.add_child(energy_gain_label)
+	energy_gain_label.visible = false
+	add_child(energy_gain_label)
 
 	var direction_row := HBoxContainer.new()
 	direction_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -297,11 +300,11 @@ func update_combo(combo: int) -> void:
 	heat_meter.set_heat(combo)
 
 func update_energy_gain(quarter_units: int) -> void:
+	energy_gain_label.visible = quarter_units > 0
+	if quarter_units <= 0:
+		return
 	energy_gain_label.text = "+%d" % quarter_units
-	energy_gain_label.add_theme_color_override(
-		"font_color",
-		ENERGY_GAIN_COLOR if quarter_units > 0 else ENERGY_GAIN_IDLE_COLOR
-	)
+	energy_gain_label.add_theme_color_override("font_color", ENERGY_GAIN_COLOR)
 
 func update_energy(
 	quarter_units: int,
@@ -404,6 +407,11 @@ func _layout_ui() -> void:
 	var sidebar_width: float = min(SIDEBAR_WIDTH, viewport_size.x - SIDEBAR_MARGIN * 2.0)
 	inventory_panel.position = Vector2(SIDEBAR_MARGIN, STATUS_PANEL_TOP)
 	inventory_panel.size = Vector2(sidebar_width, STATUS_PANEL_HEIGHT)
+	energy_gain_label.position = Vector2(
+		SIDEBAR_MARGIN + (sidebar_width + ENERGY_ROW_CONTENT_WIDTH) * 0.5 + 4.0,
+		STATUS_PANEL_TOP + 24.0
+	)
+	energy_gain_label.size = Vector2(ENERGY_GAIN_WIDTH, 36.0)
 
 	message_label.position = Vector2(SIDEBAR_MARGIN, STATUS_PANEL_TOP + STATUS_PANEL_HEIGHT + 10.0)
 	message_label.size = Vector2(sidebar_width, 30)
