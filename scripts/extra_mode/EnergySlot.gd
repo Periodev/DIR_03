@@ -4,8 +4,11 @@ extends Control
 const SLOT_SIZE := Vector2(30.0, 36.0)
 const RADIUS := 11.0
 const OUTLINE_WIDTH := 2.0
-const OUTLINE_COLOR := Color(0.72, 0.74, 0.78)
-const FILL_COLOR := Color(0.28, 0.92, 0.48)
+const OUTLINE_COLOR := Color("#4A5058")
+const FILL_COLOR := Color("#2FD9A0")
+const FULL_FILL_COLOR := Color("#3BE8B4")
+const FULL_OUTLINE_COLOR := Color("#DFFFE9")
+const FULL_OUTLINE_WIDTH := 1.5
 
 var fill_ratio: float = 0.0
 
@@ -28,8 +31,12 @@ func _draw() -> void:
 		center + Vector2(0.0, RADIUS),
 		center + Vector2(-RADIUS, 0.0),
 	])
+	var outline_color := OUTLINE_COLOR
+	var outline_width := OUTLINE_WIDTH
 	if fill_ratio >= 1.0:
-		draw_colored_polygon(diamond, FILL_COLOR)
+		draw_colored_polygon(diamond, FULL_FILL_COLOR)
+		outline_color = FULL_OUTLINE_COLOR
+		outline_width = FULL_OUTLINE_WIDTH
 	elif fill_ratio >= 0.75:
 		var lower_half := PackedVector2Array([
 			center + Vector2(-RADIUS, 0.0),
@@ -57,4 +64,4 @@ func _draw() -> void:
 			center + Vector2(RADIUS, 0.0),
 		])
 		draw_colored_polygon(lower_right_quarter, FILL_COLOR)
-	draw_polyline(diamond + PackedVector2Array([diamond[0]]), OUTLINE_COLOR, OUTLINE_WIDTH, true)
+	draw_polyline(diamond + PackedVector2Array([diamond[0]]), outline_color, outline_width, true)

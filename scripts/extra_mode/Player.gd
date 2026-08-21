@@ -159,7 +159,7 @@ func _draw_stored_direction_arrows() -> void:
 	const FILL_WIDTH := 3.0
 	const ACTIVE_COLOR := Color(0.28, 0.92, 0.48)
 	const EXPIRING_COLOR := Color("#ADDEB7")
-	const STEP_FRAME_COLOR := Color("#38D6E8")
+	const STEP_FRAME_COLOR := Color("#2FD9A0")
 	var expiring_count: int = _expiring_count_override
 	if expiring_count < 0 and stored_direction_slots.size() >= stored_direction_max_size:
 		expiring_count = stored_direction_slots.size() - stored_direction_max_size + 1

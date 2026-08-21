@@ -1,7 +1,9 @@
 extends CanvasLayer
 
-const ENERGY_GAIN_COLOR := Color(0.28, 0.92, 0.48)
+const ENERGY_GAIN_COLOR := Color("#2FD9A0")
 const ENERGY_GAIN_IDLE_COLOR := Color(1.0, 1.0, 1.0, 0.28)
+const STEP_AVAILABLE_COLOR := Color("#2FD9A0")
+const STEP_UNAVAILABLE_COLOR := Color("#1E7A5C")
 const SIDEBAR_MARGIN := 20.0
 const SIDEBAR_WIDTH := 320.0
 const STATUS_PANEL_TOP := 158.0
@@ -77,7 +79,7 @@ func _ready() -> void:
 	dash_action_label = Label.new()
 	dash_action_label.text = "[X] STEP"
 	dash_action_label.add_theme_font_size_override("font_size", 20)
-	dash_action_label.add_theme_color_override("font_color", Color("#C8E64A"))
+	dash_action_label.add_theme_color_override("font_color", STEP_UNAVAILABLE_COLOR)
 	dash_action_label.custom_minimum_size = Vector2(116, 36)
 	dash_action_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	dash_action_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -278,7 +280,12 @@ func update_energy(
 		var slot_quarter_units: int = clampi(quarter_units - i * 4, 0, 4)
 		var fill_ratio: float = float(slot_quarter_units) / 4.0
 		energy_slots[i].set_fill_ratio(fill_ratio)
-	dash_action_label.modulate = Color.WHITE if quarter_units >= bonus_step_cost or bonus_step_armed else Color(1.0, 1.0, 1.0, 0.28)
+	var step_available: bool = quarter_units >= bonus_step_cost or bonus_step_armed
+	dash_action_label.modulate = Color.WHITE
+	dash_action_label.add_theme_color_override(
+		"font_color",
+		STEP_AVAILABLE_COLOR if step_available else STEP_UNAVAILABLE_COLOR
+	)
 	ultimate_action_label.modulate = Color.WHITE if quarter_units >= 16 or ultimate_steps > 0 else Color(1.0, 1.0, 1.0, 0.28)
 	if ultimate_steps > 0:
 		ultimate_action_label.text = "[Z] DASH %d" % ultimate_steps

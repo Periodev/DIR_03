@@ -7,6 +7,7 @@ const DEAD_FILL_COLOR := Color("#6B242B")
 const DEAD_OUTLINE_COLOR := Color("#8E3139")
 const DEAD_OUTLINE_WIDTH := 2.0
 const SPAWN_WARNING_COLOR := Color("#FF5140")
+const BONUS_STEP_HIGHLIGHT_COLOR := Color(0.1843137, 0.8509804, 0.6274510, 0.12)
 
 var cell_type: int = CharacterData.CellType.LIVE
 var grid_pos: Vector2i = Vector2i.ZERO
@@ -61,7 +62,7 @@ func _draw() -> void:
 	var rect = Rect2(0, 0, CELL_SIZE, CELL_SIZE)
 	draw_rect(rect, bg_color)
 	if bonus_step_highlight:
-		draw_rect(rect, Color(0.22, 0.84, 0.91, 0.12))
+		draw_rect(rect, BONUS_STEP_HIGHLIGHT_COLOR)
 
 	# Base border remains stable; spawn warnings use separate red corner brackets.
 	draw_rect(rect, Color(0.25, 0.25, 0.30), false, 1.0)

@@ -11,7 +11,8 @@ const MAX_WIDTH := 14.0
 const MAX_WIDTH_SHORT := 12.0
 const GLOW_WIDTH := 22.0
 const SCAR_STEPS := 12
-const SLASH_COLOR := Color(0.15, 1.0, 0.55)
+const SLASH_CORE_COLOR := Color("#EAFFF0")
+const SLASH_OUTER_COLOR := Color("#33CC4D")
 const WINDUP := 0.18
 const TAIL_FADE_ALPHA := 0.08
 const TAIL_GLOW_ALPHA := 0.02
@@ -85,8 +86,8 @@ func _draw_scar(tail: Vector2, tip: Vector2, alpha: float) -> void:
 		var glow_alpha: float = lerpf(TAIL_GLOW_ALPHA, 0.34, t) * alpha
 		pts_core.append(p + perp * (w * _max_width))
 		pts_glow.append(p + perp * (w * _glow_width))
-		colors_core.append(Color(SLASH_COLOR.r, SLASH_COLOR.g, SLASH_COLOR.b, local_alpha))
-		colors_glow.append(Color(SLASH_COLOR.r, SLASH_COLOR.g, SLASH_COLOR.b, glow_alpha))
+		colors_core.append(Color(SLASH_CORE_COLOR.r, SLASH_CORE_COLOR.g, SLASH_CORE_COLOR.b, local_alpha))
+		colors_glow.append(Color(SLASH_OUTER_COLOR.r, SLASH_OUTER_COLOR.g, SLASH_OUTER_COLOR.b, glow_alpha))
 
 	for i in range(SCAR_STEPS, -1, -1):
 		var t: float = float(i) / float(SCAR_STEPS)
@@ -96,8 +97,8 @@ func _draw_scar(tail: Vector2, tip: Vector2, alpha: float) -> void:
 		var glow_alpha: float = lerpf(TAIL_GLOW_ALPHA, 0.34, t) * alpha
 		pts_core.append(p - perp * (w * _max_width))
 		pts_glow.append(p - perp * (w * _glow_width))
-		colors_core.append(Color(SLASH_COLOR.r, SLASH_COLOR.g, SLASH_COLOR.b, local_alpha))
-		colors_glow.append(Color(SLASH_COLOR.r, SLASH_COLOR.g, SLASH_COLOR.b, glow_alpha))
+		colors_core.append(Color(SLASH_CORE_COLOR.r, SLASH_CORE_COLOR.g, SLASH_CORE_COLOR.b, local_alpha))
+		colors_glow.append(Color(SLASH_OUTER_COLOR.r, SLASH_OUTER_COLOR.g, SLASH_OUTER_COLOR.b, glow_alpha))
 
 	draw_polygon(pts_glow, colors_glow)
 	draw_polygon(pts_core, colors_core)
