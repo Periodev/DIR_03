@@ -121,7 +121,7 @@ func _direction_plan_score(board: Node, direction: int, preserve_combo: bool) ->
 		_push_simulated_direction(simulated_queue, board.inventory.max_size, direction)
 		if not preserve_combo:
 			reward -= _combo_break_penalty(combo)
-			combo = 0
+			combo = _decayed_combo(combo)
 	else:
 		var inventory_index: int = simulated_queue.find(direction)
 		if inventory_index < 0:
@@ -151,24 +151,15 @@ func _direction_plan_score(board: Node, direction: int, preserve_combo: bool) ->
 	)
 
 func _advanced_combo(combo: int) -> int:
-	# The counter is unbounded; only its payout saturates, and _combo_kill_value
-	# reads the tier, so the raw chain length is what the search should carry.
-	return combo + 1
+	return mini(combo + 1, ScoreManager.MAX_COMBO_TIER)
+
+func _decayed_combo(combo: int) -> int:
+	return maxi(0, combo - 1)
 
 func _charged_energy(board: Node, energy: int, combo: int) -> int:
 	# Mirrors Board._charge_energy_for_combo so the lookahead can see the bar
 	# fill, which is what makes saving toward ULT visible to the search at all.
-	var gain: int = 0
-	match combo:
-		1:
-			gain = 1
-		2, 3:
-			gain = 2
-		4, 5:
-			gain = 4
-		_:
-			if combo >= 6:
-				gain = 8
+	var gain: int = int(board.energy_gain_for_combo(combo))
 	return mini(energy + gain, int(board.ENERGY_QUARTER_UNITS_MAX))
 
 func _lookahead_score(
@@ -197,7 +188,7 @@ func _lookahead_score(
 		if next_grid[target.y][target.x] == CharacterData.CellType.LIVE:
 			_push_simulated_direction(next_queue, board.inventory.max_size, direction)
 			reward -= _combo_break_penalty(next_combo)
-			next_combo = 0
+			next_combo = _decayed_combo(next_combo)
 		else:
 			var inventory_index: int = next_queue.find(direction)
 			if inventory_index < 0:
@@ -302,9 +293,8 @@ func _unique_direction_count(queue: Array) -> int:
 	return unique.size()
 
 func _combo_payout(combo: int) -> float:
-	# What a chain of this length is actually worth. The counter is unbounded
-	# but its payout saturates at the top tier, so valuing it quadratically
-	# would send the bot chasing links that pay nothing.
+	# Heat is capped at the top reward tier, and this remains defensive for
+	# simulated values supplied by verification fixtures.
 	var tier: int = clampi(combo, 1, ScoreManager.MAX_COMBO_TIER)
 	return float(ScoreManager.COMBO_SCORE_MULTIPLIERS[tier - 1])
 
@@ -315,7 +305,7 @@ func _combo_hold_value(combo: int) -> float:
 	return _combo_payout(combo) * 30.0
 
 func _combo_break_penalty(combo: int) -> float:
-	return _combo_payout(combo) * 45.0
+	return maxf(0.0, _combo_payout(combo) - _combo_payout(_decayed_combo(combo))) * 45.0
 
 func _future_attack_count(board: Node, from_pos: Vector2i, gained_direction: int) -> int:
 	var simulated_queue: Array = board.inventory.queue.duplicate()
@@ -382,7 +372,7 @@ func _best_ultimate_direction(board: Node) -> int:
 		)
 		if next_grid[destination.y][destination.x] == CharacterData.CellType.LIVE \
 				and grid[destination.y][destination.x] != CharacterData.CellType.LIVE:
-			next_combo += 1
+			next_combo = _advanced_combo(next_combo)
 		score += _ultimate_sequence_score(
 			board,
 			destination,
@@ -421,7 +411,7 @@ func _best_ultimate_plan_score(board: Node) -> float:
 		)
 		if next_grid[destination.y][destination.x] == CharacterData.CellType.LIVE \
 				and grid[destination.y][destination.x] != CharacterData.CellType.LIVE:
-			next_combo += 1
+			next_combo = _advanced_combo(next_combo)
 		score += _ultimate_sequence_score(
 			board,
 			destination,
@@ -463,7 +453,7 @@ func _ultimate_sequence_score(
 		)
 		if next_grid[destination.y][destination.x] == CharacterData.CellType.LIVE \
 				and grid[destination.y][destination.x] != CharacterData.CellType.LIVE:
-			next_combo += 1
+			next_combo = _advanced_combo(next_combo)
 		score += _ultimate_sequence_score(
 			board,
 			destination,
@@ -490,7 +480,8 @@ func _apply_simulated_ultimate_dash(
 	if grid[destination.y][destination.x] != CharacterData.CellType.LIVE:
 		grid[destination.y][destination.x] = CharacterData.CellType.LIVE
 		score += _combo_kill_value(combo + 1)
-	_push_simulated_direction(queue, board.inventory.max_size, direction)
+	var queue_limit: int = board.inventory.max_size + 1 if remaining == 1 else board.inventory.max_size
+	_push_simulated_direction(queue, queue_limit, direction)
 	if remaining == 1 and board._will_spawn_hit_target_this_turn(destination):
 		score -= 5000.0
 	return score

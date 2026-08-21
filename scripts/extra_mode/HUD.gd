@@ -1,5 +1,7 @@
 extends CanvasLayer
 
+const HeatMeterScript = preload("res://scripts/extra_mode/HeatMeter.gd")
+
 const ENERGY_GAIN_COLOR := Color("#2FD9A0")
 const ENERGY_GAIN_IDLE_COLOR := Color(1.0, 1.0, 1.0, 0.28)
 const STEP_AVAILABLE_COLOR := Color("#2FD9A0")
@@ -15,6 +17,8 @@ const STATUS_PANEL_HEIGHT := 176.0
 
 var score_label: Label
 var combo_label: Label
+var heat_meter: Control
+var heat_value_label: Label
 var energy_gain_label: Label
 var inventory_container: HBoxContainer
 var inventory_panel: PanelContainer
@@ -39,7 +43,7 @@ var _charge_max: int = 0
 var _slot_flash_tweens: Array[Tween] = []
 
 func _ready() -> void:
-	# Score and combo - top left
+	# Score and heat - top left
 	score_label = Label.new()
 	score_label.text = "0"
 	score_label.add_theme_font_size_override("font_size", 56)
@@ -49,12 +53,25 @@ func _ready() -> void:
 	add_child(score_label)
 
 	combo_label = Label.new()
-	combo_label.text = ""
-	combo_label.add_theme_font_size_override("font_size", 32)
+	combo_label.text = "HEAT"
+	combo_label.add_theme_font_size_override("font_size", 22)
 	combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	combo_label.position = Vector2(20, 68)
-	combo_label.size = Vector2(280, 42)
+	combo_label.position = Vector2(20, 72)
+	combo_label.size = Vector2(66, 30)
 	add_child(combo_label)
+
+	heat_meter = HeatMeterScript.new()
+	heat_meter.position = Vector2(84, 78)
+	heat_meter.size = Vector2(166, 18)
+	add_child(heat_meter)
+
+	heat_value_label = Label.new()
+	heat_value_label.text = "0"
+	heat_value_label.add_theme_font_size_override("font_size", 20)
+	heat_value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	heat_value_label.position = Vector2(256, 72)
+	heat_value_label.size = Vector2(44, 30)
+	add_child(heat_value_label)
 
 	# Three-row status panel in the left sidebar.
 	inventory_panel = PanelContainer.new()
@@ -183,7 +200,7 @@ func _ready() -> void:
 	vbox.add_child(gameover_score)
 
 	gameover_max_combo = Label.new()
-	gameover_max_combo.text = "MAX COMBO 0"
+	gameover_max_combo.text = "MAX HEAT 0"
 	gameover_max_combo.add_theme_font_size_override("font_size", 26)
 	gameover_max_combo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	gameover_max_combo.add_theme_color_override("font_color", Color(0.86, 0.88, 0.91))
@@ -210,16 +227,16 @@ func setup(char_name: String) -> void:
 		child.queue_free()
 	slot_labels.clear()
 
-	for i in _max_slots + Inventory.BONUS_OVERFLOW_SLOTS:
+	for i in _max_slots + Inventory.ULT_COMPLETION_OVERFLOW_SLOTS:
 		var slot = Label.new()
 		slot.text = "-"
 		slot.add_theme_font_size_override("font_size", 28)
 		slot.custom_minimum_size = Vector2(36, 36)
 		slot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		if i >= _max_slots:
-			# Temporary X (STEP) slot: shown only while it actually holds a
-			# direction, tinted with the STEP colour.
-			slot.add_theme_color_override("font_color", STEP_AVAILABLE_COLOR)
+			# Temporary final-ULT slot: shown only while it actually holds a
+			# direction, tinted with the ULT colour.
+			slot.add_theme_color_override("font_color", DASH_AVAILABLE_COLOR)
 			slot.visible = false
 		else:
 			slot.add_theme_color_override("font_color", DIRECTION_EMPTY_COLOR)
@@ -274,12 +291,9 @@ func update_score(score: int) -> void:
 	score_label.text = str(score)
 
 func update_combo(combo: int) -> void:
-	# The chain length, not a multiplier: combo 6 pays x20, so writing "x6"
-	# would name a number the player never receives.
-	if combo >= 2:
-		combo_label.text = "COMBO %d" % combo
-	else:
-		combo_label.text = ""
+	combo_label.text = "HEAT"
+	heat_value_label.text = str(combo)
+	heat_meter.set_heat(combo)
 
 func update_energy_gain(quarter_units: int) -> void:
 	energy_gain_label.text = "+%d" % quarter_units
@@ -350,8 +364,7 @@ func update_state(_state: int) -> void:
 
 func show_game_over(final_score: int, max_combo: int) -> void:
 	gameover_score.text = str(final_score)
-	# A chain length, not a multiplier, same as the in-game label.
-	gameover_max_combo.text = "MAX COMBO %d" % max_combo
+	gameover_max_combo.text = "MAX HEAT %d" % max_combo
 	gameover_panel.visible = true
 
 func _layout_ui() -> void:
@@ -359,8 +372,12 @@ func _layout_ui() -> void:
 	score_label.position = Vector2(20, 8)
 	score_label.size = Vector2(280, 64)
 
-	combo_label.position = Vector2(20, 68)
-	combo_label.size = Vector2(280, 42)
+	combo_label.position = Vector2(20, 72)
+	combo_label.size = Vector2(66, 30)
+	heat_meter.position = Vector2(84, 78)
+	heat_meter.size = Vector2(166, 18)
+	heat_value_label.position = Vector2(256, 72)
+	heat_value_label.size = Vector2(44, 30)
 
 	var sidebar_width: float = min(SIDEBAR_WIDTH, viewport_size.x - SIDEBAR_MARGIN * 2.0)
 	inventory_panel.position = Vector2(SIDEBAR_MARGIN, STATUS_PANEL_TOP)

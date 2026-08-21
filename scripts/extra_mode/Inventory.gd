@@ -1,9 +1,8 @@
 class_name Inventory
 
-# X (STEP) repositioning may hold this many directions beyond the character's
-# own queue size. The extra slot is temporary: the next normal move trims the
-# queue back to max_size.
-const BONUS_OVERFLOW_SLOTS := 1
+# The last ULT dash may hold one direction beyond the character's own queue
+# size. The extra slot is temporary: the next normal move trims back to max.
+const ULT_COMPLETION_OVERFLOW_SLOTS := 1
 
 var queue: Array = []  # Array of Direction values, index 0 = oldest
 var hold: int = CharacterData.Direction.NONE
@@ -29,21 +28,19 @@ func reset() -> void:
 	charge_value = 0
 
 func push(dir: int) -> void:
-	# Trims any leftover bonus overflow, so a normal move always lands the queue
-	# back at max_size.
+	# A normal move trims any temporary ULT completion overflow.
 	while queue.size() >= max_size:
 		queue.pop_front()
 	queue.push_back(dir)
 
-func push_bonus(dir: int) -> void:
-	# X-paid repositioning keeps the older directions instead of evicting them.
-	var overflow_limit: int = max_size + BONUS_OVERFLOW_SLOTS
+func push_ultimate_completion(dir: int) -> void:
+	var overflow_limit: int = max_size + ULT_COMPLETION_OVERFLOW_SLOTS
 	while queue.size() >= overflow_limit:
 		queue.pop_front()
 	queue.push_back(dir)
 
 func capacity() -> int:
-	return max_size + BONUS_OVERFLOW_SLOTS
+	return max_size + ULT_COMPLETION_OVERFLOW_SLOTS
 
 func is_overflowing() -> bool:
 	return queue.size() > max_size

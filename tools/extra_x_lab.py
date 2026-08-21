@@ -66,17 +66,18 @@ QUEUE_SIZE = 3
 SPAWN_CYCLE_STEPS = 2
 SPAWNS_PER_CYCLE = 2
 OPENING_GRACE_TURNS = 1
-BASE_KILL_SCORE = 10
+BASE_KILL_SCORE = 1
 # Mirrors ScoreManager.COMBO_SCORE_MULTIPLIERS.
-COMBO_SCORE_MULTIPLIERS = (1, 2, 3, 5, 10, 20)
+COMBO_SCORE_MULTIPLIERS = (1, 2, 5, 10, 20)
 
 UP, DOWN, LEFT, RIGHT = 1, 2, 3, 4
 DIR_STEP = {UP: (0, -1), DOWN: (0, 1), LEFT: (-1, 0), RIGHT: (1, 0)}
 DIR_KEY = {UP: "W", DOWN: "S", LEFT: "A", RIGHT: "D"}
 
 # combo -> quarter units granted by a kill, mirroring _charge_energy_for_combo.
-DEFAULT_CHARGE = {1: 1, 2: 2, 3: 2, 4: 4, 5: 4}
-DEFAULT_CHARGE_HIGH = 8  # combo >= 6
+DEFAULT_CHARGE = {1: 1, 2: 2, 3: 4, 4: 4}
+DEFAULT_CHARGE_HIGH = 6  # combo >= 5
+DEFAULT_CHARGE_HIGH_FROM = 5
 
 
 @dataclass(frozen=True)
@@ -92,8 +93,8 @@ class Variant:
     kill_charges_energy: bool = False
     # Does an X attack keep its direction token in the queue?
     keeps_ammo: bool = True
-    # Extra queue slots an X reposition may bank beyond QUEUE_SIZE.
-    overflow_slots: int = 1
+    # Extra queue slots the last ULT dash may bank beyond QUEUE_SIZE.
+    ultimate_completion_overflow_slots: int = 1
     # May the X-paid action be an attack, or only a move onto a live cell?
     allows_attack: bool = True
     # Does the X-paid action skip the spawn clock?
@@ -102,9 +103,8 @@ class Variant:
     # kill_charges_energy is true).
     kill_charge_numerator: int = 1
     kill_charge_denominator: int = 1
-    # Highest combo the score multiplier honours. 0 means uncapped, which is
-    # what the game ships today: score is 10 * combo with no ceiling, while the
-    # energy table already saturates at combo 6.
+    # Highest combo the score multiplier honours. 0 means uncapped; historical
+    # variants use that mode while the shipping rules supply a multiplier table.
     score_multiplier_cap: int = 0
     # Ceiling on the combo counter itself. Capping the counter rather than just
     # its payout keeps the number on screen meaningful: it stops where the
@@ -129,7 +129,10 @@ class Variant:
         return self.cost_schedule[index]
 
     def charge_for(self, combo: int, paid_by_x: bool) -> int:
-        base = DEFAULT_CHARGE.get(combo, DEFAULT_CHARGE_HIGH if combo >= 6 else 0)
+        base = DEFAULT_CHARGE.get(
+            combo,
+            DEFAULT_CHARGE_HIGH if combo >= DEFAULT_CHARGE_HIGH_FROM else 0,
+        )
         if not paid_by_x:
             return base
         if not self.kill_charges_energy:
@@ -195,8 +198,10 @@ class Engine:
         items.append(direction)
         return tuple(items)
 
-    def _push_bonus(self, queue: tuple[int, ...], direction: int) -> tuple[int, ...]:
-        limit = QUEUE_SIZE + self.variant.overflow_slots
+    def _push_ultimate_completion(
+        self, queue: tuple[int, ...], direction: int
+    ) -> tuple[int, ...]:
+        limit = QUEUE_SIZE + self.variant.ultimate_completion_overflow_slots
         items = list(queue)
         while len(items) >= limit:
             items.pop(0)
@@ -325,7 +330,11 @@ class Engine:
         moved = state._replace(
             grid=tuple(grid),
             pos=destination,
-            queue=self._push(state.queue, direction),  # a dash banks its direction
+            queue=(
+                self._push_ultimate_completion(state.queue, direction)
+                if remaining == 0
+                else self._push(state.queue, direction)
+            ),
             combo=combo,
             ult=remaining,
         )
@@ -353,7 +362,7 @@ class Engine:
         if state.armed or state.ult > 0:
             return None
         nxt, alive = self._finalize(
-            state._replace(combo=0, x_in_chain=0), freeze=False
+            state._replace(combo=max(0, state.combo - 1), x_in_chain=0), freeze=False
         )
         if not alive:
             return None
@@ -375,11 +384,12 @@ class Engine:
             combo = state.combo
             x_in_chain = state.x_in_chain
             if bonus:
-                queue = self._push_bonus(queue, direction)
-            elif not self._will_spawn_hit(state, target):
                 queue = self._push(queue, direction)
-                combo = 0
+            else:
+                combo = max(0, combo - 1)
                 x_in_chain = 0
+                if not self._will_spawn_hit(state, target):
+                    queue = self._push(queue, direction)
             moved = state._replace(
                 pos=target,
                 queue=queue,
@@ -531,7 +541,7 @@ class FarmBot:
         target = _neighbour(state.pos, direction)
         if target is None:
             return -1
-        queue = self.engine._push_bonus(state.queue, direction)
+        queue = self.engine._push(state.queue, direction)
         count = 0
         for nxt in DIR_STEP:
             cell = _neighbour(target, nxt)
@@ -811,17 +821,17 @@ VARIANTS: tuple[Variant, ...] = (
         summary="Rules before this session: X kills charge energy, X attacks eat ammo.",
         kill_charges_energy=True,
         keeps_ammo=False,
-        overflow_slots=0,
+        ultimate_completion_overflow_slots=0,
     ),
     Variant(
         name="shipped",
-        summary="Implemented: combo caps at 6 on a 1/2/3/5/10/20 curve, X flat 4 and sterile.",
-        combo_cap=6,
+        summary="Implemented: heat caps at 5 on a 1/2/5/10/20 score curve, X flat 4 and sterile.",
+        combo_cap=5,
         multiplier_table=COMBO_SCORE_MULTIPLIERS,
     ),
     Variant(
         name="flat_curve",
-        summary="Same rules but the old flat 10*combo payout, for comparison.",
+        summary="Same rules but a flat combo payout, for comparison.",
         combo_cap=6,
     ),
     Variant(
@@ -832,23 +842,24 @@ VARIANTS: tuple[Variant, ...] = (
     ),
     Variant(
         name="sterile",
-        summary="Sterile X but no combo cap, so the chain still runs away.",
+        summary="Sterile X under the shipping five-tier heat cap.",
+        combo_cap=5,
     ),
     Variant(
         name="sterile_only",
         summary="Energy-sterile X kills alone, no ammo or slot help.",
         keeps_ammo=False,
-        overflow_slots=0,
+        ultimate_completion_overflow_slots=0,
     ),
     Variant(
         name="ammo_only",
         summary="X keeps ammo but X kills still charge energy.",
         kill_charges_energy=True,
-        overflow_slots=0,
+        ultimate_completion_overflow_slots=0,
     ),
     Variant(
         name="half_charge",
-        summary="X kills charge half energy, keep ammo, +1 slot.",
+        summary="X kills charge half energy and keeps its direction token.",
         kill_charges_energy=True,
         kill_charge_numerator=1,
         kill_charge_denominator=2,
@@ -873,7 +884,7 @@ VARIANTS: tuple[Variant, ...] = (
     ),
     Variant(
         name="cheap_sterile",
-        summary="Half-price X (2 quarters), energy-sterile, keeps ammo, +1 slot.",
+        summary="Half-price X (2 quarters), energy-sterile, keeps its direction token.",
         cost_schedule=(2,),
     ),
     Variant(
@@ -881,7 +892,7 @@ VARIANTS: tuple[Variant, ...] = (
         summary="The reverted experiment: X may only reposition onto a live cell.",
         allows_attack=False,
         keeps_ammo=False,
-        overflow_slots=0,
+        ultimate_completion_overflow_slots=0,
     ),
     Variant(
         name="unfrozen_sterile",

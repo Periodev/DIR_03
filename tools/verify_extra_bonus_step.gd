@@ -18,30 +18,32 @@ func run_verification() -> void:
 	var score_fixture := ScoreManager.new()
 	score_fixture.combo_counter = 4
 	score_fixture.on_kill(CharacterData.CellType.DEAD)
+	score_fixture.on_move_to_live()
+	if score_fixture.combo_counter != 3:
+		fail("A normal non-kill turn did not lower heat by exactly one tier.")
+		return
 	score_fixture.reset_combo()
 	if score_fixture.max_combo != 4:
-		fail("ScoreManager did not preserve the session max combo after the chain ended.")
+		fail("ScoreManager did not preserve the session max heat after cooling.")
 		return
 
 	var cap_fixture := ScoreManager.new()
 	for _kill in 12:
 		cap_fixture.advance_combo()
-	# The counter keeps counting past the top tier -- it is the chain the player
-	# actually built -- while the payout saturates.
-	if cap_fixture.combo_counter != 12:
+	if cap_fixture.combo_counter != ScoreManager.MAX_COMBO_TIER:
 		fail(
-			"The combo counter stopped early at %s instead of counting every link."
+			"Heat exceeded or failed to reach its top tier: %s."
 			% cap_fixture.combo_counter
 		)
 		return
 	if ScoreManager.COMBO_SCORE_MULTIPLIERS.size() != ScoreManager.MAX_COMBO_TIER \
-			or ScoreManager.MAX_COMBO_TIER != 6:
+			or ScoreManager.MAX_COMBO_TIER != 5:
 		fail("The score multiplier curve does not carry one entry per reward tier.")
 		return
 	if cap_fixture.combo_tier(50) != ScoreManager.MAX_COMBO_TIER:
 		fail("A chain past the top tier did not clamp to it.")
 		return
-	var expected_multipliers: Array = [1, 2, 3, 5, 10, 20]
+	var expected_multipliers: Array = [1, 2, 5, 10, 20]
 	for step in expected_multipliers.size():
 		if cap_fixture.combo_multiplier(step + 1) != int(expected_multipliers[step]):
 			fail(
@@ -53,7 +55,7 @@ func run_verification() -> void:
 			)
 			return
 	var capped_points: int = cap_fixture.on_kill(CharacterData.CellType.DEAD)
-	if capped_points != 10 * 20:
+	if capped_points != 20:
 		fail("A kill at the combo cap did not pay the top multiplier exactly once.")
 		return
 	if cap_fixture.combo_multiplier(99) != 20:
@@ -149,11 +151,11 @@ func run_verification() -> void:
 	board._charge_energy_for_combo(1)
 	board._charge_energy_for_combo(2)
 	board._charge_energy_for_combo(3)
-	if board.get_energy_quarter_units() != 5 or not board.try_energy_bonus_step():
-		fail("The first three combo steps must cumulatively grant 1.25 energy slots.")
+	if board.get_energy_quarter_units() != 7 or not board.try_energy_bonus_step():
+		fail("The first three combo steps must cumulatively grant 1.75 energy slots.")
 		return
-	if board.get_energy_quarter_units() != 1 or not board.bonus_step_armed:
-		fail("X must spend one energy slot, preserve the remaining quarter, and arm DASH.")
+	if board.get_energy_quarter_units() != 3 or not board.bonus_step_armed:
+		fail("X must spend one energy slot, preserve the remaining quarters, and arm DASH.")
 		return
 
 	board.score_manager.combo_counter = 3
@@ -175,22 +177,15 @@ func run_verification() -> void:
 	if board.score_manager.combo_counter != 3 or board.bonus_step_armed:
 		fail("A bonus step broke combo or remained armed after use.")
 		return
-	if board.inventory.queue.size() != board.inventory.capacity() \
-			or not board.inventory.is_overflowing() \
-			or board.inventory.queue[0] != CharacterData.Direction.UP:
-		fail("A bonus step did not keep the oldest direction in a temporary overflow slot.")
+	if board.inventory.queue.size() != board.inventory.max_size \
+			or board.inventory.is_overflowing() \
+			or board.inventory.queue[0] != CharacterData.Direction.DOWN:
+		fail("A bonus step did not use the ordinary rolling direction queue.")
 		return
 
 	await create_timer(0.6).timeout
 	if not board.game_state.is_idle():
 		fail("The board never returned to idle after a bonus step.")
-		return
-	if not board.try_move(CharacterData.Direction.RIGHT):
-		fail("A normal move after a bonus step was rejected.")
-		return
-	if board.inventory.queue.size() != board.inventory.max_size \
-			or board.inventory.is_overflowing():
-		fail("A normal move did not trim the temporary bonus overflow slot.")
 		return
 
 	board.restart()
@@ -207,7 +202,7 @@ func run_verification() -> void:
 	if board.score_manager.combo_counter != 4:
 		fail("A bonus attack did not continue the combo.")
 		return
-	if board.get_energy_quarter_units() != 1 or board.survival_turns != 0:
+	if board.get_energy_quarter_units() != 3 or board.survival_turns != 0:
 		fail("A bonus attack recharged energy, or it counted as a turn.")
 		return
 	if board.inventory.find_direction(CharacterData.Direction.RIGHT) < 0:
@@ -218,8 +213,8 @@ func run_verification() -> void:
 		return
 
 	board._charge_energy_for_combo(5)
-	if board.get_energy_quarter_units() != 5:
-		fail("Five combo did not add one energy slot.")
+	if board.get_energy_quarter_units() != 9:
+		fail("Five heat did not add 1.5 energy slots.")
 		return
 	board.energy_quarter_units = 12
 	if board.get_energy_quarter_units() != 12 or board.try_energy_ultimate():
@@ -227,7 +222,7 @@ func run_verification() -> void:
 		return
 	board._charge_energy_for_combo(6)
 	if board.get_energy_quarter_units() != 16:
-		fail("Six combo did not add two energy slots up to the four-slot cap.")
+		fail("Capped heat did not add 1.5 energy slots up to the four-slot cap.")
 		return
 
 	await create_timer(0.6).timeout

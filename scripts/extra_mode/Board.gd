@@ -252,16 +252,17 @@ func _complete_live_move(dir: int, target: Vector2i, is_bonus_step: bool) -> boo
 	player_facing_dir = dir
 	player_pos = target
 	if is_bonus_step:
-		# X-paid repositioning fills the temporary overflow slot instead of
-		# evicting the oldest direction, so the chain keeps its options.
-		inventory.push_bonus(memory_token)
-		inventory.register_move(dir)
-		gained_direction = true
-	elif not _will_spawn_hit_target_this_turn(target):
+		# X keeps its frozen turn and heat protection, but uses the ordinary
+		# rolling direction queue.
 		inventory.push(memory_token)
 		inventory.register_move(dir)
-		score_manager.on_move_to_live()
 		gained_direction = true
+	else:
+		score_manager.on_move_to_live()
+		if not _will_spawn_hit_target_this_turn(target):
+			inventory.push(memory_token)
+			inventory.register_move(dir)
+			gained_direction = true
 
 	var arrival_directions: Array = previous_directions.duplicate()
 	if gained_direction:
@@ -339,7 +340,7 @@ func try_wait() -> bool:
 		return false
 	if bonus_step_armed or ultimate_dashes_remaining > 0:
 		return false
-	score_manager.reset_combo()
+	score_manager.on_move_to_live()
 	return _finalize_turn_after_action()
 
 func _get_attack_mode() -> int:
@@ -485,17 +486,24 @@ func _try_ultimate_dash(dir: int) -> bool:
 	if not _consume_attack_direction(dir):
 		return false
 	var freeze_spawn_cycle: bool = ultimate_dashes_remaining > 0
+	var completes_ultimate: bool = ultimate_dashes_remaining == 0
 	_clear_attack_prompts()
 	player_facing_dir = dir
 
 	if hits_dead:
 		_perform_dash_kill(destination, dir)
-		inventory.push(dir)
+		if completes_ultimate:
+			inventory.push_ultimate_completion(dir)
+		else:
+			inventory.push(dir)
 		_finish_ultimate_chain()
 		return _finalize_turn_after_action(freeze_spawn_cycle)
 
 	player_pos = destination
-	inventory.push(dir)
+	if completes_ultimate:
+		inventory.push_ultimate_completion(dir)
+	else:
+		inventory.push(dir)
 	_finish_ultimate_chain()
 	return _finalize_turn_after_action(freeze_spawn_cycle)
 
@@ -590,13 +598,15 @@ func energy_gain_for_combo(combo: int) -> int:
 	match combo:
 		1:
 			return 1
-		2, 3:
+		2:
 			return 2
-		4, 5:
+		3:
+			return 4
+		4:
 			return 4
 		_:
-			if combo >= 6:
-				return 8
+			if combo >= 5:
+				return 6
 	return 0
 
 func get_next_kill_energy_gain() -> int:

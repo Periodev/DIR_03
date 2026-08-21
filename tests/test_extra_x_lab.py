@@ -4,10 +4,10 @@ Two exploit vectors are pinned here, because the lab was wrong about the second
 one until the lookahead bot found it:
 
 * Energy. A flat-cost X whose kill refunds as much as it costs can be armed
-  forever. `legacy` is that ruleset and must stay flagged.
-* Combo. Score is `10 * combo` and combo only resets on a plain move, so any X
-  that repositions at a fixed price lets a chain run forever and score grows
-  quadratically. Only a price indexed to chain depth forces the chain to end.
+  forever. The flattened high-heat income now reaches that break-even point,
+  but shipped X attacks remain sterile.
+* Combo. The old +8 high-combo income could sustain an uncapped chain. The
+  flattened +4 income is pinned here so that exploit does not silently return.
 """
 
 import sys
@@ -30,15 +30,14 @@ class EnergyAnalysisTest(unittest.TestCase):
     def test_legacy_rules_are_farmable(self):
         economy = lab.analyze(variant("legacy"))
         self.assertTrue(economy.farmable)
-        self.assertEqual(economy.refund_max, 8)
-        self.assertEqual(economy.net_first, 4)
+        self.assertEqual(economy.refund_max, 4)
+        self.assertEqual(economy.net_first, 0)
         self.assertEqual(economy.frozen_cap, 0)  # the ladder never terminates
 
-    def test_break_even_refund_is_still_farmable(self):
-        # A refund that exactly matches the cost still lets X run forever.
+    def test_partial_refund_drains_energy(self):
         economy = lab.analyze(variant("half_charge"))
-        self.assertEqual(economy.net_first, 0)
-        self.assertTrue(economy.farmable)
+        self.assertEqual(economy.net_first, -2)
+        self.assertFalse(economy.farmable)
 
     def test_shipped_rules_drain_on_every_x(self):
         economy = lab.analyze(variant("shipped"))
@@ -85,10 +84,8 @@ class ComboFarmTest(unittest.TestCase):
             for seed in lab.SEEDS
         )
 
-    def test_an_uncapped_counter_runs_away(self):
-        # X repositions without breaking combo, so with no ceiling on the
-        # counter the chain never has to end and score grows quadratically.
-        self.assertGreaterEqual(self._max_combo("sterile"), lab.COMBO_FARM_THRESHOLD)
+    def test_heat_never_exceeds_the_six_tier_meter(self):
+        self.assertLessEqual(self._max_combo("sterile"), 6)
 
     def test_the_combo_cap_is_never_exceeded(self):
         # Unlike the test above this asserts a rule, not a bot behaviour: the
@@ -121,8 +118,8 @@ class EngineTest(unittest.TestCase):
         nxt, score = self.engine.apply(self.state, "D")
         self.assertEqual(nxt.combo, 4)
         self.assertNotIn(lab.RIGHT, nxt.queue)
-        self.assertEqual(nxt.energy, 8 + 4)  # combo 4 grants one slot
-        self.assertEqual(score, 50)  # combo 4 pays x5 on the 1/2/3/5/10/20 curve
+        self.assertEqual(nxt.energy, 8 + 4)  # heat 4 grants one slot
+        self.assertEqual(score, 10)  # heat 4 pays x10 on the 1/2/5/10/20 curve
 
     def test_x_attack_keeps_ammo_and_does_not_charge(self):
         armed, _ = self.engine.apply(self.state, "X")
@@ -131,13 +128,25 @@ class EngineTest(unittest.TestCase):
         self.assertEqual(nxt.combo, 4)
         self.assertIn(lab.RIGHT, nxt.queue)
         self.assertEqual(nxt.energy, 8 - 4)  # no refund
-        self.assertEqual(score, 50)
+        self.assertEqual(score, 10)
 
-    def test_the_combo_counter_stops_at_six(self):
+    def test_heat_stops_at_five(self):
         deep = self.state._replace(combo=6, queue=(lab.RIGHT,))
         nxt, score = self.engine.apply(deep, "D")
-        self.assertEqual(nxt.combo, 6)
-        self.assertEqual(score, 200)  # the x20 top rung, and no rung past it
+        self.assertEqual(nxt.combo, 5)
+        self.assertEqual(score, 20)  # the x20 top rung, and no tier past it
+
+    def test_normal_non_kill_turn_lowers_heat_by_one(self):
+        open_state = self.state._replace(combo=4, queue=())
+        nxt, score = self.engine.apply(open_state, "A")
+        self.assertEqual(score, 0)
+        self.assertEqual(nxt.combo, 3)
+
+    def test_wait_lowers_heat_by_one(self):
+        warm_state = self.state._replace(combo=4)
+        nxt, score = self.engine.apply(warm_state, ".")
+        self.assertEqual(score, 0)
+        self.assertEqual(nxt.combo, 3)
 
     def test_the_multiplier_curve_matches_the_game(self):
         for combo, expected in enumerate(lab.COMBO_SCORE_MULTIPLIERS, start=1):
@@ -150,19 +159,17 @@ class EngineTest(unittest.TestCase):
         nxt, _ = self.engine.apply(armed, "D")
         self.assertEqual(nxt.cycle, self.state.cycle)
 
-    def test_normal_move_advances_the_spawn_clock_and_breaks_combo(self):
+    def test_normal_move_advances_the_spawn_clock_and_cools_heat(self):
         nxt, _ = self.engine.apply(self.state, "W")
-        self.assertEqual(nxt.combo, 0)
+        self.assertEqual(nxt.combo, 2)
         self.assertEqual(nxt.cycle, 1)
 
-    def test_x_move_banks_a_temporary_overflow_slot(self):
+    def test_x_move_uses_the_normal_rolling_queue(self):
         full = self.state._replace(queue=(lab.UP, lab.DOWN, lab.LEFT))
         armed, _ = self.engine.apply(full, "X")
         nxt, _ = self.engine.apply(armed, "W")
-        self.assertEqual(len(nxt.queue), lab.QUEUE_SIZE + 1)
-        self.assertEqual(nxt.queue[0], lab.UP)  # oldest kept, not evicted
-        trimmed, _ = self.engine.apply(nxt, "W")
-        self.assertEqual(len(trimmed.queue), lab.QUEUE_SIZE)
+        self.assertEqual(len(nxt.queue), lab.QUEUE_SIZE)
+        self.assertEqual(nxt.queue[0], lab.DOWN)  # oldest direction was evicted
 
 
 if __name__ == "__main__":
