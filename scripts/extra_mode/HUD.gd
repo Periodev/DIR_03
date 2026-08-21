@@ -4,6 +4,9 @@ const ENERGY_GAIN_COLOR := Color("#2FD9A0")
 const ENERGY_GAIN_IDLE_COLOR := Color(1.0, 1.0, 1.0, 0.28)
 const STEP_AVAILABLE_COLOR := Color("#2FD9A0")
 const STEP_UNAVAILABLE_COLOR := Color("#1E7A5C")
+const DIRECTION_ACTIVE_COLOR := Color("#47EB7A")
+const DIRECTION_EXPIRING_COLOR := Color("#ADDEB7")
+const DIRECTION_EMPTY_COLOR := Color("#4A5058")
 const SIDEBAR_MARGIN := 20.0
 const SIDEBAR_WIDTH := 320.0
 const STATUS_PANEL_TOP := 158.0
@@ -124,9 +127,6 @@ func _ready() -> void:
 	inventory_container.add_theme_constant_override("separation", 4)
 	direction_row.add_child(inventory_container)
 
-	var sep = VSeparator.new()
-	direction_row.add_child(sep)
-
 	hold_label = Label.new()
 	hold_label.text = "HOLD "
 	hold_label.add_theme_font_size_override("font_size", 20)
@@ -135,6 +135,7 @@ func _ready() -> void:
 	hold_slot = Label.new()
 	hold_slot.text = "-"
 	hold_slot.add_theme_font_size_override("font_size", 28)
+	hold_slot.add_theme_color_override("font_color", DIRECTION_EMPTY_COLOR)
 	hold_slot.custom_minimum_size = Vector2(72, 36)
 	hold_slot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	direction_row.add_child(hold_slot)
@@ -217,8 +218,10 @@ func setup(char_name: String) -> void:
 		if i >= _max_slots:
 			# Temporary X (STEP) slot: shown only while it actually holds a
 			# direction, tinted with the STEP colour.
-			slot.add_theme_color_override("font_color", Color("#C8E64A"))
+			slot.add_theme_color_override("font_color", STEP_AVAILABLE_COLOR)
 			slot.visible = false
+		else:
+			slot.add_theme_color_override("font_color", DIRECTION_EMPTY_COLOR)
 		inventory_container.add_child(slot)
 		slot_labels.append(slot)
 
@@ -233,17 +236,31 @@ func setup(char_name: String) -> void:
 	gameover_panel.visible = false
 
 func update_inventory(inv: Inventory) -> void:
+	var expiring_count := 0
+	if inv.queue.size() >= _max_slots:
+		expiring_count = inv.queue.size() - _max_slots + 1
 	for i in slot_labels.size():
 		var slot: Label = slot_labels[i]
 		if i >= _max_slots:
 			slot.visible = i < inv.queue.size()
 		if i < inv.queue.size():
 			slot.text = CharacterData.DIR_ARROWS[inv.queue[i]]
+			if i < expiring_count:
+				slot.add_theme_color_override("font_color", DIRECTION_EXPIRING_COLOR)
+			elif i >= _max_slots:
+				slot.add_theme_color_override("font_color", STEP_AVAILABLE_COLOR)
+			else:
+				slot.add_theme_color_override("font_color", DIRECTION_ACTIVE_COLOR)
 		else:
 			slot.text = "-"
+			slot.add_theme_color_override("font_color", DIRECTION_EMPTY_COLOR)
 
 	if _has_hold:
 		hold_slot.text = CharacterData.DIR_ARROWS[inv.hold] if inv.hold != CharacterData.Direction.NONE else "-"
+		hold_slot.add_theme_color_override(
+			"font_color",
+			DIRECTION_ACTIVE_COLOR if inv.hold != CharacterData.Direction.NONE else DIRECTION_EMPTY_COLOR
+		)
 	elif _has_charge_marker:
 		if inv.charge_direction == CharacterData.Direction.NONE:
 			hold_slot.text = "- 0/%d" % _charge_max
