@@ -11,7 +11,11 @@ const HIT_SOUND: AudioStream = preload(
 )
 const DIRECTION_REPLACEMENT_FADE_DURATION := 0.10
 const BONUS_STEP_FRAME_COLOR := Color("#2FD9A0")
-const BONUS_STEP_FRAME_WIDTH := 2.5
+const ULT_STATE_COLOR := Color("#DFFFE9")
+const ULT_ARROW_COLOR := Color("#B4F2C2")
+const STATE_FRAME_OUTER_WIDTH := 7.5
+const STATE_FRAME_GAP_WIDTH := 2.5
+const STATE_FRAME_GAP_COLOR := Color(0.08, 0.09, 0.11, 0.95)
 
 var character_name: String = "PLN"
 var character_color: Color = Color(0.2, 0.8, 0.3)
@@ -141,21 +145,37 @@ func _draw() -> void:
 		_:
 			points = _make_polygon(6, 20.0, 0.0)
 
-	draw_polygon(points, PackedColorArray([character_color]))
+	var closed_points := points + PackedVector2Array([points[0]])
 	if ultimate_dash_ready:
 		draw_polyline(
-			points + PackedVector2Array([points[0]]),
-			Color.WHITE,
-			1.5,
+			closed_points,
+			ULT_STATE_COLOR,
+			STATE_FRAME_OUTER_WIDTH,
 			true
 		)
+		draw_polyline(
+			closed_points,
+			STATE_FRAME_GAP_COLOR,
+			STATE_FRAME_GAP_WIDTH,
+			true
+		)
+		draw_polygon(points, PackedColorArray([character_color]))
 	elif not bonus_step_directions.is_empty():
 		draw_polyline(
-			points + PackedVector2Array([points[0]]),
+			closed_points,
 			BONUS_STEP_FRAME_COLOR,
-			BONUS_STEP_FRAME_WIDTH,
+			STATE_FRAME_OUTER_WIDTH,
 			true
 		)
+		draw_polyline(
+			closed_points,
+			STATE_FRAME_GAP_COLOR,
+			STATE_FRAME_GAP_WIDTH,
+			true
+		)
+		draw_polygon(points, PackedColorArray([character_color]))
+	else:
+		draw_polygon(points, PackedColorArray([character_color]))
 
 func _draw_stored_direction_arrows() -> void:
 	const ARROW_DISTANCE := 46.0
@@ -167,7 +187,7 @@ func _draw_stored_direction_arrows() -> void:
 	const OUTLINE_WIDTH := 6.0
 	const FILL_WIDTH := 3.0
 	const ACTIVE_COLOR := Color("#7FE85A")
-	const EXPIRING_COLOR := Color("#ADDEB7")
+	const EXPIRING_COLOR := Color("#AAB58A")
 	var expiring_count: int = _expiring_count_override
 	if expiring_count < 0 and stored_direction_slots.size() >= stored_direction_max_size:
 		expiring_count = stored_direction_slots.size() - stored_direction_max_size + 1
@@ -233,7 +253,10 @@ func _draw_stored_direction_arrows() -> void:
 			tip,
 			rear - side * ARROW_HALF_HEIGHT,
 		])
-		var arrow_color: Color = ACTIVE_COLOR
+		var is_bonus_step_direction := (
+			direction in bonus_step_directions and duplicate_index == 0
+		)
+		var arrow_color: Color = BONUS_STEP_FRAME_COLOR if is_bonus_step_direction else ACTIVE_COLOR
 		var outline_color := Color(0.08, 0.09, 0.11, 0.9)
 		if is_outgoing:
 			arrow_color = EXPIRING_COLOR
@@ -249,10 +272,7 @@ func _draw_ultimate_dash_arrows() -> void:
 	const ARROW_FRONT_DEPTH := 12.0
 	const ARROW_REAR_DEPTH := 9.6
 	const ARROW_HALF_HEIGHT := 9.6
-	const OUTLINE_WIDTH := 6.5
-	const FILL_WIDTH := 4.2
-	const ULT_COLOR := Color(0.20, 0.68, 0.34)
-	const ULT_FRAME_COLOR := Color(0.28, 0.92, 0.48)
+	const ARROW_WIDTH := 6.5
 	for direction_value in CharacterData.DIR_VECTOR:
 		var direction: int = int(direction_value)
 		var forward: Vector2 = Vector2(CharacterData.DIR_VECTOR[direction])
@@ -265,8 +285,7 @@ func _draw_ultimate_dash_arrows() -> void:
 			tip,
 			rear - side * ARROW_HALF_HEIGHT,
 		])
-		draw_polyline(arrow, ULT_FRAME_COLOR, OUTLINE_WIDTH, true)
-		draw_polyline(arrow, ULT_COLOR, FILL_WIDTH, true)
+		draw_polyline(arrow, ULT_ARROW_COLOR, ARROW_WIDTH, true)
 
 func play_move(from_pos: Vector2, move_duration_override: float = -1.0, play_sound: bool = true) -> void:
 	if _move_tween != null and _move_tween.is_valid():
