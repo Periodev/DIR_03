@@ -338,6 +338,7 @@ class Board:
             self.charge_energy(self.combo)
         if not any(DEAD in row for row in self.grid):
             self.score += BOARD_CLEAR_BONUS
+            self.energy = ENERGY_MAX
 
     # -- turn / spawn clock -------------------------------------------------
     def _finalize_turn(self, freeze: bool, count_turn: bool) -> bool:

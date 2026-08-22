@@ -227,6 +227,7 @@ func _direction_plan_score(board: Node, direction: int, preserve_combo: bool) ->
 		reward += _tier5_streak_value(combo, tier5_streak)
 		if not _grid_has_dead_cell(simulated_grid):
 			reward += float(board.BOARD_CLEAR_BONUS)
+			energy = int(board.ENERGY_QUARTER_UNITS_MAX)
 
 	if not preserve_combo:
 		var spawn_defense: Vector2i = _apply_simulated_spawn_hit(
@@ -375,6 +376,7 @@ func _lookahead_score(
 			reward += _tier5_streak_value(next_combo, next_tier5_streak)
 			if not _grid_has_dead_cell(next_grid):
 				reward += float(board.BOARD_CLEAR_BONUS)
+				next_energy = int(board.ENERGY_QUARTER_UNITS_MAX)
 		var branch_score: float = reward + LOOKAHEAD_DISCOUNT * _lookahead_score(
 			board,
 			target,
@@ -709,9 +711,13 @@ func _ultimate_terminal_score(
 			continue
 		if grid[target.y][target.x] != CharacterData.CellType.LIVE and direction in queue:
 			continuation_count += 1
+	var terminal_energy: int = (
+		int(board.ENERGY_QUARTER_UNITS_MAX) if not _grid_has_dead_cell(grid) else 0
+	)
 	return (
-		# An ULT chain spends the whole bar, so the terminal state has none left.
-		_simulated_state_score(board, pos, grid, queue, combo, tier5_streak, 0)
+		_simulated_state_score(
+			board, pos, grid, queue, combo, tier5_streak, terminal_energy
+		)
 		+ float(continuation_count) * ULT_CONTINUATION_VALUE
 	)
 

@@ -621,6 +621,7 @@ func _kill_flow(pos: Vector2i, attack_dir: int, cell_type: int) -> void:
 	# empty" tracking needed, since a kill only ever happens on a DEAD cell.
 	if not _has_any_dead_cell():
 		score_manager.award_bonus(BOARD_CLEAR_BONUS)
+		_fill_energy_for_board_clear()
 	_spawn_hit_effect(pos)
 	_char_impl.on_kill(self, pos, attack_dir)
 
@@ -689,6 +690,11 @@ func _apply_energy_gain(energy_gain: int) -> void:
 	)
 	# The HUD reports the full Heat/streak reward, even if the bar itself is
 	# already capped and can accept only part of it.
+	last_energy_gain_quarter_units = energy_gain
+
+func _fill_energy_for_board_clear() -> void:
+	var energy_gain: int = ENERGY_QUARTER_UNITS_MAX - energy_quarter_units
+	energy_quarter_units = ENERGY_QUARTER_UNITS_MAX
 	last_energy_gain_quarter_units = energy_gain
 
 var cycle_resolved: bool = false  # true = this cycle already spawned, remaining turns idle

@@ -315,6 +315,7 @@ func _kill_flow(pos: Vector2i, energy_sterile: bool, allow_streak_energy: bool =
 		charge_energy(combo)
 	if not _has_any_dead_cell():
 		score += BOARD_CLEAR_BONUS
+		energy = ENERGY_MAX
 
 func _has_any_dead_cell() -> bool:
 	for row in grid:

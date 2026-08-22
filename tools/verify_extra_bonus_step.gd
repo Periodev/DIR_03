@@ -99,6 +99,9 @@ func run_verification() -> void:
 			% clear_board.score_manager.score
 		)
 		return
+	if clear_board.get_energy_quarter_units() != clear_board.ENERGY_QUARTER_UNITS_MAX:
+		fail("Clearing the board did not refill all four energy slots.")
+		return
 
 	var cap_fixture := ScoreManager.new()
 	for _kill in 12:
