@@ -35,7 +35,9 @@ const MAX_COMBO_TIER := 5
 const COMBO_SCORE_MULTIPLIERS := [1, 2, 5, 10, 20]
 const BASE_KILL_SCORE := 1
 const TIER5_STREAK_THRESHOLD := 5
-const TIER5_STREAK_BONUS := 200
+const TIER5_STREAK_BONUS_BASE := 200
+const TIER5_STREAK_BONUS_STEP := 100
+const TIER5_STREAK_BONUS_CAP := 1000
 const BOARD_CLEAR_BONUS := 2000
 
 var grid: Array = []  # grid[row][col] = LIVE/DEAD
@@ -105,7 +107,7 @@ static func energy_gain_for_combo(c: int) -> int:
 		1: return 1
 		2: return 2
 		3: return 2
-		4: return 2
+		4: return 4
 		_:
 			if c >= 5:
 				return 4
@@ -149,8 +151,13 @@ func on_kill() -> int:
 	if combo == MAX_COMBO_TIER:
 		tier5_streak += 1
 		if tier5_streak % TIER5_STREAK_THRESHOLD == 0:
-			points += TIER5_STREAK_BONUS
-			score += TIER5_STREAK_BONUS
+			var block: int = tier5_streak / TIER5_STREAK_THRESHOLD
+			var streak_bonus: int = mini(
+				TIER5_STREAK_BONUS_BASE + TIER5_STREAK_BONUS_STEP * (block - 1),
+				TIER5_STREAK_BONUS_CAP
+			)
+			points += streak_bonus
+			score += streak_bonus
 	defeats += 1
 	return points
 

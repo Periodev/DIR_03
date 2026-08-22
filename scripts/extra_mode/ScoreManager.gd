@@ -6,7 +6,7 @@ const ENABLE_COMBO_BONUS := true
 # describe the same state.
 const MAX_COMBO_TIER := 5
 # Score multiplier per tier. Deliberately steeper than the energy table
-# (1/2/2/4/6): energy saturates because a full bar is all the bar can hold,
+# (1/2/2/4/4): energy saturates because a full bar is all the bar can hold,
 # while score is where reaching the top of the chain earns its risk. One entry
 # per tier, so its size defines MAX_COMBO_TIER.
 const COMBO_SCORE_MULTIPLIERS := [1, 2, 5, 10, 20]
@@ -15,9 +15,14 @@ const BASE_KILL_SCORE := 1
 # straight kills taken without combo ever dropping below MAX_COMBO_TIER pay a
 # bonus on top of their own tier-5 score. The count itself never resets on a
 # payout, only on a decay -- it is a running record of the current streak, and
-# the bonus just repeats every five kills along the way.
+# the bonus just repeats every five kills along the way, growing by
+# TIER5_STREAK_BONUS_STEP each time up to TIER5_STREAK_BONUS_CAP -- capped
+# well under BOARD_CLEAR_BONUS so a long streak still stays a lesser, gradual
+# reward next to that one-off milestone.
 const TIER5_STREAK_THRESHOLD := 5
-const TIER5_STREAK_BONUS := 200
+const TIER5_STREAK_BONUS_BASE := 200
+const TIER5_STREAK_BONUS_STEP := 100
+const TIER5_STREAK_BONUS_CAP := 1000
 
 signal score_changed(new_score: int)
 signal combo_changed(new_combo: int, new_tier5_streak: int)
@@ -55,9 +60,13 @@ func on_kill(_cell_type: int, count_defeat: bool = true) -> int:
 		# breaks it -- so it keeps climbing as a running record, and the bonus
 		# just repeats every five kills along the way.
 		if tier5_streak % TIER5_STREAK_THRESHOLD == 0:
-			streak_bonus_awarded = TIER5_STREAK_BONUS
-			points += TIER5_STREAK_BONUS
-			score += TIER5_STREAK_BONUS
+			var block: int = tier5_streak / TIER5_STREAK_THRESHOLD
+			streak_bonus_awarded = mini(
+				TIER5_STREAK_BONUS_BASE + TIER5_STREAK_BONUS_STEP * (block - 1),
+				TIER5_STREAK_BONUS_CAP
+			)
+			points += streak_bonus_awarded
+			score += streak_bonus_awarded
 	if count_defeat:
 		defeat_count += 1
 	score_changed.emit(score)

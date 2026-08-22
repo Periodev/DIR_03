@@ -58,12 +58,15 @@ func choose_action(board: Node) -> int:
 	if energy >= board.ENERGY_QUARTER_UNITS_MAX and _should_activate_ultimate(board, combo):
 		return ACTION_ULT
 
+	# A charged X keeps the next move off the spawn clock. Evaluate it before
+	# an ordinary attack so a high-heat chain may pay X repeatedly rather than
+	# advancing the spawn clock between its top-tier kills.
+	if _should_spend_dash_for_continuation(board, attack_directions, combo, energy):
+		return ACTION_DASH
+
 	if not attack_directions.is_empty():
 		chosen_direction = _best_attack_direction(board, attack_directions)
 		return ACTION_MOVE
-
-	if _should_spend_dash_for_continuation(board, combo, energy):
-		return ACTION_DASH
 
 	if energy >= board.ENERGY_QUARTER_UNITS_MAX and _count_ultimate_targets(board) > 0:
 		return ACTION_ULT
@@ -127,18 +130,77 @@ func _has_dash_continuation(board: Node) -> bool:
 			return true
 	return false
 
-func _should_spend_dash_for_continuation(board: Node, combo: int, energy: int) -> bool:
-	# The price rises inside a chain, so asking the flat cost here makes the bot
-	# request a STEP the board will refuse, over and over.
-	if combo < COMBO_GATE_FOR_STEP or energy < int(board.get_bonus_step_cost()):
+func _should_spend_dash_for_continuation(
+	board: Node,
+	attack_directions: Array[int],
+	combo: int,
+	energy: int
+) -> bool:
+	var cost: int = int(board.get_bonus_step_cost())
+	if combo < maxi(COMBO_GATE_FOR_STEP, ScoreManager.MAX_COMBO_TIER) or energy < cost:
 		return false
-	return _has_dash_continuation(board)
+
+	var protects_spawn_hit: bool = _attack_will_land_on_spawn(board, attack_directions)
+	var protects_streak: bool = _is_streak_payout_near(board) \
+			or _has_established_attack_chain(board, attack_directions)
+	if not protects_spawn_hit and not protects_streak:
+		return false
+	# An X-paid kill is energy-sterile. With the current Heat 5 +4 payout,
+	# prefer the normal hit when it fills ULT; the next decision can then spend
+	# four frozen dashes instead of burning a single protected move now.
+	if not protects_spawn_hit and _normal_kill_completes_ultimate(board, energy, combo):
+		return false
+	# A long-chain X must leave one full energy unit for the next spawn hit.
+	# An imminent spawn hit is the exception: freezing that move is safer than
+	# taking the hit now, even when it empties the bar.
+	if not protects_spawn_hit and energy < 2 * cost:
+		return false
+	if not attack_directions.is_empty():
+		return true
+	return protects_streak and _has_dash_continuation(board)
+
+func _normal_kill_completes_ultimate(board: Node, energy: int, combo: int) -> bool:
+	var next_energy: int = energy + int(board.energy_gain_for_combo(combo))
+	return next_energy >= int(board.ENERGY_QUARTER_UNITS_MAX)
+
+func _is_streak_payout_near(board: Node) -> bool:
+	var streak: int = board.score_manager.tier5_streak
+	var progress: int = posmod(streak, ScoreManager.TIER5_STREAK_THRESHOLD)
+	return progress >= ScoreManager.TIER5_STREAK_THRESHOLD - 2
+
+func _has_established_attack_chain(board: Node, attack_directions: Array[int]) -> bool:
+	# Before the first payout, X remains a near-payout tool. Once the streak
+	# has paid once, spend it to preserve only concrete two-kill handoffs -- a
+	# visible continuation, not a speculative route across the board.
+	if board.score_manager.tier5_streak < ScoreManager.TIER5_STREAK_THRESHOLD:
+		return false
+	for attack_direction in attack_directions:
+		var attack_target: Vector2i = board.player_pos \
+				+ Vector2i(CharacterData.DIR_VECTOR[attack_direction])
+		for follow_direction_value in CharacterData.DIR_VECTOR:
+			var follow_direction: int = int(follow_direction_value)
+			var follow_target: Vector2i = attack_target \
+					+ Vector2i(CharacterData.DIR_VECTOR[follow_direction])
+			if not board._is_inside_board(follow_target):
+				continue
+			if board.grid[follow_target.y][follow_target.x] != CharacterData.CellType.LIVE \
+					and board.inventory.find_direction(follow_direction) >= 0:
+				return true
+	return false
+
+func _attack_will_land_on_spawn(board: Node, attack_directions: Array[int]) -> bool:
+	for direction in attack_directions:
+		var target: Vector2i = board.player_pos + Vector2i(CharacterData.DIR_VECTOR[direction])
+		if board._will_spawn_hit_target_this_turn(target):
+			return true
+	return false
 
 func _direction_plan_score(board: Node, direction: int, preserve_combo: bool) -> float:
 	var target: Vector2i = board.player_pos + Vector2i(CharacterData.DIR_VECTOR[direction])
 	var simulated_grid: Array = board.grid.duplicate(true)
 	var simulated_queue: Array = board.inventory.queue.duplicate()
 	var combo: int = board.score_manager.combo_counter
+	var tier5_streak: int = board.score_manager.tier5_streak
 	var energy: int = int(board.get_energy_quarter_units())
 	var reward: float = 0.0
 	if simulated_grid[target.y][target.x] == CharacterData.CellType.LIVE:
@@ -146,6 +208,7 @@ func _direction_plan_score(board: Node, direction: int, preserve_combo: bool) ->
 		if not preserve_combo:
 			reward -= _combo_break_penalty(combo)
 			combo = _decayed_combo(combo)
+			tier5_streak = 0
 	else:
 		var inventory_index: int = simulated_queue.find(direction)
 		if inventory_index < 0:
@@ -156,8 +219,13 @@ func _direction_plan_score(board: Node, direction: int, preserve_combo: bool) ->
 			simulated_queue.remove_at(inventory_index)
 			energy = _charged_energy(board, energy, combo + 1)
 		simulated_grid[target.y][target.x] = CharacterData.CellType.LIVE
-		combo = _advanced_combo(combo)
+		var kill_state: Vector2i = _advance_combo_and_streak(combo, tier5_streak)
+		combo = kill_state.x
+		tier5_streak = kill_state.y
 		reward += _combo_kill_value(combo)
+		reward += _tier5_streak_value(combo, tier5_streak)
+		if not _grid_has_dead_cell(simulated_grid):
+			reward += float(board.BOARD_CLEAR_BONUS)
 
 	if not preserve_combo:
 		var spawn_defense: Vector2i = _apply_simulated_spawn_hit(
@@ -179,6 +247,7 @@ func _direction_plan_score(board: Node, direction: int, preserve_combo: bool) ->
 		simulated_grid,
 		simulated_queue,
 		combo,
+		tier5_streak,
 		energy,
 		LOOKAHEAD_DEPTH - 1
 	)
@@ -189,11 +258,46 @@ func _advanced_combo(combo: int) -> int:
 func _decayed_combo(combo: int) -> int:
 	return maxi(0, combo - 1)
 
+func _advance_combo_and_streak(combo: int, tier5_streak: int) -> Vector2i:
+	var next_combo: int = _advanced_combo(combo)
+	var next_streak: int = tier5_streak + 1 if next_combo == ScoreManager.MAX_COMBO_TIER else 0
+	return Vector2i(next_combo, next_streak)
+
+func _tier5_streak_value(combo: int, tier5_streak: int) -> float:
+	if combo != ScoreManager.MAX_COMBO_TIER:
+		return 0.0
+	var streak_bonus: int = _tier5_streak_bonus(tier5_streak)
+	var progress: int = posmod(tier5_streak, ScoreManager.TIER5_STREAK_THRESHOLD)
+	if progress == 0:
+		return float(streak_bonus)
+	# The lookahead is only three moves deep, while the next streak payout can
+	# be five kills away. Preserve a proportionate part of that real reward as
+	# terminal-state value so F4 will spend X to protect a growing streak.
+	var next_payout_streak: int = tier5_streak + ScoreManager.TIER5_STREAK_THRESHOLD - progress
+	var next_bonus: int = _tier5_streak_bonus(next_payout_streak)
+	return float(streak_bonus) + float(next_bonus * progress) / float(ScoreManager.TIER5_STREAK_THRESHOLD)
+
+func _tier5_streak_bonus(tier5_streak: int) -> int:
+	if tier5_streak <= 0 or tier5_streak % ScoreManager.TIER5_STREAK_THRESHOLD != 0:
+		return 0
+	var block: int = tier5_streak / ScoreManager.TIER5_STREAK_THRESHOLD
+	return mini(
+		ScoreManager.TIER5_STREAK_BONUS_BASE + ScoreManager.TIER5_STREAK_BONUS_STEP * (block - 1),
+		ScoreManager.TIER5_STREAK_BONUS_CAP
+	)
+
 func _charged_energy(board: Node, energy: int, combo: int) -> int:
 	# Mirrors Board._charge_energy_for_combo so the lookahead can see the bar
 	# fill, which is what makes saving toward ULT visible to the search at all.
 	var gain: int = int(board.energy_gain_for_combo(combo))
 	return mini(energy + gain, int(board.ENERGY_QUARTER_UNITS_MAX))
+
+func _grid_has_dead_cell(grid: Array) -> bool:
+	for row_value in grid:
+		var row: Array = row_value
+		if CharacterData.CellType.DEAD in row:
+			return true
+	return false
 
 func _apply_simulated_spawn_hit(
 	board: Node,
@@ -219,11 +323,12 @@ func _lookahead_score(
 	grid: Array,
 	queue: Array,
 	combo: int,
+	tier5_streak: int,
 	energy: int,
 	depth: int
 ) -> float:
 	if depth <= 0:
-		return _simulated_state_score(board, pos, grid, queue, combo, energy)
+		return _simulated_state_score(board, pos, grid, queue, combo, tier5_streak, energy)
 
 	var best_score: float = -INF
 	for direction_value in CharacterData.DIR_VECTOR:
@@ -234,12 +339,14 @@ func _lookahead_score(
 		var next_grid: Array = grid.duplicate(true)
 		var next_queue: Array = queue.duplicate()
 		var next_combo: int = combo
+		var next_tier5_streak: int = tier5_streak
 		var next_energy: int = energy
 		var reward: float = 0.0
 		if next_grid[target.y][target.x] == CharacterData.CellType.LIVE:
 			_push_simulated_direction(next_queue, board.inventory.max_size, direction)
 			reward -= _combo_break_penalty(next_combo)
 			next_combo = _decayed_combo(next_combo)
+			next_tier5_streak = 0
 			var spawn_defense: Vector2i = _apply_simulated_spawn_hit(
 				board, target, next_queue, next_energy
 			)
@@ -257,21 +364,27 @@ func _lookahead_score(
 				continue
 			next_queue.remove_at(inventory_index)
 			next_grid[target.y][target.x] = CharacterData.CellType.LIVE
-			next_combo = _advanced_combo(next_combo)
+			var kill_state: Vector2i = _advance_combo_and_streak(next_combo, next_tier5_streak)
+			next_combo = kill_state.x
+			next_tier5_streak = kill_state.y
 			next_energy = _charged_energy(board, next_energy, next_combo)
 			reward += _combo_kill_value(next_combo)
+			reward += _tier5_streak_value(next_combo, next_tier5_streak)
+			if not _grid_has_dead_cell(next_grid):
+				reward += float(board.BOARD_CLEAR_BONUS)
 		var branch_score: float = reward + LOOKAHEAD_DISCOUNT * _lookahead_score(
 			board,
 			target,
 			next_grid,
 			next_queue,
 			next_combo,
+			next_tier5_streak,
 			next_energy,
 			depth - 1
 		)
 		best_score = maxf(best_score, branch_score)
 	if best_score == -INF:
-		return _simulated_state_score(board, pos, grid, queue, combo, energy) - 3000.0
+		return _simulated_state_score(board, pos, grid, queue, combo, tier5_streak, energy) - 3000.0
 	return best_score
 
 func _simulated_state_score(
@@ -280,6 +393,7 @@ func _simulated_state_score(
 	grid: Array,
 	queue: Array,
 	combo: int,
+	tier5_streak: int,
 	energy: int
 ) -> float:
 	var live_exits: int = 0
@@ -307,6 +421,7 @@ func _simulated_state_score(
 	score += float(useful_directions) * USEFUL_DIRECTION_VALUE
 	score += float(_unique_direction_count(queue)) * UNIQUE_DIRECTION_VALUE
 	score += _combo_hold_value(combo)
+	score += _tier5_streak_value(combo, tier5_streak)
 	score -= center_distance * CENTER_DISTANCE_PENALTY
 	if legal_exits == 1:
 		score -= SINGLE_EXIT_PENALTY
@@ -429,6 +544,7 @@ func _best_ultimate_direction(board: Node) -> int:
 		var next_grid: Array = grid.duplicate(true)
 		var next_queue: Array = queue.duplicate()
 		var next_combo: int = board.score_manager.combo_counter
+		var next_tier5_streak: int = board.score_manager.tier5_streak
 		var score: float = _apply_simulated_ultimate_dash(
 			board,
 			destination,
@@ -436,17 +552,21 @@ func _best_ultimate_direction(board: Node) -> int:
 			next_grid,
 			next_queue,
 			next_combo,
+			next_tier5_streak,
 			remaining
 		)
 		if next_grid[destination.y][destination.x] == CharacterData.CellType.LIVE \
 				and grid[destination.y][destination.x] != CharacterData.CellType.LIVE:
-			next_combo = _advanced_combo(next_combo)
+			var kill_state: Vector2i = _advance_combo_and_streak(next_combo, next_tier5_streak)
+			next_combo = kill_state.x
+			next_tier5_streak = kill_state.y
 		score += _ultimate_sequence_score(
 			board,
 			destination,
 			next_grid,
 			next_queue,
 			next_combo,
+			next_tier5_streak,
 			remaining - 1
 		)
 		if score > best_score:
@@ -468,6 +588,7 @@ func _best_ultimate_plan_score(board: Node) -> float:
 		var next_grid: Array = grid.duplicate(true)
 		var next_queue: Array = queue.duplicate()
 		var next_combo: int = board.score_manager.combo_counter
+		var next_tier5_streak: int = board.score_manager.tier5_streak
 		var score: float = _apply_simulated_ultimate_dash(
 			board,
 			destination,
@@ -475,17 +596,21 @@ func _best_ultimate_plan_score(board: Node) -> float:
 			next_grid,
 			next_queue,
 			next_combo,
+			next_tier5_streak,
 			board.ULT_DASH_COUNT
 		)
 		if next_grid[destination.y][destination.x] == CharacterData.CellType.LIVE \
 				and grid[destination.y][destination.x] != CharacterData.CellType.LIVE:
-			next_combo = _advanced_combo(next_combo)
+			var kill_state: Vector2i = _advance_combo_and_streak(next_combo, next_tier5_streak)
+			next_combo = kill_state.x
+			next_tier5_streak = kill_state.y
 		score += _ultimate_sequence_score(
 			board,
 			destination,
 			next_grid,
 			next_queue,
 			next_combo,
+			next_tier5_streak,
 			board.ULT_DASH_COUNT - 1
 		)
 		best_score = maxf(best_score, score)
@@ -497,10 +622,11 @@ func _ultimate_sequence_score(
 	grid: Array,
 	queue: Array,
 	combo: int,
+	tier5_streak: int,
 	remaining: int
 ) -> float:
 	if remaining <= 0:
-		return _ultimate_terminal_score(board, pos, grid, queue, combo)
+		return _ultimate_terminal_score(board, pos, grid, queue, combo, tier5_streak)
 	var best_score: float = -INF
 	for direction_value in CharacterData.DIR_VECTOR:
 		var direction: int = int(direction_value)
@@ -510,6 +636,7 @@ func _ultimate_sequence_score(
 		var next_grid: Array = grid.duplicate(true)
 		var next_queue: Array = queue.duplicate()
 		var next_combo: int = combo
+		var next_tier5_streak: int = tier5_streak
 		var score: float = _apply_simulated_ultimate_dash(
 			board,
 			destination,
@@ -517,22 +644,26 @@ func _ultimate_sequence_score(
 			next_grid,
 			next_queue,
 			next_combo,
+			next_tier5_streak,
 			remaining
 		)
 		if next_grid[destination.y][destination.x] == CharacterData.CellType.LIVE \
 				and grid[destination.y][destination.x] != CharacterData.CellType.LIVE:
-			next_combo = _advanced_combo(next_combo)
+			var kill_state: Vector2i = _advance_combo_and_streak(next_combo, next_tier5_streak)
+			next_combo = kill_state.x
+			next_tier5_streak = kill_state.y
 		score += _ultimate_sequence_score(
 			board,
 			destination,
 			next_grid,
 			next_queue,
 			next_combo,
+			next_tier5_streak,
 			remaining - 1
 		)
 		best_score = maxf(best_score, score)
 	if best_score == -INF:
-		return _ultimate_terminal_score(board, pos, grid, queue, combo) - 3000.0
+		return _ultimate_terminal_score(board, pos, grid, queue, combo, tier5_streak) - 3000.0
 	return best_score
 
 func _apply_simulated_ultimate_dash(
@@ -542,12 +673,17 @@ func _apply_simulated_ultimate_dash(
 	grid: Array,
 	queue: Array,
 	combo: int,
+	tier5_streak: int,
 	remaining: int
 ) -> float:
 	var score: float = 0.0
 	if grid[destination.y][destination.x] != CharacterData.CellType.LIVE:
+		var kill_state: Vector2i = _advance_combo_and_streak(combo, tier5_streak)
 		grid[destination.y][destination.x] = CharacterData.CellType.LIVE
-		score += _combo_kill_value(combo + 1)
+		score += _combo_kill_value(kill_state.x)
+		score += _tier5_streak_value(kill_state.x, kill_state.y)
+		if not _grid_has_dead_cell(grid):
+			score += float(board.BOARD_CLEAR_BONUS)
 	var queue_limit: int = board.inventory.max_size + 1 if remaining == 1 else board.inventory.max_size
 	_push_simulated_direction(queue, queue_limit, direction)
 	if remaining == 1 and board._will_spawn_hit_target_this_turn(destination):
@@ -559,7 +695,8 @@ func _ultimate_terminal_score(
 	pos: Vector2i,
 	grid: Array,
 	queue: Array,
-	combo: int
+	combo: int,
+	tier5_streak: int
 ) -> float:
 	var continuation_count: int = 0
 	for direction_value in CharacterData.DIR_VECTOR:
@@ -571,7 +708,7 @@ func _ultimate_terminal_score(
 			continuation_count += 1
 	return (
 		# An ULT chain spends the whole bar, so the terminal state has none left.
-		_simulated_state_score(board, pos, grid, queue, combo, 0)
+		_simulated_state_score(board, pos, grid, queue, combo, tier5_streak, 0)
 		+ float(continuation_count) * ULT_CONTINUATION_VALUE
 	)
 

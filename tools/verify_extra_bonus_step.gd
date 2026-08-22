@@ -2,6 +2,7 @@ extends SceneTree
 
 const BoardScript = preload("res://scripts/extra_mode/Board.gd")
 const CharacterImpl_PLN = preload("res://scripts/extra_mode/CharacterImpl_PLN.gd")
+const ComboBotScript = preload("res://scripts/extra_mode/ComboBot.gd")
 
 func _initialize() -> void:
 	call_deferred("run_verification")
@@ -33,9 +34,9 @@ func run_verification() -> void:
 		streak_fixture.on_kill(CharacterData.CellType.DEAD)
 	var score_before_streak_bonus: int = streak_fixture.score
 	streak_fixture.on_kill(CharacterData.CellType.DEAD)
-	if streak_fixture.score != score_before_streak_bonus + 20 + ScoreManager.TIER5_STREAK_BONUS:
+	if streak_fixture.score != score_before_streak_bonus + 20 + ScoreManager.TIER5_STREAK_BONUS_BASE:
 		fail(
-			"Five straight tier-5 kills did not pay the streak bonus on top of their own score, reached %s."
+			"Five straight tier-5 kills did not pay the first streak bonus on top of their own score, reached %s."
 			% streak_fixture.score
 		)
 		return
@@ -45,15 +46,37 @@ func run_verification() -> void:
 	var score_before_second_bonus: int = streak_fixture.score
 	for _kill in ScoreManager.TIER5_STREAK_THRESHOLD:
 		streak_fixture.on_kill(CharacterData.CellType.DEAD)
-	if streak_fixture.score != score_before_second_bonus + 100 + ScoreManager.TIER5_STREAK_BONUS:
+	var second_bonus: int = ScoreManager.TIER5_STREAK_BONUS_BASE + ScoreManager.TIER5_STREAK_BONUS_STEP
+	if streak_fixture.score != score_before_second_bonus + 100 + second_bonus:
 		fail(
-			"A second five-kill stretch at tier5 did not pay the streak bonus again, reached %s."
+			"A second five-kill stretch at tier5 did not pay a bigger streak bonus, reached %s."
 			% streak_fixture.score
 		)
 		return
 	if streak_fixture.tier5_streak != 2 * ScoreManager.TIER5_STREAK_THRESHOLD:
 		fail("The tier-5 streak count did not keep climbing across a second payout.")
 		return
+
+	# Run well past the cap and confirm growth stops there instead of climbing
+	# forever: at TIER5_STREAK_BONUS_STEP := 100 the cap of 1000 lands on the
+	# 9th block, so the 10th must repeat 1000, not 1100.
+	var blocks_to_cap: int = (
+		(ScoreManager.TIER5_STREAK_BONUS_CAP - ScoreManager.TIER5_STREAK_BONUS_BASE)
+		/ ScoreManager.TIER5_STREAK_BONUS_STEP + 1
+	)
+	for _block in blocks_to_cap - 2:
+		for _kill in ScoreManager.TIER5_STREAK_THRESHOLD:
+			streak_fixture.on_kill(CharacterData.CellType.DEAD)
+	var score_before_capped_block: int = streak_fixture.score
+	for _kill in ScoreManager.TIER5_STREAK_THRESHOLD:
+		streak_fixture.on_kill(CharacterData.CellType.DEAD)
+	if streak_fixture.score != score_before_capped_block + 100 + ScoreManager.TIER5_STREAK_BONUS_CAP:
+		fail(
+			"The streak bonus did not stop growing at its cap, reached %s."
+			% streak_fixture.score
+		)
+		return
+
 	streak_fixture.decay_combo()
 	if streak_fixture.tier5_streak != 0:
 		fail("A decay mid-streak did not clear the tier-5 streak count.")
@@ -262,9 +285,70 @@ func run_verification() -> void:
 		fail("X no longer costs one flat energy slot.")
 		return
 
-	board._charge_energy_for_combo(5)
+	var combo_bot_board: Node2D = BoardScript.new()
+	root.add_child(combo_bot_board)
+	await process_frame
+	combo_bot_board.spawn_warning_player.stop()
+	combo_bot_board.inventory.reset()
+	combo_bot_board.score_manager.combo_counter = ScoreManager.MAX_COMBO_TIER
+	combo_bot_board.score_manager.tier5_streak = ScoreManager.TIER5_STREAK_THRESHOLD
+	combo_bot_board.energy_quarter_units = 3 * combo_bot_board.ENERGY_SLOT_COST
+	var chain_direction: int = CharacterData.Direction.RIGHT
+	var chain_target: Vector2i = combo_bot_board.player_pos \
+			+ CharacterData.DIR_VECTOR[chain_direction]
+	var chain_follow_up: Vector2i = chain_target + CharacterData.DIR_VECTOR[chain_direction]
+	combo_bot_board.grid[chain_target.y][chain_target.x] = CharacterData.CellType.DEAD
+	combo_bot_board.grid[chain_follow_up.y][chain_follow_up.x] = CharacterData.CellType.DEAD
+	combo_bot_board.inventory.push(chain_direction)
+	var combo_bot := ComboBotScript.new()
+	if combo_bot.choose_action(combo_bot_board) != combo_bot.ACTION_DASH:
+		fail("F4 did not arm X before an available established-streak handoff.")
+		return
+	if not combo_bot_board.try_energy_bonus_step():
+		fail("F4 chain fixture could not arm its first X.")
+		return
+	if combo_bot.choose_action(combo_bot_board) != combo_bot.ACTION_MOVE \
+			or combo_bot.chosen_direction != chain_direction:
+		fail("F4 did not follow its armed X with the available attack.")
+		return
+	if not combo_bot_board.try_move(chain_direction):
+		fail("F4 chain fixture rejected the first X-protected attack.")
+		return
+	await create_timer(0.6).timeout
+	if not combo_bot_board.game_state.is_idle() or combo_bot_board.bonus_step_armed:
+		fail("The first X-protected attack did not return to an idle re-arm state.")
+		return
+	if combo_bot_board.score_manager.tier5_streak != ScoreManager.TIER5_STREAK_THRESHOLD + 1:
+		fail("The first X-protected attack did not advance the established streak.")
+		return
+	if combo_bot.choose_action(combo_bot_board) != combo_bot.ACTION_DASH:
+		fail("F4 did not re-arm X for the next high-heat attack.")
+		return
+
+	var ult_charge_board: Node2D = BoardScript.new()
+	root.add_child(ult_charge_board)
+	await process_frame
+	ult_charge_board.spawn_warning_player.stop()
+	ult_charge_board.inventory.reset()
+	ult_charge_board.score_manager.combo_counter = ScoreManager.MAX_COMBO_TIER
+	ult_charge_board.score_manager.tier5_streak = ScoreManager.TIER5_STREAK_THRESHOLD - 2
+	ult_charge_board.energy_quarter_units = 10
+	var ult_charge_direction: int = CharacterData.Direction.RIGHT
+	var ult_charge_target: Vector2i = ult_charge_board.player_pos \
+			+ CharacterData.DIR_VECTOR[ult_charge_direction]
+	ult_charge_board.grid[ult_charge_target.y][ult_charge_target.x] = CharacterData.CellType.DEAD
+	ult_charge_board.inventory.push(ult_charge_direction)
+	if combo_bot.choose_action(ult_charge_board) != combo_bot.ACTION_MOVE:
+		fail("F4 spent X instead of taking a Heat-5 kill that fills ULT.")
+		return
+
+	board._charge_energy_for_combo(4)
 	if board.get_energy_quarter_units() != 5:
-		fail("Five heat did not add one energy slot.")
+		fail("Heat 4 did not add one energy slot.")
+		return
+	board._charge_energy_for_combo(5)
+	if board.get_energy_quarter_units() != 11:
+		fail("Heat 5 did not add 1.5 energy slots.")
 		return
 	board.energy_quarter_units = 12
 	if board.get_energy_quarter_units() != 12 or board.try_energy_ultimate():

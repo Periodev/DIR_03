@@ -653,7 +653,7 @@ func\s)[\s\S])*?if\s+consumed_count\s*>=\s*2:\s*
 	},
 	@{
 		Name = "EXTRA spends one full energy slot to arm a free combo-preserving bonus step"
-		Pass = $extraBoard -match 'ENERGY_QUARTER_UNITS_MAX\s*:=\s*16' -and $extraBoard -match 'ENERGY_SLOT_COST\s*:=\s*4' -and $extraBoard -match 'func\s+try_energy_bonus_step\(\)(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*-=\s*cost(?:(?!\r?\nfunc\s)[\s\S])*?bonus_step_armed\s*=\s*true' -and $extraBoard -match 'func\s+energy_gain_for_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?1:\s*\r?\n\s*return\s+1(?:(?!\r?\nfunc\s)[\s\S])*?2:\s*\r?\n\s*return\s+2(?:(?!\r?\nfunc\s)[\s\S])*?3:\s*\r?\n\s*return\s+2(?:(?!\r?\nfunc\s)[\s\S])*?4:\s*\r?\n\s*return\s+2(?:(?!\r?\nfunc\s)[\s\S])*?combo\s*>=\s*5:\s*\r?\n\s*return\s+4' -and $extraMain -match 'KEY_X(?:(?!\r?\n\s*#)[\s\S])*?try_energy_bonus_step\(\)'
+		Pass = $extraBoard -match 'ENERGY_QUARTER_UNITS_MAX\s*:=\s*16' -and $extraBoard -match 'ENERGY_SLOT_COST\s*:=\s*4' -and $extraBoard -match 'func\s+try_energy_bonus_step\(\)(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*-=\s*cost(?:(?!\r?\nfunc\s)[\s\S])*?bonus_step_armed\s*=\s*true' -and $extraBoard -match 'func\s+energy_gain_for_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?1:\s*\r?\n\s*return\s+1(?:(?!\r?\nfunc\s)[\s\S])*?2:\s*\r?\n\s*return\s+2(?:(?!\r?\nfunc\s)[\s\S])*?3:\s*\r?\n\s*return\s+2(?:(?!\r?\nfunc\s)[\s\S])*?4:\s*\r?\n\s*return\s+4(?:(?!\r?\nfunc\s)[\s\S])*?combo\s*>=\s*5:\s*\r?\n\s*return\s+4' -and $extraMain -match 'KEY_X(?:(?!\r?\n\s*#)[\s\S])*?try_energy_bonus_step\(\)'
 	},
 	@{
 		Name = "EXTRA consumes full energy on Z to activate the four-dash ULT"
@@ -867,7 +867,7 @@ func\s)[\s\S])*?var\s+center\s*:=\s*info_back_center\(panel_center\)'
 	},
 	@{
 		Name = "EXTRA exposes an optional combo-seeking F4 bot"
-		Pass = $extraMain -match 'KEY_F4' -and $extraMain -match 'active_bot\.choose_action\(board\)' -and $extraMain -match 'not\s+board\.game_state\.is_idle\(\)' -and $extraComboBot -match 'class_name\s+DIRExtraComboBot' -and $extraComboBot -match 'LOOKAHEAD_DEPTH\s*:=\s*3' -and $extraComboBot -match 'func\s+_lookahead_score\(' -and $extraComboBot -match 'func\s+_should_spend_dash_for_continuation\(' -and $extraComboBot -match 'combo\s*<\s*COMBO_GATE_FOR_STEP\s+or\s+energy\s*<\s*int\(board\.get_bonus_step_cost\(\)\)' -and $extraComboBot -match 'func\s+_ultimate_sequence_score\(' -and $extraComboBot -match 'continuation_count\)\s*\*\s*ULT_CONTINUATION_VALUE' -and $extraComboBot -match 'return\s+ACTION_ULT'
+		Pass = $extraMain -match 'KEY_F4' -and $extraMain -match 'active_bot\.choose_action\(board\)' -and $extraMain -match 'not\s+board\.game_state\.is_idle\(\)' -and $extraComboBot -match 'class_name\s+DIRExtraComboBot' -and $extraComboBot -match 'LOOKAHEAD_DEPTH\s*:=\s*3' -and $extraComboBot -match 'func\s+_lookahead_score\(' -and $extraComboBot -match 'func\s+_should_spend_dash_for_continuation\(' -and $extraComboBot -match 'combo\s*<\s*maxi\(COMBO_GATE_FOR_STEP,\s*ScoreManager\.MAX_COMBO_TIER\)\s+or\s+energy\s*<\s*cost' -and $extraComboBot -match 'func\s+_normal_kill_completes_ultimate\(' -and $extraComboBot -match 'func\s+_has_established_attack_chain\(' -and $extraComboBot -match 'func\s+_tier5_streak_bonus\(' -and $extraComboBot -match 'func\s+_ultimate_sequence_score\(' -and $extraComboBot -match 'continuation_count\)\s*\*\s*ULT_CONTINUATION_VALUE' -and $extraComboBot -match 'return\s+ACTION_ULT'
 	},
 	@{
 		Name = "EXTRA F5 runs a CMA-ES-tuned bot, mutually exclusive with F4"

@@ -15,8 +15,8 @@ single kill tops out at `combo_payout(5) * 60 = 1200`.
 
 This module asks "are these constants well-chosen", not "replace the whole
 policy": it is a from-scratch, faithful Python port of the CURRENT
-Board.gd / ScoreManager.gd rules (heat decay -2, spawn-hit shields, the
-1/2/2/4/6 energy table, X/Z costs) plus a parameterised port of ComboBot.gd's
+Board.gd / ScoreManager.gd rules (heat decay -1, spawn-hit shields, the
+1/2/2/4/4 energy table, X/Z costs) plus a parameterised port of ComboBot.gd's
 own scoring terms, so CMA-ES can search the SAME weight vector the bot
 already uses, seeded at the bot's current values.
 
@@ -42,7 +42,7 @@ from typing import Optional
 
 # ---------------------------------------------------------------------------
 # Rules -- faithful to scripts/extra_mode/Board.gd and ScoreManager.gd at the
-# commit that introduced -2 heat decay and shield-cools-heat.
+# current heat-decay and shield-cools-heat rules.
 # ---------------------------------------------------------------------------
 
 COLS = 5
@@ -65,9 +65,11 @@ MAX_COMBO_TIER = 5
 COMBO_SCORE_MULTIPLIERS = (1, 2, 5, 10, 20)
 BASE_KILL_SCORE = 1
 TIER5_STREAK_THRESHOLD = 5
-TIER5_STREAK_BONUS = 200
+TIER5_STREAK_BONUS_BASE = 200
+TIER5_STREAK_BONUS_STEP = 100
+TIER5_STREAK_BONUS_CAP = 1000
 BOARD_CLEAR_BONUS = 2000
-_ENERGY_GAIN = {1: 1, 2: 2, 3: 2, 4: 2}
+_ENERGY_GAIN = {1: 1, 2: 2, 3: 2, 4: 4}
 
 
 def energy_gain_for_combo(combo: int) -> int:
@@ -143,8 +145,13 @@ class Board:
         if self.combo == MAX_COMBO_TIER:
             self.tier5_streak += 1
             if self.tier5_streak % TIER5_STREAK_THRESHOLD == 0:
-                points += TIER5_STREAK_BONUS
-                self.score += TIER5_STREAK_BONUS
+                block = self.tier5_streak // TIER5_STREAK_THRESHOLD
+                streak_bonus = min(
+                    TIER5_STREAK_BONUS_BASE + TIER5_STREAK_BONUS_STEP * (block - 1),
+                    TIER5_STREAK_BONUS_CAP,
+                )
+                points += streak_bonus
+                self.score += streak_bonus
         self.defeats += 1
         return points
 

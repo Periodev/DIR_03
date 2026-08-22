@@ -626,10 +626,9 @@ func _has_any_dead_cell() -> bool:
 	return false
 
 func energy_gain_for_combo(combo: int) -> int:
-	# Tier 3 and 4 pay the same (2) on purpose: decay_combo() only costs one
-	# tier now, so a single miss at tier 4 recovers to tier 3 immediately --
-	# equalising their payout removes the profit from that specific recovery
-	# loop without touching genuine tier-5 play, which still pays out more (4).
+	# A miss still cools only one tier, but tier 4 and 5 now earn enough to
+	# justify protecting a strong chain with X rather than repeatedly farming
+	# the tier-3 recovery loop.
 	match combo:
 		1:
 			return 1
@@ -638,7 +637,7 @@ func energy_gain_for_combo(combo: int) -> int:
 		3:
 			return 2
 		4:
-			return 2
+			return 4
 		_:
 			if combo >= 5:
 				return 4
