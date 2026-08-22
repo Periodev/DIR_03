@@ -15,8 +15,8 @@ single kill tops out at `combo_payout(5) * 60 = 1200`.
 
 This module asks "are these constants well-chosen", not "replace the whole
 policy": it is a from-scratch, faithful Python port of the CURRENT
-Board.gd / ScoreManager.gd rules (heat decay -1, spawn-hit shields, the
-1/2/2/4/4 energy table, X/Z costs) plus a parameterised port of ComboBot.gd's
+Board.gd / ScoreManager.gd rules (heat decay -1, spawn-hit Heat resets, the
+1/2/2/4/6 energy table, X/Z costs) plus a parameterised port of ComboBot.gd's
 own scoring terms, so CMA-ES can search the SAME weight vector the bot
 already uses, seeded at the bot's current values.
 
@@ -49,6 +49,8 @@ COLS = 5
 ROWS = 5
 SPAWN_CYCLE_STEPS = 2
 SPAWNS_PER_CYCLE = 2
+HIGH_SCORE_SPAWN_THRESHOLD = 10_000
+HIGH_SCORE_SPAWNS_PER_CYCLE = 3
 OPENING_GRACE_TURNS = 1
 ENERGY_MAX = 16
 ENERGY_SLOT_COST = 4
@@ -75,7 +77,7 @@ _ENERGY_GAIN = {1: 1, 2: 2, 3: 2, 4: 4}
 def energy_gain_for_combo(combo: int) -> int:
     if combo in _ENERGY_GAIN:
         return _ENERGY_GAIN[combo]
-    return 4 if combo >= 5 else 0
+    return 6 if combo >= 5 else 0
 
 
 def combo_tier(combo: int) -> int:
@@ -136,6 +138,10 @@ class Board:
 
     def decay_combo(self) -> None:
         self.combo = max(0, self.combo - 1)
+        self.tier5_streak = 0
+
+    def reset_combo(self) -> None:
+        self.combo = 0
         self.tier5_streak = 0
 
     def on_kill(self) -> int:
@@ -311,7 +317,14 @@ class Board:
             (x, y) for y in range(ROWS) for x in range(COLS) if self.grid[y][x] == LIVE
         ]
         self.rng.shuffle(available)
-        self.candidates = available[:SPAWNS_PER_CYCLE]
+        self.candidates = available[: self.spawns_per_cycle()]
+
+    def spawns_per_cycle(self) -> int:
+        return (
+            HIGH_SCORE_SPAWNS_PER_CYCLE
+            if self.score >= HIGH_SCORE_SPAWN_THRESHOLD
+            else SPAWNS_PER_CYCLE
+        )
 
     def _advance_cycle(self) -> None:
         self.cycle_counter += 1
@@ -345,7 +358,7 @@ class Board:
         x, y = pos
         if self.energy >= ENERGY_SLOT_COST:
             self.energy -= ENERGY_SLOT_COST
-            self.decay_combo()
+            self.reset_combo()
             self.on_kill()
             return
         consumed = 0
@@ -353,7 +366,7 @@ class Board:
             self.queue.pop(0)
             consumed += 1
         if consumed >= 2:
-            self.decay_combo()
+            self.reset_combo()
             self.on_kill()
         else:
             self.grid[y][x] = DEAD
@@ -544,16 +557,16 @@ class StructuredPolicy:
         decayed = max(0, combo - 1)
         return max(0.0, self._combo_payout(combo) - self._combo_payout(decayed)) * self.w.combo_break_mult
 
-    def _apply_simulated_spawn_hit(self, b: Board, position, queue, energy):
+    def _apply_simulated_spawn_hit(self, b: Board, position, queue, energy, combo):
         if not b.will_spawn_hit(position):
-            return energy, 0
+            return energy, combo, 0
         if energy >= ENERGY_SLOT_COST:
-            return energy - ENERGY_SLOT_COST, 1
+            return energy - ENERGY_SLOT_COST, 0, 1
         if len(queue) >= 2:
             queue.pop(0)
             queue.pop(0)
-            return energy, 2
-        return energy, -1
+            return energy, 0, 2
+        return energy, combo, -1
 
     def _direction_plan_score(self, b: Board, direction: int, preserve_combo: bool) -> float:
         target = b.neighbour(b.player, direction)
@@ -579,7 +592,9 @@ class StructuredPolicy:
             reward += self._combo_kill_value(combo)
 
         if not preserve_combo:
-            energy, kind = self._apply_simulated_spawn_hit(b, target, queue, energy)
+            energy, combo, kind = self._apply_simulated_spawn_hit(
+                b, target, queue, energy, combo
+            )
             if kind == 1:
                 reward -= self.w.energy_shield_spend_penalty
             elif kind == 2:
@@ -618,7 +633,9 @@ class StructuredPolicy:
                 self._push_sim(nq, d)
                 reward -= self._combo_break_penalty(ncombo)
                 ncombo = max(0, ncombo - 1)
-                nenergy, kind = self._apply_simulated_spawn_hit(b, t, nq, nenergy)
+                nenergy, ncombo, kind = self._apply_simulated_spawn_hit(
+                    b, t, nq, nenergy, ncombo
+                )
                 if kind == 1:
                     reward -= self.w.energy_shield_spend_penalty
                 elif kind == 2:

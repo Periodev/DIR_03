@@ -163,6 +163,16 @@ func run_verification() -> void:
 			or not board.spawn_warning_player.playing:
 		fail("The legacy spawn batch did not play its warning sound when candidates appeared.")
 		return
+	board.score_manager.score = board.HIGH_SCORE_SPAWN_THRESHOLD - 1
+	board._start_new_cycle()
+	if board.candidate_cells.size() != board.SPAWNS_PER_CYCLE:
+		fail("Spawn count increased before the score threshold.")
+		return
+	board.score_manager.score = board.HIGH_SCORE_SPAWN_THRESHOLD
+	board._start_new_cycle()
+	if board.candidate_cells.size() != board.HIGH_SCORE_SPAWNS_PER_CYCLE:
+		fail("Spawn count did not increase to three at the score threshold.")
+		return
 	board.restart()
 	await process_frame
 	if board._player_move_visual_pending:

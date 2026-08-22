@@ -1,6 +1,6 @@
 extends Node
 
-const ComboBotScript = preload("res://scripts/extra_mode/ComboBot.gd")
+const ComboBotMCTSScript = preload("res://scripts/extra_mode/ComboBotMCTS.gd")
 const ComboBotTunedScript = preload("res://scripts/extra_mode/ComboBotTuned.gd")
 const AI_ACTION_INTERVAL_SECONDS := 0.16
 const WINDOW_BACKGROUND_COLOR := Color("#0C0E11")
@@ -8,7 +8,7 @@ const WINDOW_BACKGROUND_COLOR := Color("#0C0E11")
 @onready var board: Node2D = $Board
 @onready var hud: CanvasLayer = $HUD
 
-var combo_bot: DIRExtraComboBot
+var combo_bot_mcts: DIRExtraComboBotMCTS
 var combo_bot_tuned: DIRExtraComboBotTuned
 # null = no AI driving input; otherwise whichever of the two bots above is
 # active. Only one can run at a time, so this doubles as the "which" and the
@@ -21,7 +21,7 @@ var _previous_clear_color := Color.BLACK
 func _ready() -> void:
 	_previous_clear_color = RenderingServer.get_default_clear_color()
 	RenderingServer.set_default_clear_color(WINDOW_BACKGROUND_COLOR)
-	combo_bot = ComboBotScript.new()
+	combo_bot_mcts = ComboBotMCTSScript.new()
 	combo_bot_tuned = ComboBotTunedScript.new()
 	board.setup_character("PLN")
 	hud.setup("PLN")
@@ -80,12 +80,12 @@ func _toggle_bot(bot: DIRExtraComboBot) -> void:
 	_update_ai_status_label()
 
 func _update_ai_status_label() -> void:
-	if active_bot == combo_bot:
-		hud.update_ai_status("[F4] AI ON")
+	if active_bot == combo_bot_mcts:
+		hud.update_ai_status("[F4] SEARCH")
 	elif active_bot == combo_bot_tuned:
 		hud.update_ai_status("[F5] TUNED ON")
 	else:
-		hud.update_ai_status("[F4] AI  [F5] TUNED")
+		hud.update_ai_status("[F4] SEARCH  [F5] TUNED")
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey) or not event.pressed or event.echo:
@@ -99,7 +99,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if keycode == KEY_F4:
-		_toggle_bot(combo_bot)
+		_toggle_bot(combo_bot_mcts)
 		get_viewport().set_input_as_handled()
 		return
 

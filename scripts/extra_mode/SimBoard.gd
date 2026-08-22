@@ -21,6 +21,8 @@ const COLS := 5
 const ROWS := 5
 const SPAWN_CYCLE_STEPS := 2
 const SPAWNS_PER_CYCLE := 2
+const HIGH_SCORE_SPAWN_THRESHOLD := 10000
+const HIGH_SCORE_SPAWNS_PER_CYCLE := 3
 const OPENING_GRACE_TURNS := 1
 const ENERGY_MAX := 16
 const ENERGY_SLOT_COST := 4
@@ -46,6 +48,7 @@ var queue: Array = []  # Array[int] of CharacterData.Direction, oldest first
 var energy: int = 0
 var combo: int = 0
 var score: int = 0
+var spawn_score: int = 0
 var max_combo: int = 0
 var tier5_streak: int = 0
 var defeats: int = 0
@@ -67,6 +70,7 @@ func duplicate_state() -> DIRExtraSimBoard:
 	copy.energy = energy
 	copy.combo = combo
 	copy.score = score
+	copy.spawn_score = spawn_score
 	copy.max_combo = max_combo
 	copy.defeats = defeats
 	copy.cycle_counter = cycle_counter
@@ -91,6 +95,7 @@ static func from_board(board: Node) -> DIRExtraSimBoard:
 	sim.energy = board.get_energy_quarter_units()
 	sim.combo = board.score_manager.combo_counter
 	sim.score = 0  # rollouts score their own delta, not the real running total
+	sim.spawn_score = board.score_manager.score
 	sim.max_combo = sim.combo
 	sim.cycle_counter = board.cycle_counter
 	sim.cycle_resolved = board.cycle_resolved
@@ -110,7 +115,7 @@ static func energy_gain_for_combo(c: int) -> int:
 		4: return 4
 		_:
 			if c >= 5:
-				return 4
+				return 6
 	return 0
 
 static func combo_tier(c: int) -> int:
@@ -144,10 +149,15 @@ func decay_combo() -> void:
 	combo = maxi(0, combo - 1)
 	tier5_streak = 0
 
+func reset_combo() -> void:
+	combo = 0
+	tier5_streak = 0
+
 func on_kill() -> int:
 	max_combo = maxi(max_combo, combo)
 	var points: int = BASE_KILL_SCORE * combo_multiplier(combo)
 	score += points
+	spawn_score += points
 	if combo == MAX_COMBO_TIER:
 		tier5_streak += 1
 		if tier5_streak % TIER5_STREAK_THRESHOLD == 0:
@@ -158,6 +168,7 @@ func on_kill() -> int:
 			)
 			points += streak_bonus
 			score += streak_bonus
+			spawn_score += streak_bonus
 	defeats += 1
 	return points
 
@@ -294,6 +305,7 @@ func _kill_flow(pos: Vector2i, energy_sterile: bool) -> void:
 		charge_energy(combo)
 	if not _has_any_dead_cell():
 		score += BOARD_CLEAR_BONUS
+		spawn_score += BOARD_CLEAR_BONUS
 
 func _has_any_dead_cell() -> bool:
 	for row in grid:
@@ -328,7 +340,12 @@ func _start_new_cycle(rng: RandomNumberGenerator) -> void:
 		var tmp = available[i]
 		available[i] = available[j]
 		available[j] = tmp
-	candidates = available.slice(0, mini(SPAWNS_PER_CYCLE, available.size()))
+	candidates = available.slice(0, mini(get_spawns_per_cycle(), available.size()))
+
+func get_spawns_per_cycle() -> int:
+	if spawn_score >= HIGH_SCORE_SPAWN_THRESHOLD:
+		return HIGH_SCORE_SPAWNS_PER_CYCLE
+	return SPAWNS_PER_CYCLE
 
 func _advance_cycle(rng: RandomNumberGenerator) -> void:
 	cycle_counter += 1
@@ -362,7 +379,7 @@ func _apply_candidate_spawn(pos: Vector2i) -> void:
 func _resolve_player_spawn_hit(pos: Vector2i) -> void:
 	if energy >= ENERGY_SLOT_COST:
 		energy -= ENERGY_SLOT_COST
-		decay_combo()
+		reset_combo()
 		on_kill()
 		return
 	var consumed: int = 0
@@ -370,7 +387,7 @@ func _resolve_player_spawn_hit(pos: Vector2i) -> void:
 		queue.pop_front()
 		consumed += 1
 	if consumed >= 2:
-		decay_combo()
+		reset_combo()
 		on_kill()
 	else:
 		grid[pos.y][pos.x] = DEAD

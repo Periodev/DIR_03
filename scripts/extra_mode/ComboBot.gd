@@ -145,7 +145,7 @@ func _should_spend_dash_for_continuation(
 			or _has_established_attack_chain(board, attack_directions)
 	if not protects_spawn_hit and not protects_streak:
 		return false
-	# An X-paid kill is energy-sterile. With the current Heat 5 +4 payout,
+	# An X-paid kill is energy-sterile. With the current Heat 5 +6 payout,
 	# prefer the normal hit when it fills ULT; the next decision can then spend
 	# four frozen dashes instead of burning a single protected move now.
 	if not protects_spawn_hit and _normal_kill_completes_ultimate(board, energy, combo):

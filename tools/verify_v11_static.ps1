@@ -33,6 +33,7 @@ $classicLevelSelectCheckPath = Join-Path $root "tools/verify_classic_level_selec
 $pyprojectPath = Join-Path $root "pyproject.toml"
 $solverCliPath = Join-Path $root "solver/cli.py"
 $extraBoardPath = Join-Path $root "scripts/extra_mode/Board.gd"
+$extraSimBoardPath = Join-Path $root "scripts/extra_mode/SimBoard.gd"
 $extraMainPath = Join-Path $root "scripts/extra_mode/Main.gd"
 $extraPlayerPath = Join-Path $root "scripts/extra_mode/Player.gd"
 $extraCellPath = Join-Path $root "scripts/extra_mode/Cell.gd"
@@ -41,9 +42,11 @@ $extraHeatMeterPath = Join-Path $root "scripts/extra_mode/HeatMeter.gd"
 $extraEnergySlotPath = Join-Path $root "scripts/extra_mode/EnergySlot.gd"
 $extraSlashEffectPath = Join-Path $root "scripts/extra_mode/PLNSlashEffect.gd"
 $extraComboBotPath = Join-Path $root "scripts/extra_mode/ComboBot.gd"
+$extraComboBotMctsPath = Join-Path $root "scripts/extra_mode/ComboBotMCTS.gd"
 $extraComboBotTunedPath = Join-Path $root "scripts/extra_mode/ComboBotTuned.gd"
 $extraCharacterDataPath = Join-Path $root "scripts/extra_mode/CharacterData.gd"
 $extraScoreManagerPath = Join-Path $root "scripts/extra_mode/ScoreManager.gd"
+$extraCmaPath = Join-Path $root "tools/extra_cma.py"
 $extraInventoryPath = Join-Path $root "scripts/extra_mode/Inventory.gd"
 $extraSpawnWarningSoundPath = Join-Path $root "assets/audio/sfx/extra_spawn/question_004.ogg"
 $errorSound005Path = Join-Path $root "assets/audio/sfx/error/error_005.ogg"
@@ -96,6 +99,7 @@ $initialFacingCheck = Get-Content -LiteralPath $initialFacingCheckPath -Raw
 $pyproject = Get-Content -LiteralPath $pyprojectPath -Raw
 $solverCli = Get-Content -LiteralPath $solverCliPath -Raw
 $extraBoard = Get-Content -LiteralPath $extraBoardPath -Raw
+$extraSimBoard = Get-Content -LiteralPath $extraSimBoardPath -Raw
 $extraMain = Get-Content -LiteralPath $extraMainPath -Raw
 $extraPlayer = Get-Content -LiteralPath $extraPlayerPath -Raw
 $extraCell = Get-Content -LiteralPath $extraCellPath -Raw
@@ -104,9 +108,11 @@ $extraHeatMeter = Get-Content -LiteralPath $extraHeatMeterPath -Raw
 $extraEnergySlot = Get-Content -LiteralPath $extraEnergySlotPath -Raw
 $extraSlashEffect = Get-Content -LiteralPath $extraSlashEffectPath -Raw
 $extraComboBot = Get-Content -LiteralPath $extraComboBotPath -Raw
+$extraComboBotMcts = Get-Content -LiteralPath $extraComboBotMctsPath -Raw
 $extraComboBotTuned = Get-Content -LiteralPath $extraComboBotTunedPath -Raw
 $extraCharacterData = Get-Content -LiteralPath $extraCharacterDataPath -Raw
 $extraScoreManager = Get-Content -LiteralPath $extraScoreManagerPath -Raw
+$extraCma = Get-Content -LiteralPath $extraCmaPath -Raw
 $extraInventory = Get-Content -LiteralPath $extraInventoryPath -Raw
 $legacyProductName = "DIR" + "3"
 
@@ -632,20 +638,24 @@ $checks = @(
 		Pass = $extraScoreManager -match 'const\s+BASE_KILL_SCORE\s*:=\s*1' -and $extraScoreManager -match 'const\s+MAX_COMBO_TIER\s*:=\s*5' -and $extraScoreManager -match 'const\s+COMBO_SCORE_MULTIPLIERS\s*:=\s*\[1,\s*2,\s*5,\s*10,\s*20\]' -and $extraScoreManager -match 'func\s+advance_combo\(\)(?:(?!\r?\nfunc\s)[\s\S])*?mini\(combo_counter\s*\+\s*1,\s*MAX_COMBO_TIER\)' -and $extraScoreManager -match 'func\s+decay_combo\(\)(?:(?!\r?\nfunc\s)[\s\S])*?maxi\(0,\s*combo_counter\s*-\s*1\)' -and $extraScoreManager -match 'func\s+on_move_to_live\(\)\s*->\s*void:\s*\r?\n\s*decay_combo\(\)' -and $extraBoard -match 'score_manager\.advance_combo\(\)' -and $extraBoard -match 'func\s+try_wait\(\)(?:(?!\r?\nfunc\s)[\s\S])*?score_manager\.on_move_to_live\(\)' -and $extraComboBot -match 'func\s+_advanced_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?mini\(combo\s*\+\s*1,\s*ScoreManager\.MAX_COMBO_TIER\)' -and $extraComboBot -match 'func\s+_decayed_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?maxi\(0,\s*combo\s*-\s*1\)'
 	},
 	@{
-		Name = "EXTRA spawn-hit shields cool heat instead of leaving it untouched"
+		Name = "EXTRA spawn-hit shields reset heat instead of leaving it intact"
 		Pass = $extraBoard -match 'func\s+_resolve_player_spawn_hit\(pos:\s*Vector2i,\s*cell_type:\s*int\)(?:(?!
 ?
 func\s)[\s\S])*?if\s+_spawn_hit_uses_energy:(?:(?!
 ?
-func\s)[\s\S])*?score_manager\.decay_combo\(\)(?:(?!
+func\s)[\s\S])*?score_manager\.reset_combo\(\)(?:(?!
 ?
 func\s)[\s\S])*?score_manager\.on_kill\(cell_type\)(?:(?!
 ?
 func\s)[\s\S])*?if\s+consumed_count\s*>=\s*2:\s*
 ?
-\s*score_manager\.decay_combo\(\)\s*
+\s*score_manager\.reset_combo\(\)\s*
 ?
 \s*score_manager\.on_kill\(cell_type\)'
+	},
+	@{
+		Name = "EXTRA spawn-hit Heat reset stays aligned with F4 and Python simulators"
+		Pass = $extraSimBoard -match 'func\s+reset_combo\(\)\s*->\s*void:\s*\r?\n\s*combo\s*=\s*0' -and $extraSimBoard -match 'func\s+_resolve_player_spawn_hit\(pos:\s*Vector2i\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+energy\s*>=\s*ENERGY_SLOT_COST(?:(?!\r?\nfunc\s)[\s\S])*?reset_combo\(\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+consumed\s*>=\s*2:\s*\r?\n\s*reset_combo\(\)' -and $extraCma -match 'def\s+reset_combo\(self\)[\s\S]*?self\.combo\s*=\s*0' -and $extraCma -match 'def\s+_resolve_player_spawn_hit\(self,\s*pos[\s\S]*?self\.reset_combo\(\)[\s\S]*?if\s+consumed\s*>=\s*2:\s*\r?\n\s*self\.reset_combo\(\)'
 	},
 	@{
 		Name = "EXTRA energy income only happens on turns that advance the spawn clock"
@@ -653,7 +663,7 @@ func\s)[\s\S])*?if\s+consumed_count\s*>=\s*2:\s*
 	},
 	@{
 		Name = "EXTRA spends one full energy slot to arm a free combo-preserving bonus step"
-		Pass = $extraBoard -match 'ENERGY_QUARTER_UNITS_MAX\s*:=\s*16' -and $extraBoard -match 'ENERGY_SLOT_COST\s*:=\s*4' -and $extraBoard -match 'func\s+try_energy_bonus_step\(\)(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*-=\s*cost(?:(?!\r?\nfunc\s)[\s\S])*?bonus_step_armed\s*=\s*true' -and $extraBoard -match 'func\s+energy_gain_for_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?1:\s*\r?\n\s*return\s+1(?:(?!\r?\nfunc\s)[\s\S])*?2:\s*\r?\n\s*return\s+2(?:(?!\r?\nfunc\s)[\s\S])*?3:\s*\r?\n\s*return\s+2(?:(?!\r?\nfunc\s)[\s\S])*?4:\s*\r?\n\s*return\s+4(?:(?!\r?\nfunc\s)[\s\S])*?combo\s*>=\s*5:\s*\r?\n\s*return\s+4' -and $extraMain -match 'KEY_X(?:(?!\r?\n\s*#)[\s\S])*?try_energy_bonus_step\(\)'
+		Pass = $extraBoard -match 'ENERGY_QUARTER_UNITS_MAX\s*:=\s*16' -and $extraBoard -match 'ENERGY_SLOT_COST\s*:=\s*4' -and $extraBoard -match 'func\s+try_energy_bonus_step\(\)(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*-=\s*cost(?:(?!\r?\nfunc\s)[\s\S])*?bonus_step_armed\s*=\s*true' -and $extraBoard -match 'func\s+energy_gain_for_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?1:\s*\r?\n\s*return\s+1(?:(?!\r?\nfunc\s)[\s\S])*?2:\s*\r?\n\s*return\s+2(?:(?!\r?\nfunc\s)[\s\S])*?3:\s*\r?\n\s*return\s+2(?:(?!\r?\nfunc\s)[\s\S])*?4:\s*\r?\n\s*return\s+4(?:(?!\r?\nfunc\s)[\s\S])*?combo\s*>=\s*5:\s*\r?\n\s*return\s+6' -and $extraMain -match 'KEY_X(?:(?!\r?\n\s*#)[\s\S])*?try_energy_bonus_step\(\)'
 	},
 	@{
 		Name = "EXTRA consumes full energy on Z to activate the four-dash ULT"
@@ -676,8 +686,8 @@ func\s)[\s\S])*?if\s+consumed_count\s*>=\s*2:\s*
 		Pass = $extraBoard -match 'OPENING_GRACE_TURNS\s*:=\s*1' -and $extraBoard -match '_opening_grace_turns_remaining\s*=\s*OPENING_GRACE_TURNS' -and $extraBoard -match 'func\s+_complete_turn_after_motion\(\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+_opening_grace_turns_remaining\s*>\s*0:(?:(?!\r?\nfunc\s)[\s\S])*?_opening_grace_turns_remaining\s*-=\s*1(?:(?!\r?\nfunc\s)[\s\S])*?else:\s*\r?\n\s*_advance_cycle\(\)'
 	},
 	@{
-		Name = "EXTRA keeps warning audio without changing legacy spawn cadence"
-		Pass = (Test-Path -LiteralPath $extraSpawnWarningSoundPath) -and $extraBoard -match 'SPAWN_CYCLE_STEPS\s*:=\s*2' -and $extraBoard -match 'SPAWNS_PER_CYCLE\s*:=\s*2' -and $extraBoard -match 'OPENING_GRACE_TURNS\s*:=\s*1' -and $extraBoard -match 'SPAWN_WARNING_SOUND:\s*AudioStream[\s\S]*extra_spawn/question_004\.ogg' -and $extraBoard -match 'func\s+_start_new_cycle\(\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+not\s+candidate_cells\.is_empty\(\):\s*\r?\n\s*play_spawn_warning_sound\(\)'
+		Name = "EXTRA adds a third spawn every two turns after 10,000 points"
+		Pass = (Test-Path -LiteralPath $extraSpawnWarningSoundPath) -and $extraBoard -match 'SPAWN_CYCLE_STEPS\s*:=\s*2' -and $extraBoard -match 'SPAWNS_PER_CYCLE\s*:=\s*2' -and $extraBoard -match 'HIGH_SCORE_SPAWN_THRESHOLD\s*:=\s*10000' -and $extraBoard -match 'HIGH_SCORE_SPAWNS_PER_CYCLE\s*:=\s*3' -and $extraBoard -match 'func\s+get_spawns_per_cycle\(\)\s*->\s*int(?:(?!\r?\nfunc\s)[\s\S])*?score_manager\.score\s*>=\s*HIGH_SCORE_SPAWN_THRESHOLD(?:(?!\r?\nfunc\s)[\s\S])*?return\s+HIGH_SCORE_SPAWNS_PER_CYCLE' -and $extraBoard -match 'func\s+_start_new_cycle\(\)(?:(?!\r?\nfunc\s)[\s\S])*?min\(get_spawns_per_cycle\(\),\s*available\.size\(\)\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+not\s+candidate_cells\.is_empty\(\):\s*\r?\n\s*play_spawn_warning_sound\(\)'
 	},
 	@{
 		Name = "EXTRA resolves movement before spawning and unlocking input"
@@ -866,8 +876,8 @@ func\s)[\s\S])*?var\s+center\s*:=\s*info_back_center\(panel_center\)'
 		Pass = $extraHud -match 'status_vbox\.add_child\(energy_row\)(?:(?!func\s)[\s\S])*?status_vbox\.add_child\(direction_row\)(?:(?!func\s)[\s\S])*?status_vbox\.add_child\(action_row\)' -and $extraHud -match 'action_row\.add_child\(ultimate_action_label\)' -and $extraHud -match 'action_row\.add_child\(dash_action_label\)' -and $extraHud -notmatch 'VSeparator\.new\(\)' -and $extraHud -match 'DIRECTION_ACTIVE_COLOR\s*:=\s*Color\("#7FE85A"\)' -and $extraHud -match 'DIRECTION_EXPIRING_COLOR\s*:=\s*Color\("#AAB58A"\)' -and $extraHud -match 'DIRECTION_EMPTY_COLOR\s*:=\s*Color\("#4A5058"\)' -and $extraHud -match 'DASH_AVAILABLE_COLOR\s*:=\s*Color\("#DFFFE9"\)' -and $extraPlayer -match 'ACTIVE_COLOR\s*:=\s*Color\("#7FE85A"\)' -and $extraPlayer -match 'EXPIRING_COLOR\s*:=\s*Color\("#AAB58A"\)' -and $extraCell -match 'attack_color\s*:=\s*Color\("#7FE85A"\)' -and $extraHud -match 'var\s+step_available:\s*bool\s*=\s*quarter_units\s*>=\s*bonus_step_cost\s+or\s+bonus_step_armed' -and $extraHud -match 'STEP_AVAILABLE_COLOR\s+if\s+step_available\s+else\s+STEP_UNAVAILABLE_COLOR' -and $extraHud -match 'var\s+ultimate_available:\s*bool\s*=\s*quarter_units\s*>=\s*16\s+or\s+ultimate_steps\s*>\s*0' -and $extraHud -match 'DASH_AVAILABLE_COLOR\s+if\s+ultimate_available\s+else\s+DIRECTION_EMPTY_COLOR' -and $extraHud -notmatch 'Space/X:\s*Wait' -and $extraBoard -match 'BOARD_PREFERRED_SCALE\s*:=\s*1\.25' -and $extraBoard -match 'scale\s*=\s*Vector2\.ONE\s*\*\s*board_scale' -and $extraBoard -match 'BOARD_SIDEBAR_WIDTH\s*\+\s*\(content_width\s*-\s*scaled_width\)\s*\*\s*0\.5'
 	},
 	@{
-		Name = "EXTRA exposes an optional combo-seeking F4 bot"
-		Pass = $extraMain -match 'KEY_F4' -and $extraMain -match 'active_bot\.choose_action\(board\)' -and $extraMain -match 'not\s+board\.game_state\.is_idle\(\)' -and $extraComboBot -match 'class_name\s+DIRExtraComboBot' -and $extraComboBot -match 'LOOKAHEAD_DEPTH\s*:=\s*3' -and $extraComboBot -match 'func\s+_lookahead_score\(' -and $extraComboBot -match 'func\s+_should_spend_dash_for_continuation\(' -and $extraComboBot -match 'combo\s*<\s*maxi\(COMBO_GATE_FOR_STEP,\s*ScoreManager\.MAX_COMBO_TIER\)\s+or\s+energy\s*<\s*cost' -and $extraComboBot -match 'func\s+_normal_kill_completes_ultimate\(' -and $extraComboBot -match 'func\s+_has_established_attack_chain\(' -and $extraComboBot -match 'func\s+_tier5_streak_bonus\(' -and $extraComboBot -match 'func\s+_ultimate_sequence_score\(' -and $extraComboBot -match 'continuation_count\)\s*\*\s*ULT_CONTINUATION_VALUE' -and $extraComboBot -match 'return\s+ACTION_ULT'
+		Name = "EXTRA F4 evaluates X as a direction-planned rollout macro"
+		Pass = $extraMain -match 'KEY_F4' -and $extraMain -match 'ComboBotMCTSScript\s*=\s*preload\("res://scripts/extra_mode/ComboBotMCTS\.gd"\)' -and $extraMain -match 'combo_bot_mcts\s*=\s*ComboBotMCTSScript\.new\(\)' -and $extraMain -match '_toggle_bot\(combo_bot_mcts\)' -and $extraMain -match 'active_bot\.choose_action\(board\)' -and $extraComboBotMcts -match 'class_name\s+DIRExtraComboBotMCTS\s*\r?\nextends\s+DIRExtraComboBot' -and $extraComboBotMcts -match 'ROLLOUT_DEPTH\s*:=\s*32' -and $extraComboBotMcts -match 'func\s+_root_candidates\(' -and $extraComboBotMcts -match 'candidates\.append\(\{"kind":\s*ACTION_DASH,\s*"dir":\s*direction\}\)' -and $extraComboBotMcts -match 'func\s+_apply_macro\((?:(?!\r?\nfunc\s)[\s\S])*?ACTION_DASH:(?:(?!\r?\nfunc\s)[\s\S])*?sim\.try_energy_bonus_step\(\)\s+and\s+sim\.try_move\(direction,\s*rng\)' -and $extraComboBotMcts -match '_planned_bonus_direction\s*=\s*chosen_direction'
 	},
 	@{
 		Name = "EXTRA F5 runs a CMA-ES-tuned bot, mutually exclusive with F4"

@@ -6,6 +6,8 @@ const COLS := 5
 const ROWS := 5
 const SPAWN_CYCLE_STEPS := 2
 const SPAWNS_PER_CYCLE := 2
+const HIGH_SCORE_SPAWN_THRESHOLD := 10000
+const HIGH_SCORE_SPAWNS_PER_CYCLE := 3
 const OPENING_GRACE_TURNS := 1
 const ENERGY_QUARTER_UNITS_MAX := 16
 const ENERGY_SLOT_COST := 4
@@ -640,7 +642,7 @@ func energy_gain_for_combo(combo: int) -> int:
 			return 4
 		_:
 			if combo >= 5:
-				return 4
+				return 6
 	return 0
 
 func get_next_kill_energy_gain() -> int:
@@ -694,11 +696,16 @@ func _start_new_cycle() -> void:
 			if _is_spawnable_live_cell(pos):
 				available.append(pos)
 	available.shuffle()
-	var count = min(SPAWNS_PER_CYCLE, available.size())
+	var count = min(get_spawns_per_cycle(), available.size())
 	for i in count:
 		candidate_cells.append(available[i])
 	if not candidate_cells.is_empty():
 		play_spawn_warning_sound()
+
+func get_spawns_per_cycle() -> int:
+	if score_manager != null and score_manager.score >= HIGH_SCORE_SPAWN_THRESHOLD:
+		return HIGH_SCORE_SPAWNS_PER_CYCLE
+	return SPAWNS_PER_CYCLE
 
 func play_spawn_warning_sound() -> void:
 	if spawn_warning_player == null:
@@ -774,9 +781,9 @@ func _resolve_player_spawn_hit(pos: Vector2i, cell_type: int) -> void:
 		energy_quarter_units -= ENERGY_SLOT_COST
 		_spawn_hit_uses_energy = false
 		_spawn_hit_energy_slot_index = -1
-		# A shield still means the player did not land a kill this beat -- it
-		# should not be a free way to hold heat at the cap forever.
-		score_manager.decay_combo()
+		# A blocked spawn is a direct hit, not an ordinary missed turn. It breaks
+		# the whole Heat chain so stockpiled DIR cannot sustain top-tier farming.
+		score_manager.reset_combo()
 		score_manager.on_kill(cell_type)
 		_refresh_visuals()
 		_finish_spawn_stage_if_ready()
@@ -786,7 +793,7 @@ func _resolve_player_spawn_hit(pos: Vector2i, cell_type: int) -> void:
 		inventory.pop()
 		consumed_count += 1
 	if consumed_count >= 2:
-		score_manager.decay_combo()
+		score_manager.reset_combo()
 		score_manager.on_kill(cell_type)
 	else:
 		_spawn_dead(pos, cell_type)
