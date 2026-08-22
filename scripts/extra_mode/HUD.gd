@@ -14,7 +14,9 @@ const DIRECTION_EMPTY_COLOR := Color("#4A5058")
 const DASH_AVAILABLE_COLOR := Color("#DFFFE9")
 const SIDEBAR_MARGIN := 20.0
 const SIDEBAR_WIDTH := 320.0
-const STATUS_PANEL_TOP := 158.0
+const TURN_ROW_TOP := 112.0
+const AI_STATUS_TOP := 142.0
+const STATUS_PANEL_TOP := 188.0
 const STATUS_PANEL_HEIGHT := 176.0
 const ENERGY_ROW_CONTENT_WIDTH := 162.0
 const ENERGY_GAIN_WIDTH := 44.0
@@ -25,6 +27,7 @@ var score_bonus_timer: Timer
 var combo_label: Label
 var heat_meter: Control
 var heat_value_label: Label
+var turn_label: Label
 var energy_gain_label: Label
 var inventory_container: HBoxContainer
 var inventory_panel: PanelContainer
@@ -95,6 +98,15 @@ func _ready() -> void:
 	heat_value_label.position = Vector2(240, 76)
 	heat_value_label.size = Vector2(80, 22)
 	add_child(heat_value_label)
+
+	turn_label = Label.new()
+	turn_label.text = "TURN 0"
+	turn_label.add_theme_font_size_override("font_size", 20)
+	turn_label.add_theme_color_override("font_color", Color(0.68, 0.70, 0.74))
+	turn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	turn_label.position = Vector2(SIDEBAR_MARGIN, TURN_ROW_TOP)
+	turn_label.size = Vector2(SIDEBAR_WIDTH, 28)
+	add_child(turn_label)
 
 	# Three-row status panel in the left sidebar.
 	inventory_panel = PanelContainer.new()
@@ -338,6 +350,9 @@ func update_combo(combo: int, tier5_streak: int) -> void:
 		heat_value_label.text = "%d combo" % tier5_streak
 	heat_meter.set_heat(combo)
 
+func update_turns(turn_count: int) -> void:
+	turn_label.text = "TURN %d" % turn_count
+
 func update_energy_gain(quarter_units: int) -> void:
 	energy_gain_label.visible = quarter_units > 0
 	if quarter_units <= 0:
@@ -437,6 +452,7 @@ func show_game_over(final_score: int, max_tier5_streak: int) -> void:
 
 func _layout_ui() -> void:
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	var sidebar_width: float = min(SIDEBAR_WIDTH, viewport_size.x - SIDEBAR_MARGIN * 2.0)
 	score_label.position = Vector2(20, 8)
 	score_label.size = Vector2(280, 64)
 
@@ -446,8 +462,9 @@ func _layout_ui() -> void:
 	heat_meter.size = Vector2(166, 18)
 	heat_value_label.position = Vector2(240, 76)
 	heat_value_label.size = Vector2(80, 22)
+	turn_label.position = Vector2(SIDEBAR_MARGIN, TURN_ROW_TOP)
+	turn_label.size = Vector2(sidebar_width, 28)
 
-	var sidebar_width: float = min(SIDEBAR_WIDTH, viewport_size.x - SIDEBAR_MARGIN * 2.0)
 	inventory_panel.position = Vector2(SIDEBAR_MARGIN, STATUS_PANEL_TOP)
 	inventory_panel.size = Vector2(sidebar_width, STATUS_PANEL_HEIGHT)
 	energy_gain_label.position = Vector2(
@@ -459,7 +476,7 @@ func _layout_ui() -> void:
 	message_label.position = Vector2(SIDEBAR_MARGIN, STATUS_PANEL_TOP + STATUS_PANEL_HEIGHT + 10.0)
 	message_label.size = Vector2(sidebar_width, 30)
 
-	ai_status_label.position = Vector2(20, 116)
+	ai_status_label.position = Vector2(SIDEBAR_MARGIN, AI_STATUS_TOP)
 	ai_status_label.size = Vector2(150, 30)
 	ai_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 

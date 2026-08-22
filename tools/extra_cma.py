@@ -16,7 +16,8 @@ single kill tops out at `combo_payout(5) * 60 = 1200`.
 This module asks "are these constants well-chosen", not "replace the whole
 policy": it is a from-scratch, faithful Python port of the CURRENT
 Board.gd / ScoreManager.gd rules (heat decay -1, spawn-hit Heat resets, the
-1/2/2/4/6 energy table, X/Z costs) plus a parameterised port of ComboBot.gd's
+1/2/2/4/4 energy table with a repeating Heat-5 streak reward, X/Z costs) plus
+a parameterised port of ComboBot.gd's
 own scoring terms, so CMA-ES can search the SAME weight vector the bot
 already uses, seeded at the bot's current values.
 
@@ -49,8 +50,9 @@ COLS = 5
 ROWS = 5
 SPAWN_CYCLE_STEPS = 2
 SPAWNS_PER_CYCLE = 2
-HIGH_SCORE_SPAWN_THRESHOLD = 10_000
-HIGH_SCORE_SPAWNS_PER_CYCLE = 3
+THREE_SPAWN_TURN_THRESHOLD = 100
+FOUR_SPAWN_TURN_THRESHOLD = 200
+FIVE_SPAWN_TURN_THRESHOLD = 300
 OPENING_GRACE_TURNS = 1
 ENERGY_MAX = 16
 ENERGY_SLOT_COST = 4
@@ -67,6 +69,7 @@ MAX_COMBO_TIER = 5
 COMBO_SCORE_MULTIPLIERS = (1, 2, 5, 10, 20)
 BASE_KILL_SCORE = 1
 TIER5_STREAK_THRESHOLD = 5
+TIER5_STREAK_ENERGY_BONUS = 4
 TIER5_STREAK_BONUS_BASE = 200
 TIER5_STREAK_BONUS_STEP = 100
 TIER5_STREAK_BONUS_CAP = 1000
@@ -77,7 +80,23 @@ _ENERGY_GAIN = {1: 1, 2: 2, 3: 2, 4: 4}
 def energy_gain_for_combo(combo: int) -> int:
     if combo in _ENERGY_GAIN:
         return _ENERGY_GAIN[combo]
-    return 6 if combo >= 5 else 0
+    return 4 if combo >= 5 else 0
+
+
+def energy_gain_for_kill(combo: int, tier5_streak: int) -> int:
+    return energy_gain_for_combo(combo) + tier5_streak_energy_bonus(
+        combo, tier5_streak
+    )
+
+
+def tier5_streak_energy_bonus(combo: int, tier5_streak: int) -> int:
+    if (
+        combo >= MAX_COMBO_TIER
+        and tier5_streak > 0
+        and tier5_streak % TIER5_STREAK_THRESHOLD == 0
+    ):
+        return TIER5_STREAK_ENERGY_BONUS
+    return 0
 
 
 def combo_tier(combo: int) -> int:
@@ -171,7 +190,16 @@ class Board:
         return target in self.candidates
 
     def charge_energy(self, combo: int) -> None:
-        self.energy = min(self.energy + energy_gain_for_combo(combo), ENERGY_MAX)
+        self.energy = min(
+            self.energy + energy_gain_for_kill(combo, self.tier5_streak),
+            ENERGY_MAX,
+        )
+
+    def charge_streak_energy(self, combo: int) -> None:
+        self.energy = min(
+            self.energy + tier5_streak_energy_bonus(combo, self.tier5_streak),
+            ENERGY_MAX,
+        )
 
     def has_attack_direction(self, d: int) -> bool:
         if self.ult_remaining > 0:
@@ -277,7 +305,11 @@ class Board:
         freeze = self.ult_remaining > 0
         completes = self.ult_remaining == 0
         if hits_dead:
-            self._kill_flow(destination, energy_sterile=True)
+            self._kill_flow(
+                destination,
+                energy_sterile=True,
+                allow_streak_energy=True,
+            )
             if self.grid[destination[1]][destination[0]] == LIVE:
                 self.player = destination
         else:
@@ -290,12 +322,19 @@ class Board:
             self.ult_chain_started = False
         return self._finalize_turn(freeze=freeze, count_turn=False)
 
-    def _kill_flow(self, pos: tuple[int, int], energy_sterile: bool) -> None:
+    def _kill_flow(
+        self,
+        pos: tuple[int, int],
+        energy_sterile: bool,
+        allow_streak_energy: bool = False,
+    ) -> None:
         x, y = pos
         self.grid[y][x] = LIVE
         self.advance_combo()
         self.on_kill()
-        if not energy_sterile:
+        if allow_streak_energy:
+            self.charge_streak_energy(self.combo)
+        elif not energy_sterile:
             self.charge_energy(self.combo)
         if not any(DEAD in row for row in self.grid):
             self.score += BOARD_CLEAR_BONUS
@@ -320,11 +359,13 @@ class Board:
         self.candidates = available[: self.spawns_per_cycle()]
 
     def spawns_per_cycle(self) -> int:
-        return (
-            HIGH_SCORE_SPAWNS_PER_CYCLE
-            if self.score >= HIGH_SCORE_SPAWN_THRESHOLD
-            else SPAWNS_PER_CYCLE
-        )
+        if self.survival_turns >= FIVE_SPAWN_TURN_THRESHOLD:
+            return 5
+        if self.survival_turns >= FOUR_SPAWN_TURN_THRESHOLD:
+            return 4
+        if self.survival_turns >= THREE_SPAWN_TURN_THRESHOLD:
+            return 3
+        return SPAWNS_PER_CYCLE
 
     def _advance_cycle(self) -> None:
         self.cycle_counter += 1

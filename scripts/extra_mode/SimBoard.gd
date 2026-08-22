@@ -21,8 +21,9 @@ const COLS := 5
 const ROWS := 5
 const SPAWN_CYCLE_STEPS := 2
 const SPAWNS_PER_CYCLE := 2
-const HIGH_SCORE_SPAWN_THRESHOLD := 10000
-const HIGH_SCORE_SPAWNS_PER_CYCLE := 3
+const THREE_SPAWN_TURN_THRESHOLD := 100
+const FOUR_SPAWN_TURN_THRESHOLD := 200
+const FIVE_SPAWN_TURN_THRESHOLD := 300
 const OPENING_GRACE_TURNS := 1
 const ENERGY_MAX := 16
 const ENERGY_SLOT_COST := 4
@@ -37,6 +38,7 @@ const MAX_COMBO_TIER := 5
 const COMBO_SCORE_MULTIPLIERS := [1, 2, 5, 10, 20]
 const BASE_KILL_SCORE := 1
 const TIER5_STREAK_THRESHOLD := 5
+const TIER5_STREAK_ENERGY_BONUS := 4
 const TIER5_STREAK_BONUS_BASE := 200
 const TIER5_STREAK_BONUS_STEP := 100
 const TIER5_STREAK_BONUS_CAP := 1000
@@ -48,7 +50,6 @@ var queue: Array = []  # Array[int] of CharacterData.Direction, oldest first
 var energy: int = 0
 var combo: int = 0
 var score: int = 0
-var spawn_score: int = 0
 var max_combo: int = 0
 var tier5_streak: int = 0
 var defeats: int = 0
@@ -70,7 +71,6 @@ func duplicate_state() -> DIRExtraSimBoard:
 	copy.energy = energy
 	copy.combo = combo
 	copy.score = score
-	copy.spawn_score = spawn_score
 	copy.max_combo = max_combo
 	copy.defeats = defeats
 	copy.cycle_counter = cycle_counter
@@ -95,7 +95,6 @@ static func from_board(board: Node) -> DIRExtraSimBoard:
 	sim.energy = board.get_energy_quarter_units()
 	sim.combo = board.score_manager.combo_counter
 	sim.score = 0  # rollouts score their own delta, not the real running total
-	sim.spawn_score = board.score_manager.score
 	sim.max_combo = sim.combo
 	sim.cycle_counter = board.cycle_counter
 	sim.cycle_resolved = board.cycle_resolved
@@ -115,7 +114,15 @@ static func energy_gain_for_combo(c: int) -> int:
 		4: return 4
 		_:
 			if c >= 5:
-				return 6
+				return 4
+	return 0
+
+static func energy_gain_for_kill(c: int, streak: int) -> int:
+	return energy_gain_for_combo(c) + tier5_streak_energy_bonus(c, streak)
+
+static func tier5_streak_energy_bonus(c: int, streak: int) -> int:
+	if c >= MAX_COMBO_TIER and streak > 0 and streak % TIER5_STREAK_THRESHOLD == 0:
+		return TIER5_STREAK_ENERGY_BONUS
 	return 0
 
 static func combo_tier(c: int) -> int:
@@ -157,7 +164,6 @@ func on_kill() -> int:
 	max_combo = maxi(max_combo, combo)
 	var points: int = BASE_KILL_SCORE * combo_multiplier(combo)
 	score += points
-	spawn_score += points
 	if combo == MAX_COMBO_TIER:
 		tier5_streak += 1
 		if tier5_streak % TIER5_STREAK_THRESHOLD == 0:
@@ -168,7 +174,6 @@ func on_kill() -> int:
 			)
 			points += streak_bonus
 			score += streak_bonus
-			spawn_score += streak_bonus
 	defeats += 1
 	return points
 
@@ -182,7 +187,10 @@ func will_spawn_hit(target: Vector2i) -> bool:
 	return target in candidates
 
 func charge_energy(c: int) -> void:
-	energy = mini(energy + energy_gain_for_combo(c), ENERGY_MAX)
+	energy = mini(energy + energy_gain_for_kill(c, tier5_streak), ENERGY_MAX)
+
+func charge_streak_energy(c: int) -> void:
+	energy = mini(energy + tier5_streak_energy_bonus(c, tier5_streak), ENERGY_MAX)
 
 func has_attack_direction(d: int) -> bool:
 	if ult_remaining > 0:
@@ -284,7 +292,7 @@ func _try_ultimate_dash(d: int, rng: RandomNumberGenerator) -> bool:
 	var freeze: bool = ult_remaining > 0
 	var completes: bool = ult_remaining == 0
 	if hits_dead:
-		_kill_flow(destination, true)
+		_kill_flow(destination, true, true)
 		if grid[destination.y][destination.x] == LIVE:
 			player = destination
 	else:
@@ -297,15 +305,16 @@ func _try_ultimate_dash(d: int, rng: RandomNumberGenerator) -> bool:
 		ult_chain_started = false
 	return _finalize_turn(freeze, false, rng)
 
-func _kill_flow(pos: Vector2i, energy_sterile: bool) -> void:
+func _kill_flow(pos: Vector2i, energy_sterile: bool, allow_streak_energy: bool = false) -> void:
 	grid[pos.y][pos.x] = LIVE
 	advance_combo()
 	on_kill()
-	if not energy_sterile:
+	if allow_streak_energy:
+		charge_streak_energy(combo)
+	elif not energy_sterile:
 		charge_energy(combo)
 	if not _has_any_dead_cell():
 		score += BOARD_CLEAR_BONUS
-		spawn_score += BOARD_CLEAR_BONUS
 
 func _has_any_dead_cell() -> bool:
 	for row in grid:
@@ -343,8 +352,12 @@ func _start_new_cycle(rng: RandomNumberGenerator) -> void:
 	candidates = available.slice(0, mini(get_spawns_per_cycle(), available.size()))
 
 func get_spawns_per_cycle() -> int:
-	if spawn_score >= HIGH_SCORE_SPAWN_THRESHOLD:
-		return HIGH_SCORE_SPAWNS_PER_CYCLE
+	if survival_turns >= FIVE_SPAWN_TURN_THRESHOLD:
+		return 5
+	if survival_turns >= FOUR_SPAWN_TURN_THRESHOLD:
+		return 4
+	if survival_turns >= THREE_SPAWN_TURN_THRESHOLD:
+		return 3
 	return SPAWNS_PER_CYCLE
 
 func _advance_cycle(rng: RandomNumberGenerator) -> void:

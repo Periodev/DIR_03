@@ -6,11 +6,13 @@ const COLS := 5
 const ROWS := 5
 const SPAWN_CYCLE_STEPS := 2
 const SPAWNS_PER_CYCLE := 2
-const HIGH_SCORE_SPAWN_THRESHOLD := 10000
-const HIGH_SCORE_SPAWNS_PER_CYCLE := 3
+const THREE_SPAWN_TURN_THRESHOLD := 100
+const FOUR_SPAWN_TURN_THRESHOLD := 200
+const FIVE_SPAWN_TURN_THRESHOLD := 300
 const OPENING_GRACE_TURNS := 1
 const ENERGY_QUARTER_UNITS_MAX := 16
 const ENERGY_SLOT_COST := 4
+const TIER5_STREAK_ENERGY_BONUS := 4
 const ULT_DASH_COUNT := 4
 const ULT_SLASH_TIP_EXTENSION_RATIO := 0.65
 const SPAWN_CELL_TYPE := CharacterData.CellType.DEAD
@@ -608,10 +610,11 @@ func _kill_flow(pos: Vector2i, attack_dir: int, cell_type: int) -> void:
 	grid[pos.y][pos.x] = CharacterData.CellType.LIVE
 	score_manager.advance_combo()
 	score_manager.on_kill(cell_type)
-	# Frozen actions never pay for themselves: an X-paid kill and an ULT chain
-	# kill both grant score and combo but no energy, so energy income only ever
-	# happens on turns that advance the spawn clock.
-	if not _ultimate_chain_started and not _bonus_step_kill_active:
+	# Frozen actions never receive base Heat income. ULT can still earn the
+	# repeating five-kill streak reward; X remains completely energy-sterile.
+	if _ultimate_chain_started:
+		_charge_tier5_streak_energy_bonus(score_manager.combo_counter)
+	elif not _bonus_step_kill_active:
 		_charge_energy_for_combo(score_manager.combo_counter)
 	# The kill that leaves zero DEAD cells anywhere on the board is, by
 	# definition, the one that just cleared it -- no separate "was it already
@@ -628,9 +631,8 @@ func _has_any_dead_cell() -> bool:
 	return false
 
 func energy_gain_for_combo(combo: int) -> int:
-	# A miss still cools only one tier, but tier 4 and 5 now earn enough to
-	# justify protecting a strong chain with X rather than repeatedly farming
-	# the tier-3 recovery loop.
+	# Base income follows Heat tier. Holding Heat 5 has a separate repeating
+	# reward in energy_gain_for_kill(), aligned with the five-kill streak payout.
 	match combo:
 		1:
 			return 1
@@ -642,29 +644,51 @@ func energy_gain_for_combo(combo: int) -> int:
 			return 4
 		_:
 			if combo >= 5:
-				return 6
+				return 4
+	return 0
+
+func energy_gain_for_kill(combo: int, tier5_streak: int) -> int:
+	return energy_gain_for_combo(combo) + tier5_streak_energy_bonus(combo, tier5_streak)
+
+func tier5_streak_energy_bonus(combo: int, tier5_streak: int) -> int:
+	if combo >= ScoreManager.MAX_COMBO_TIER \
+			and tier5_streak > 0 \
+			and tier5_streak % ScoreManager.TIER5_STREAK_THRESHOLD == 0:
+		return TIER5_STREAK_ENERGY_BONUS
 	return 0
 
 func get_next_kill_energy_gain() -> int:
-	# What the next kill would put in the bar, which is zero while a frozen
-	# action is queued up: X-paid and ULT kills are energy-sterile.
-	if ultimate_dashes_remaining > 0 or bonus_step_armed:
+	# What the next kill would put in the bar. X is energy-sterile; ULT receives
+	# only the repeating five-kill streak reward.
+	if bonus_step_armed:
 		return 0
-	# energy_gain_for_combo already saturates past the top tier, so the raw
-	# chain length can go straight in.
-	return mini(
-		energy_gain_for_combo(score_manager.combo_counter + 1),
-		ENERGY_QUARTER_UNITS_MAX - energy_quarter_units
+	var next_combo: int = mini(
+		score_manager.combo_counter + 1,
+		ScoreManager.MAX_COMBO_TIER
 	)
+	var next_tier5_streak: int = score_manager.tier5_streak
+	if next_combo >= ScoreManager.MAX_COMBO_TIER:
+		next_tier5_streak += 1
+	var energy_gain: int
+	if ultimate_dashes_remaining > 0:
+		energy_gain = tier5_streak_energy_bonus(next_combo, next_tier5_streak)
+	else:
+		energy_gain = energy_gain_for_kill(next_combo, next_tier5_streak)
+	return mini(energy_gain, ENERGY_QUARTER_UNITS_MAX - energy_quarter_units)
 
 func _charge_energy_for_combo(combo: int) -> void:
-	var energy_gain: int = energy_gain_for_combo(combo)
+	_apply_energy_gain(energy_gain_for_kill(combo, score_manager.tier5_streak))
+
+func _charge_tier5_streak_energy_bonus(combo: int) -> void:
+	_apply_energy_gain(tier5_streak_energy_bonus(combo, score_manager.tier5_streak))
+
+func _apply_energy_gain(energy_gain: int) -> void:
 	energy_quarter_units = mini(
 		energy_quarter_units + energy_gain,
 		ENERGY_QUARTER_UNITS_MAX
 	)
-	# The HUD reports the Heat-tier reward, even if the bar itself is already
-	# capped and can accept only part of it.
+	# The HUD reports the full Heat/streak reward, even if the bar itself is
+	# already capped and can accept only part of it.
 	last_energy_gain_quarter_units = energy_gain
 
 var cycle_resolved: bool = false  # true = this cycle already spawned, remaining turns idle
@@ -703,8 +727,12 @@ func _start_new_cycle() -> void:
 		play_spawn_warning_sound()
 
 func get_spawns_per_cycle() -> int:
-	if score_manager != null and score_manager.score >= HIGH_SCORE_SPAWN_THRESHOLD:
-		return HIGH_SCORE_SPAWNS_PER_CYCLE
+	if survival_turns >= FIVE_SPAWN_TURN_THRESHOLD:
+		return 5
+	if survival_turns >= FOUR_SPAWN_TURN_THRESHOLD:
+		return 4
+	if survival_turns >= THREE_SPAWN_TURN_THRESHOLD:
+		return 3
 	return SPAWNS_PER_CYCLE
 
 func play_spawn_warning_sound() -> void:

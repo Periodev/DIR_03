@@ -76,7 +76,7 @@ DIR_KEY = {UP: "W", DOWN: "S", LEFT: "A", RIGHT: "D"}
 
 # combo -> quarter units granted by a kill, mirroring _charge_energy_for_combo.
 DEFAULT_CHARGE = {1: 1, 2: 2, 3: 2, 4: 4}
-DEFAULT_CHARGE_HIGH = 6  # combo >= 5
+DEFAULT_CHARGE_HIGH = 4  # combo >= 5 base; excludes the repeating streak reward
 DEFAULT_CHARGE_HIGH_FROM = 5
 
 

@@ -148,7 +148,7 @@ func _should_spend_dash_for_continuation(
 	# An X-paid kill is energy-sterile. With the current Heat 5 +6 payout,
 	# prefer the normal hit when it fills ULT; the next decision can then spend
 	# four frozen dashes instead of burning a single protected move now.
-	if not protects_spawn_hit and _normal_kill_completes_ultimate(board, energy, combo):
+	if not protects_spawn_hit and _normal_kill_completes_ultimate(board, energy):
 		return false
 	# A long-chain X must leave one full energy unit for the next spawn hit.
 	# An imminent spawn hit is the exception: freezing that move is safer than
@@ -159,8 +159,8 @@ func _should_spend_dash_for_continuation(
 		return true
 	return protects_streak and _has_dash_continuation(board)
 
-func _normal_kill_completes_ultimate(board: Node, energy: int, combo: int) -> bool:
-	var next_energy: int = energy + int(board.energy_gain_for_combo(combo))
+func _normal_kill_completes_ultimate(board: Node, energy: int) -> bool:
+	var next_energy: int = energy + int(board.get_next_kill_energy_gain())
 	return next_energy >= int(board.ENERGY_QUARTER_UNITS_MAX)
 
 func _is_streak_payout_near(board: Node) -> bool:
@@ -217,11 +217,12 @@ func _direction_plan_score(board: Node, direction: int, preserve_combo: bool) ->
 		# direction and grants no energy.
 		if not preserve_combo:
 			simulated_queue.remove_at(inventory_index)
-			energy = _charged_energy(board, energy, combo + 1)
 		simulated_grid[target.y][target.x] = CharacterData.CellType.LIVE
 		var kill_state: Vector2i = _advance_combo_and_streak(combo, tier5_streak)
 		combo = kill_state.x
 		tier5_streak = kill_state.y
+		if not preserve_combo:
+			energy = _charged_energy(board, energy, combo, tier5_streak)
 		reward += _combo_kill_value(combo)
 		reward += _tier5_streak_value(combo, tier5_streak)
 		if not _grid_has_dead_cell(simulated_grid):
@@ -286,10 +287,10 @@ func _tier5_streak_bonus(tier5_streak: int) -> int:
 		ScoreManager.TIER5_STREAK_BONUS_CAP
 	)
 
-func _charged_energy(board: Node, energy: int, combo: int) -> int:
+func _charged_energy(board: Node, energy: int, combo: int, tier5_streak: int) -> int:
 	# Mirrors Board._charge_energy_for_combo so the lookahead can see the bar
 	# fill, which is what makes saving toward ULT visible to the search at all.
-	var gain: int = int(board.energy_gain_for_combo(combo))
+	var gain: int = int(board.energy_gain_for_kill(combo, tier5_streak))
 	return mini(energy + gain, int(board.ENERGY_QUARTER_UNITS_MAX))
 
 func _grid_has_dead_cell(grid: Array) -> bool:
@@ -367,7 +368,9 @@ func _lookahead_score(
 			var kill_state: Vector2i = _advance_combo_and_streak(next_combo, next_tier5_streak)
 			next_combo = kill_state.x
 			next_tier5_streak = kill_state.y
-			next_energy = _charged_energy(board, next_energy, next_combo)
+			next_energy = _charged_energy(
+				board, next_energy, next_combo, next_tier5_streak
+			)
 			reward += _combo_kill_value(next_combo)
 			reward += _tier5_streak_value(next_combo, next_tier5_streak)
 			if not _grid_has_dead_cell(next_grid):

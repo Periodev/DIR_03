@@ -163,15 +163,25 @@ func run_verification() -> void:
 			or not board.spawn_warning_player.playing:
 		fail("The legacy spawn batch did not play its warning sound when candidates appeared.")
 		return
-	board.score_manager.score = board.HIGH_SCORE_SPAWN_THRESHOLD - 1
+	board.survival_turns = board.THREE_SPAWN_TURN_THRESHOLD - 1
 	board._start_new_cycle()
 	if board.candidate_cells.size() != board.SPAWNS_PER_CYCLE:
-		fail("Spawn count increased before the score threshold.")
+		fail("Spawn count increased before the turn threshold.")
 		return
-	board.score_manager.score = board.HIGH_SCORE_SPAWN_THRESHOLD
+	board.survival_turns = board.THREE_SPAWN_TURN_THRESHOLD
 	board._start_new_cycle()
-	if board.candidate_cells.size() != board.HIGH_SCORE_SPAWNS_PER_CYCLE:
-		fail("Spawn count did not increase to three at the score threshold.")
+	if board.candidate_cells.size() != 3:
+		fail("Spawn count did not increase to three at 100 turns.")
+		return
+	board.survival_turns = board.FOUR_SPAWN_TURN_THRESHOLD
+	board._start_new_cycle()
+	if board.candidate_cells.size() != 4:
+		fail("Spawn count did not increase to four at 200 turns.")
+		return
+	board.survival_turns = board.FIVE_SPAWN_TURN_THRESHOLD
+	board._start_new_cycle()
+	if board.candidate_cells.size() != 5:
+		fail("Spawn count did not increase to five at 300 turns.")
 		return
 	board.restart()
 	await process_frame
@@ -356,17 +366,25 @@ func run_verification() -> void:
 	if board.get_energy_quarter_units() != 5:
 		fail("Heat 4 did not add one energy slot.")
 		return
+	board.score_manager.tier5_streak = 1
 	board._charge_energy_for_combo(5)
-	if board.get_energy_quarter_units() != 11:
-		fail("Heat 5 did not add 1.5 energy slots.")
+	if board.get_energy_quarter_units() != 9:
+		fail("Heat 5 base income did not remain one energy slot.")
+		return
+	board.energy_quarter_units = 0
+	board.score_manager.tier5_streak = ScoreManager.TIER5_STREAK_THRESHOLD
+	board._charge_energy_for_combo(5)
+	if board.get_energy_quarter_units() != 8:
+		fail("Every fifth Heat-5 kill did not add its extra energy slot.")
 		return
 	board.energy_quarter_units = 12
 	if board.get_energy_quarter_units() != 12 or board.try_energy_ultimate():
 		fail("Three energy slots incorrectly activated the four-slot ULT.")
 		return
-	board._charge_energy_for_combo(6)
+	board.score_manager.tier5_streak = ScoreManager.TIER5_STREAK_THRESHOLD + 1
+	board._charge_energy_for_combo(5)
 	if board.get_energy_quarter_units() != 16:
-		fail("Capped heat did not add its energy gain up to the four-slot cap.")
+		fail("Heat 5 base income did not add up to the four-slot cap.")
 		return
 
 	await create_timer(0.6).timeout
@@ -402,6 +420,7 @@ func run_verification() -> void:
 		fail("A zero-displacement ULT input consumed a dash or stored a direction.")
 		return
 	board.player_pos = Vector2i(board.COLS / 2, board.ROWS / 2)
+	board.score_manager.tier5_streak = ScoreManager.TIER5_STREAK_THRESHOLD - 1
 
 	var ult_target: Vector2i = board.player_pos + CharacterData.DIR_VECTOR[CharacterData.Direction.RIGHT]
 	if ult_target.x >= board.COLS:
@@ -414,8 +433,8 @@ func run_verification() -> void:
 	if board.score_manager.combo_counter != 5 or board.get_ultimate_dashes_remaining() != 3:
 		fail("ULT attack did not continue combo or consume exactly one dash.")
 		return
-	if board.get_energy_quarter_units() != 0:
-		fail("ULT attack recharged energy during the active ULT chain.")
+	if board.get_energy_quarter_units() != board.TIER5_STREAK_ENERGY_BONUS:
+		fail("The fifth Heat-5 DASH kill did not grant its streak energy bonus.")
 		return
 
 	var movement_board: Node2D = BoardScript.new()
