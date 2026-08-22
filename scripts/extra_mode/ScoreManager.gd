@@ -11,19 +11,29 @@ const MAX_COMBO_TIER := 5
 # per tier, so its size defines MAX_COMBO_TIER.
 const COMBO_SCORE_MULTIPLIERS := [1, 2, 5, 10, 20]
 const BASE_KILL_SCORE := 1
+# Holding the top tier, not just reaching it, earns its own reward: every five
+# straight kills taken without combo ever dropping below MAX_COMBO_TIER pay a
+# bonus on top of their own tier-5 score. The count itself never resets on a
+# payout, only on a decay -- it is a running record of the current streak, and
+# the bonus just repeats every five kills along the way.
+const TIER5_STREAK_THRESHOLD := 5
+const TIER5_STREAK_BONUS := 200
 
 signal score_changed(new_score: int)
-signal combo_changed(new_combo: int)
+signal combo_changed(new_combo: int, new_tier5_streak: int)
 signal defeat_changed(new_defeats: int)
+signal bonus_scored(amount: int)
 
 var score: int = 0
 var combo_counter: int = 0
 var max_combo: int = 0
 var defeat_count: int = 0
+var tier5_streak: int = 0
+var max_tier5_streak: int = 0
 
 func advance_combo() -> void:
 	combo_counter = mini(combo_counter + 1, MAX_COMBO_TIER)
-	combo_changed.emit(combo_counter if ENABLE_COMBO_BONUS else 0)
+	combo_changed.emit(combo_counter if ENABLE_COMBO_BONUS else 0, tier5_streak)
 
 func combo_tier(combo: int) -> int:
 	return clampi(combo, 1, MAX_COMBO_TIER)
@@ -37,33 +47,57 @@ func on_kill(_cell_type: int, count_defeat: bool = true) -> int:
 	max_combo = maxi(max_combo, combo_counter)
 	var points: int = BASE_KILL_SCORE * combo_multiplier(combo_counter)
 	score += points
+	var streak_bonus_awarded: int = 0
+	if combo_counter == MAX_COMBO_TIER:
+		tier5_streak += 1
+		max_tier5_streak = maxi(max_tier5_streak, tier5_streak)
+		# The streak count itself never resets on a payout -- only a decay
+		# breaks it -- so it keeps climbing as a running record, and the bonus
+		# just repeats every five kills along the way.
+		if tier5_streak % TIER5_STREAK_THRESHOLD == 0:
+			streak_bonus_awarded = TIER5_STREAK_BONUS
+			points += TIER5_STREAK_BONUS
+			score += TIER5_STREAK_BONUS
 	if count_defeat:
 		defeat_count += 1
 	score_changed.emit(score)
-	combo_changed.emit(combo_counter if ENABLE_COMBO_BONUS else 0)
+	if streak_bonus_awarded > 0:
+		bonus_scored.emit(streak_bonus_awarded)
+	combo_changed.emit(combo_counter if ENABLE_COMBO_BONUS else 0, tier5_streak)
 	defeat_changed.emit(defeat_count)
 	return points
+
+func award_bonus(amount: int) -> void:
+	score += amount
+	score_changed.emit(score)
+	bonus_scored.emit(amount)
 
 func on_move_to_live() -> void:
 	decay_combo()
 
 func decay_combo() -> void:
-	# A miss costs two tiers, not one: a single tier of decay let heat coast
-	# near the cap for an entire run (bot benchmarks averaged 88-92% of the
-	# top multiplier across 900+ turn sessions), collapsing the tier system
-	# into a survival timer instead of a maintained-chain reward.
-	combo_counter = maxi(0, combo_counter - 2)
-	combo_changed.emit(combo_counter if ENABLE_COMBO_BONUS else 0)
+	# A miss costs one tier. The earlier two-tier decay fixed heat coasting
+	# near the cap (88-92% of the top multiplier across 900+ turn benchmarks),
+	# but the real leak was tier 3/4 recovery paying off almost as well as
+	# holding it -- energy_gain_for_combo() now closes that instead by paying
+	# tier 3 and tier 4 the same, so a lighter decay no longer needs to carry
+	# the whole fix on its own.
+	combo_counter = maxi(0, combo_counter - 1)
+	tier5_streak = 0
+	combo_changed.emit(combo_counter if ENABLE_COMBO_BONUS else 0, tier5_streak)
 
 func reset_combo() -> void:
 	combo_counter = 0
-	combo_changed.emit(combo_counter if ENABLE_COMBO_BONUS else 0)
+	tier5_streak = 0
+	combo_changed.emit(combo_counter if ENABLE_COMBO_BONUS else 0, tier5_streak)
 
 func reset() -> void:
 	score = 0
 	combo_counter = 0
 	max_combo = 0
 	defeat_count = 0
+	tier5_streak = 0
+	max_tier5_streak = 0
 	score_changed.emit(score)
-	combo_changed.emit(combo_counter if ENABLE_COMBO_BONUS else 0)
+	combo_changed.emit(combo_counter if ENABLE_COMBO_BONUS else 0, tier5_streak)
 	defeat_changed.emit(defeat_count)

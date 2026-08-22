@@ -1,6 +1,7 @@
 extends Node
 
 const ComboBotScript = preload("res://scripts/extra_mode/ComboBot.gd")
+const ComboBotTunedScript = preload("res://scripts/extra_mode/ComboBotTuned.gd")
 const AI_ACTION_INTERVAL_SECONDS := 0.16
 const WINDOW_BACKGROUND_COLOR := Color("#0C0E11")
 
@@ -8,7 +9,11 @@ const WINDOW_BACKGROUND_COLOR := Color("#0C0E11")
 @onready var hud: CanvasLayer = $HUD
 
 var combo_bot: DIRExtraComboBot
-var ai_enabled: bool = false
+var combo_bot_tuned: DIRExtraComboBotTuned
+# null = no AI driving input; otherwise whichever of the two bots above is
+# active. Only one can run at a time, so this doubles as the "which" and the
+# "is any AI on" state instead of tracking them separately.
+var active_bot: DIRExtraComboBot = null
 var _ai_action_cooldown: float = 0.0
 var _buffered_move_direction: int = CharacterData.Direction.NONE
 var _previous_clear_color := Color.BLACK
@@ -17,6 +22,7 @@ func _ready() -> void:
 	_previous_clear_color = RenderingServer.get_default_clear_color()
 	RenderingServer.set_default_clear_color(WINDOW_BACKGROUND_COLOR)
 	combo_bot = ComboBotScript.new()
+	combo_bot_tuned = ComboBotTunedScript.new()
 	board.setup_character("PLN")
 	hud.setup("PLN")
 
@@ -25,21 +31,22 @@ func _ready() -> void:
 	board.spawn_hit_started.connect(_on_spawn_hit_started)
 	board.score_manager.score_changed.connect(hud.update_score)
 	board.score_manager.combo_changed.connect(hud.update_combo)
+	board.score_manager.bonus_scored.connect(hud.show_score_bonus)
 
 	_on_board_updated()
-	hud.update_ai_status(ai_enabled)
+	_update_ai_status_label()
 
 func _exit_tree() -> void:
 	RenderingServer.set_default_clear_color(_previous_clear_color)
 
 func _process(delta: float) -> void:
 	_execute_buffered_move_if_ready()
-	if not ai_enabled or board.game_state.is_game_over():
+	if active_bot == null or board.game_state.is_game_over():
 		return
 	_ai_action_cooldown = maxf(0.0, _ai_action_cooldown - delta)
 	if _ai_action_cooldown > 0.0 or not board.game_state.is_idle():
 		return
-	var action: int = combo_bot.choose_action(board)
+	var action: int = active_bot.choose_action(board)
 	if action == DIRExtraComboBot.ACTION_NONE:
 		return
 	_execute_ai_action(action)
@@ -48,7 +55,7 @@ func _process(delta: float) -> void:
 func _execute_ai_action(action: int) -> void:
 	match action:
 		DIRExtraComboBot.ACTION_MOVE:
-			board.try_move(combo_bot.chosen_direction)
+			board.try_move(active_bot.chosen_direction)
 		DIRExtraComboBot.ACTION_DASH:
 			board.try_energy_bonus_step()
 		DIRExtraComboBot.ACTION_ULT:
@@ -60,11 +67,25 @@ func _execute_ai_action(action: int) -> void:
 func _execute_buffered_move_if_ready() -> void:
 	if _buffered_move_direction == CharacterData.Direction.NONE:
 		return
-	if ai_enabled or board.game_state.is_game_over() or not board.game_state.is_idle():
+	if active_bot != null or board.game_state.is_game_over() or not board.game_state.is_idle():
 		return
 	var direction: int = _buffered_move_direction
 	_buffered_move_direction = CharacterData.Direction.NONE
 	board.try_move(direction)
+
+func _toggle_bot(bot: DIRExtraComboBot) -> void:
+	active_bot = null if active_bot == bot else bot
+	_buffered_move_direction = CharacterData.Direction.NONE
+	_ai_action_cooldown = 0.0
+	_update_ai_status_label()
+
+func _update_ai_status_label() -> void:
+	if active_bot == combo_bot:
+		hud.update_ai_status("[F4] AI ON")
+	elif active_bot == combo_bot_tuned:
+		hud.update_ai_status("[F5] TUNED ON")
+	else:
+		hud.update_ai_status("[F4] AI  [F5] TUNED")
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey) or not event.pressed or event.echo:
@@ -78,10 +99,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if keycode == KEY_F4:
-		ai_enabled = not ai_enabled
-		_buffered_move_direction = CharacterData.Direction.NONE
-		_ai_action_cooldown = 0.0
-		hud.update_ai_status(ai_enabled)
+		_toggle_bot(combo_bot)
+		get_viewport().set_input_as_handled()
+		return
+
+	if keycode == KEY_F5:
+		_toggle_bot(combo_bot_tuned)
 		get_viewport().set_input_as_handled()
 		return
 
@@ -91,11 +114,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		board.restart()
 		hud.setup("PLN")
 		_on_board_updated()
-		hud.update_ai_status(ai_enabled)
+		_update_ai_status_label()
 		get_viewport().set_input_as_handled()
 		return
 
-	if ai_enabled:
+	if active_bot != null:
 		get_viewport().set_input_as_handled()
 		return
 
@@ -160,7 +183,10 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_board_updated() -> void:
 	hud.update_inventory(board.inventory)
 	hud.update_score(board.score_manager.score)
-	hud.update_combo(board.score_manager.combo_counter if board.score_manager.ENABLE_COMBO_BONUS else 0)
+	hud.update_combo(
+		board.score_manager.combo_counter if board.score_manager.ENABLE_COMBO_BONUS else 0,
+		board.score_manager.tier5_streak
+	)
 	hud.update_energy(
 		board.get_energy_quarter_units(),
 		board.bonus_step_armed,
@@ -178,4 +204,4 @@ func _on_spawn_hit_started(slot_count: int, energy_slot_index: int) -> void:
 
 func _on_game_over(final_score: int) -> void:
 	_buffered_move_direction = CharacterData.Direction.NONE
-	hud.show_game_over(final_score, board.score_manager.max_combo)
+	hud.show_game_over(final_score, board.score_manager.max_tier5_streak)

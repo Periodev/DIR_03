@@ -3,6 +3,8 @@ extends CanvasLayer
 const HeatMeterScript = preload("res://scripts/extra_mode/HeatMeter.gd")
 
 const ENERGY_GAIN_COLOR := Color("#2FD9A0")
+const SCORE_BONUS_COLOR := Color("#FFD75E")
+const SCORE_BONUS_DISPLAY_SECONDS := 1.5
 const ENERGY_GAIN_IDLE_COLOR := Color(1.0, 1.0, 1.0, 0.28)
 const STEP_AVAILABLE_COLOR := Color("#2FD9A0")
 const STEP_UNAVAILABLE_COLOR := Color("#4A5058")
@@ -18,6 +20,8 @@ const ENERGY_ROW_CONTENT_WIDTH := 162.0
 const ENERGY_GAIN_WIDTH := 44.0
 
 var score_label: Label
+var score_bonus_label: Label
+var score_bonus_timer: Timer
 var combo_label: Label
 var heat_meter: Control
 var heat_value_label: Label
@@ -32,7 +36,7 @@ var dash_action_label: Label
 var ultimate_action_label: Label
 var gameover_panel: PanelContainer
 var gameover_score: Label
-var gameover_max_combo: Label
+var gameover_max_streak: Label
 var message_label: Label
 var ai_status_label: Label
 
@@ -55,6 +59,22 @@ func _ready() -> void:
 	score_label.size = Vector2(280, 64)
 	add_child(score_label)
 
+	score_bonus_label = Label.new()
+	score_bonus_label.text = ""
+	score_bonus_label.add_theme_font_size_override("font_size", 26)
+	score_bonus_label.add_theme_color_override("font_color", SCORE_BONUS_COLOR)
+	score_bonus_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	score_bonus_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	score_bonus_label.size = Vector2(120, 32)
+	score_bonus_label.visible = false
+	add_child(score_bonus_label)
+
+	score_bonus_timer = Timer.new()
+	score_bonus_timer.one_shot = true
+	score_bonus_timer.wait_time = SCORE_BONUS_DISPLAY_SECONDS
+	score_bonus_timer.timeout.connect(func(): score_bonus_label.visible = false)
+	add_child(score_bonus_timer)
+
 	combo_label = Label.new()
 	combo_label.text = "HEAT"
 	combo_label.add_theme_font_size_override("font_size", 22)
@@ -70,10 +90,10 @@ func _ready() -> void:
 
 	heat_value_label = Label.new()
 	heat_value_label.text = "0"
-	heat_value_label.add_theme_font_size_override("font_size", 20)
+	heat_value_label.add_theme_font_size_override("font_size", 14)
 	heat_value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	heat_value_label.position = Vector2(256, 72)
-	heat_value_label.size = Vector2(44, 30)
+	heat_value_label.position = Vector2(240, 76)
+	heat_value_label.size = Vector2(80, 22)
 	add_child(heat_value_label)
 
 	# Three-row status panel in the left sidebar.
@@ -203,12 +223,12 @@ func _ready() -> void:
 	gameover_score.add_theme_color_override("font_color", Color(0.95, 0.77, 0.06))
 	vbox.add_child(gameover_score)
 
-	gameover_max_combo = Label.new()
-	gameover_max_combo.text = "MAX HEAT 0"
-	gameover_max_combo.add_theme_font_size_override("font_size", 26)
-	gameover_max_combo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	gameover_max_combo.add_theme_color_override("font_color", Color(0.86, 0.88, 0.91))
-	vbox.add_child(gameover_max_combo)
+	gameover_max_streak = Label.new()
+	gameover_max_streak.text = "MAX COMBO 0"
+	gameover_max_streak.add_theme_font_size_override("font_size", 26)
+	gameover_max_streak.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	gameover_max_streak.add_theme_color_override("font_color", SCORE_BONUS_COLOR)
+	vbox.add_child(gameover_max_streak)
 
 	var restart_hint = Label.new()
 	restart_hint.text = "Press R to restart"
@@ -294,9 +314,28 @@ func update_inventory(inv: Inventory) -> void:
 func update_score(score: int) -> void:
 	score_label.text = str(score)
 
-func update_combo(combo: int) -> void:
+func show_score_bonus(amount: int) -> void:
+	score_bonus_label.text = "+%d" % amount
+	var font: Font = score_label.get_theme_font("font")
+	var font_size: int = score_label.get_theme_font_size("font_size")
+	var score_text_width: float = font.get_string_size(
+		score_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size
+	).x
+	score_bonus_label.position = Vector2(
+		score_label.position.x + score_text_width + 12.0,
+		score_label.position.y + score_label.size.y / 2.0 - score_bonus_label.size.y / 2.0
+	)
+	score_bonus_label.visible = true
+	score_bonus_timer.start()
+
+func update_combo(combo: int, tier5_streak: int) -> void:
 	combo_label.text = "HEAT"
-	heat_value_label.text = str(combo)
+	# The small readout is not a heat display at all -- heat already has the
+	# meter for that. It exists only to show progress toward ScoreManager's
+	# tier-5 streak bonus, so it has nothing to say until heat is capped.
+	heat_value_label.visible = combo >= ScoreManager.MAX_COMBO_TIER
+	if heat_value_label.visible:
+		heat_value_label.text = "%d combo" % tier5_streak
 	heat_meter.set_heat(combo)
 
 func update_energy_gain(quarter_units: int) -> void:
@@ -334,8 +373,12 @@ func update_energy(
 	else:
 		ultimate_action_label.text = "[Z] DASH"
 
-func update_ai_status(enabled: bool) -> void:
-	ai_status_label.text = "[F4] AI ON" if enabled else "[F4] AI"
+func update_ai_status(label: String) -> void:
+	# label carries both "which bot" and "is one active" -- Main.gd owns that
+	# decision (F4's untuned bot vs F5's CMA-ES-tuned bot are mutually
+	# exclusive), this just renders whatever it's told.
+	var enabled: bool = label.ends_with("ON")
+	ai_status_label.text = label
 	ai_status_label.add_theme_color_override(
 		"font_color",
 		Color("#C8E64A") if enabled else Color(0.68, 0.70, 0.74)
@@ -387,9 +430,9 @@ func _cancel_energy_flashes() -> void:
 func update_state(_state: int) -> void:
 	message_label.text = "WASD: Move | Space: Wait | R: Restart"
 
-func show_game_over(final_score: int, max_combo: int) -> void:
+func show_game_over(final_score: int, max_tier5_streak: int) -> void:
 	gameover_score.text = str(final_score)
-	gameover_max_combo.text = "MAX HEAT %d" % max_combo
+	gameover_max_streak.text = "MAX COMBO %d" % max_tier5_streak
 	gameover_panel.visible = true
 
 func _layout_ui() -> void:
@@ -401,8 +444,8 @@ func _layout_ui() -> void:
 	combo_label.size = Vector2(66, 30)
 	heat_meter.position = Vector2(84, 78)
 	heat_meter.size = Vector2(166, 18)
-	heat_value_label.position = Vector2(256, 72)
-	heat_value_label.size = Vector2(44, 30)
+	heat_value_label.position = Vector2(240, 76)
+	heat_value_label.size = Vector2(80, 22)
 
 	var sidebar_width: float = min(SIDEBAR_WIDTH, viewport_size.x - SIDEBAR_MARGIN * 2.0)
 	inventory_panel.position = Vector2(SIDEBAR_MARGIN, STATUS_PANEL_TOP)

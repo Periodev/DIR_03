@@ -7,16 +7,35 @@ const ACTION_DASH := 2
 const ACTION_ULT := 3
 const ACTION_WAIT := 4
 const LOOKAHEAD_DEPTH := 3
-const LOOKAHEAD_DISCOUNT := 0.72
-const ENERGY_UNIT_VALUE := 2.0
-const FULL_BAR_INSURANCE := 800.0
-const TARGET_DISTANCE_WEIGHT := 8.0
-const APPROACH_MATCH_BONUS := 40.0
-const ENERGY_SHIELD_VALUE := 160.0
-const DIRECTION_SHIELD_VALUE := 95.0
-const ENERGY_SHIELD_SPEND_PENALTY := 110.0
-const DIRECTION_SHIELD_SPEND_PENALTY := 80.0
-const SPAWN_HIT_DEATH_PENALTY := 5000.0
+
+# Every value below is a weight in the lookahead's scoring function, tuned by
+# feel and never checked against the others. They are instance vars (not
+# consts) purely so a subclass can override the whole set at once -- see
+# ComboBotTuned.gd, which plugs in weights a CMA-ES search over these exact
+# fields found (tools/extra_cma.py), validated against 24 held-out seeds
+# never used in that search. Keep this list in the same order and names as
+# tools/extra_cma.py's Weights dataclass so the two stay easy to diff.
+var LOOKAHEAD_DISCOUNT := 0.72
+var ENERGY_UNIT_VALUE := 2.0
+var FULL_BAR_INSURANCE := 800.0
+var TARGET_DISTANCE_WEIGHT := 8.0
+var APPROACH_MATCH_BONUS := 40.0
+var ENERGY_SHIELD_VALUE := 160.0
+var DIRECTION_SHIELD_VALUE := 95.0
+var ENERGY_SHIELD_SPEND_PENALTY := 110.0
+var DIRECTION_SHIELD_SPEND_PENALTY := 80.0
+var SPAWN_HIT_DEATH_PENALTY := 5000.0
+var COMBO_KILL_MULT := 60.0
+var COMBO_HOLD_MULT := 30.0
+var COMBO_BREAK_MULT := 45.0
+var LIVE_EXIT_VALUE := 55.0
+var ATTACK_EXIT_VALUE := 95.0
+var USEFUL_DIRECTION_VALUE := 45.0
+var UNIQUE_DIRECTION_VALUE := 16.0
+var CENTER_DISTANCE_PENALTY := 12.0
+var SINGLE_EXIT_PENALTY := 420.0
+var ULT_CONTINUATION_VALUE := 1800.0
+var COMBO_GATE_FOR_STEP := 4
 
 var chosen_direction: int = CharacterData.Direction.NONE
 
@@ -111,7 +130,7 @@ func _has_dash_continuation(board: Node) -> bool:
 func _should_spend_dash_for_continuation(board: Node, combo: int, energy: int) -> bool:
 	# The price rises inside a chain, so asking the flat cost here makes the bot
 	# request a STEP the board will refuse, over and over.
-	if combo < 4 or energy < int(board.get_bonus_step_cost()):
+	if combo < COMBO_GATE_FOR_STEP or energy < int(board.get_bonus_step_cost()):
 		return false
 	return _has_dash_continuation(board)
 
@@ -168,7 +187,7 @@ func _advanced_combo(combo: int) -> int:
 	return mini(combo + 1, ScoreManager.MAX_COMBO_TIER)
 
 func _decayed_combo(combo: int) -> int:
-	return maxi(0, combo - 2)
+	return maxi(0, combo - 1)
 
 func _charged_energy(board: Node, energy: int, combo: int) -> int:
 	# Mirrors Board._charge_energy_for_combo so the lookahead can see the bar
@@ -284,13 +303,13 @@ func _simulated_state_score(
 		return -6000.0
 	var center: Vector2 = Vector2(float(board.COLS - 1), float(board.ROWS - 1)) * 0.5
 	var center_distance: float = Vector2(pos).distance_to(center)
-	var score: float = float(live_exits) * 55.0 + float(attack_exits) * 95.0
-	score += float(useful_directions) * 45.0
-	score += float(_unique_direction_count(queue)) * 16.0
+	var score: float = float(live_exits) * LIVE_EXIT_VALUE + float(attack_exits) * ATTACK_EXIT_VALUE
+	score += float(useful_directions) * USEFUL_DIRECTION_VALUE
+	score += float(_unique_direction_count(queue)) * UNIQUE_DIRECTION_VALUE
 	score += _combo_hold_value(combo)
-	score -= center_distance * 12.0
+	score -= center_distance * CENTER_DISTANCE_PENALTY
 	if legal_exits == 1:
-		score -= 420.0
+		score -= SINGLE_EXIT_PENALTY
 
 	# A full bar is a guaranteed escape from being surrounded, so the last
 	# quarter unit is worth far more than the ones before it. Without this the
@@ -348,13 +367,13 @@ func _combo_payout(combo: int) -> float:
 	return float(ScoreManager.COMBO_SCORE_MULTIPLIERS[tier - 1])
 
 func _combo_kill_value(combo: int) -> float:
-	return _combo_payout(combo) * 60.0
+	return _combo_payout(combo) * COMBO_KILL_MULT
 
 func _combo_hold_value(combo: int) -> float:
-	return _combo_payout(combo) * 30.0
+	return _combo_payout(combo) * COMBO_HOLD_MULT
 
 func _combo_break_penalty(combo: int) -> float:
-	return maxf(0.0, _combo_payout(combo) - _combo_payout(_decayed_combo(combo))) * 45.0
+	return maxf(0.0, _combo_payout(combo) - _combo_payout(_decayed_combo(combo))) * COMBO_BREAK_MULT
 
 func _future_attack_count(board: Node, from_pos: Vector2i, gained_direction: int) -> int:
 	var simulated_queue: Array = board.inventory.queue.duplicate()
@@ -553,7 +572,7 @@ func _ultimate_terminal_score(
 	return (
 		# An ULT chain spends the whole bar, so the terminal state has none left.
 		_simulated_state_score(board, pos, grid, queue, combo, 0)
-		+ float(continuation_count) * 1800.0
+		+ float(continuation_count) * ULT_CONTINUATION_VALUE
 	)
 
 func _ultimate_destination(board: Node, direction: int) -> Vector2i:

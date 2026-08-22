@@ -12,6 +12,10 @@ const ENERGY_SLOT_COST := 4
 const ULT_DASH_COUNT := 4
 const ULT_SLASH_TIP_EXTENSION_RATIO := 0.65
 const SPAWN_CELL_TYPE := CharacterData.CellType.DEAD
+# A one-off milestone, unlike the tier-5 streak's repeating bonus: clearing
+# every DEAD cell on the board at once is rare enough (it requires the spawn
+# cycle to not be refilling it) that it pays out big instead of often.
+const BOARD_CLEAR_BONUS := 2000
 const BLOCK_OUTER_RING_SPAWN := false
 const CELL_SIZE := 100.0
 const CELL_GAP := 8.0
@@ -607,10 +611,25 @@ func _kill_flow(pos: Vector2i, attack_dir: int, cell_type: int) -> void:
 	# happens on turns that advance the spawn clock.
 	if not _ultimate_chain_started and not _bonus_step_kill_active:
 		_charge_energy_for_combo(score_manager.combo_counter)
+	# The kill that leaves zero DEAD cells anywhere on the board is, by
+	# definition, the one that just cleared it -- no separate "was it already
+	# empty" tracking needed, since a kill only ever happens on a DEAD cell.
+	if not _has_any_dead_cell():
+		score_manager.award_bonus(BOARD_CLEAR_BONUS)
 	_spawn_hit_effect(pos)
 	_char_impl.on_kill(self, pos, attack_dir)
 
+func _has_any_dead_cell() -> bool:
+	for row in grid:
+		if CharacterData.CellType.DEAD in row:
+			return true
+	return false
+
 func energy_gain_for_combo(combo: int) -> int:
+	# Tier 3 and 4 pay the same (2) on purpose: decay_combo() only costs one
+	# tier now, so a single miss at tier 4 recovers to tier 3 immediately --
+	# equalising their payout removes the profit from that specific recovery
+	# loop without touching genuine tier-5 play, which still pays out more (4).
 	match combo:
 		1:
 			return 1
@@ -619,10 +638,10 @@ func energy_gain_for_combo(combo: int) -> int:
 		3:
 			return 2
 		4:
-			return 4
+			return 2
 		_:
 			if combo >= 5:
-				return 6
+				return 4
 	return 0
 
 func get_next_kill_energy_gain() -> int:

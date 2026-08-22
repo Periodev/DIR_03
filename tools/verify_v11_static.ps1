@@ -41,6 +41,7 @@ $extraHeatMeterPath = Join-Path $root "scripts/extra_mode/HeatMeter.gd"
 $extraEnergySlotPath = Join-Path $root "scripts/extra_mode/EnergySlot.gd"
 $extraSlashEffectPath = Join-Path $root "scripts/extra_mode/PLNSlashEffect.gd"
 $extraComboBotPath = Join-Path $root "scripts/extra_mode/ComboBot.gd"
+$extraComboBotTunedPath = Join-Path $root "scripts/extra_mode/ComboBotTuned.gd"
 $extraCharacterDataPath = Join-Path $root "scripts/extra_mode/CharacterData.gd"
 $extraScoreManagerPath = Join-Path $root "scripts/extra_mode/ScoreManager.gd"
 $extraInventoryPath = Join-Path $root "scripts/extra_mode/Inventory.gd"
@@ -103,6 +104,7 @@ $extraHeatMeter = Get-Content -LiteralPath $extraHeatMeterPath -Raw
 $extraEnergySlot = Get-Content -LiteralPath $extraEnergySlotPath -Raw
 $extraSlashEffect = Get-Content -LiteralPath $extraSlashEffectPath -Raw
 $extraComboBot = Get-Content -LiteralPath $extraComboBotPath -Raw
+$extraComboBotTuned = Get-Content -LiteralPath $extraComboBotTunedPath -Raw
 $extraCharacterData = Get-Content -LiteralPath $extraCharacterDataPath -Raw
 $extraScoreManager = Get-Content -LiteralPath $extraScoreManagerPath -Raw
 $extraInventory = Get-Content -LiteralPath $extraInventoryPath -Raw
@@ -623,20 +625,26 @@ $checks = @(
 	},
 	@{
 		Name = "EXTRA HUD shows the last actual energy gain only"
-		Pass = $extraHud -match 'HeatMeterScript\s*=\s*preload\("res://scripts/extra_mode/HeatMeter\.gd"\)' -and $extraHud -match 'func\s+update_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?combo_label\.text\s*=\s*"HEAT"(?:(?!\r?\nfunc\s)[\s\S])*?heat_meter\.set_heat\(combo\)' -and $extraHeatMeter -match 'SEGMENT_COUNT\s*:=\s*5' -and $extraHeatMeter -match 'func\s+set_heat\(value:\s*int\)' -and $extraHud -match 'var\s+energy_gain_label:\s*Label' -and $extraHud -match 'func\s+update_energy_gain\(quarter_units:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?energy_gain_label\.visible\s*=\s*quarter_units\s*>\s*0(?:(?!\r?\nfunc\s)[\s\S])*?if\s+quarter_units\s*<=\s*0:\s*\r?\n\s*return(?:(?!\r?\nfunc\s)[\s\S])*?"\+%d"\s*%\s*quarter_units' -and $extraBoard -match 'func\s+get_last_energy_gain\(\)\s*->\s*int:\s*\r?\n\s*return\s+last_energy_gain_quarter_units' -and $extraBoard -match 'func\s+_charge_energy_for_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?var\s+energy_gain:\s*int\s*=\s*energy_gain_for_combo\(combo\)(?:(?!\r?\nfunc\s)[\s\S])*?last_energy_gain_quarter_units\s*=\s*energy_gain' -and $extraMain -match 'hud\.update_energy_gain\(board\.get_last_energy_gain\(\)\)'
+		Pass = $extraHud -match 'HeatMeterScript\s*=\s*preload\("res://scripts/extra_mode/HeatMeter\.gd"\)' -and $extraHud -match 'func\s+update_combo\(combo:\s*int,\s*tier5_streak:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?combo_label\.text\s*=\s*"HEAT"(?:(?!\r?\nfunc\s)[\s\S])*?heat_meter\.set_heat\(combo\)' -and $extraHeatMeter -match 'SEGMENT_COUNT\s*:=\s*5' -and $extraHeatMeter -match 'func\s+set_heat\(value:\s*int\)' -and $extraHud -match 'var\s+energy_gain_label:\s*Label' -and $extraHud -match 'func\s+update_energy_gain\(quarter_units:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?energy_gain_label\.visible\s*=\s*quarter_units\s*>\s*0(?:(?!\r?\nfunc\s)[\s\S])*?if\s+quarter_units\s*<=\s*0:\s*\r?\n\s*return(?:(?!\r?\nfunc\s)[\s\S])*?"\+%d"\s*%\s*quarter_units' -and $extraBoard -match 'func\s+get_last_energy_gain\(\)\s*->\s*int:\s*\r?\n\s*return\s+last_energy_gain_quarter_units' -and $extraBoard -match 'func\s+_charge_energy_for_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?var\s+energy_gain:\s*int\s*=\s*energy_gain_for_combo\(combo\)(?:(?!\r?\nfunc\s)[\s\S])*?last_energy_gain_quarter_units\s*=\s*energy_gain' -and $extraMain -match 'hud\.update_energy_gain\(board\.get_last_energy_gain\(\)\)'
 	},
 	@{
-		Name = "EXTRA heat rises to six and cools two tiers on interruption"
-		Pass = $extraScoreManager -match 'const\s+BASE_KILL_SCORE\s*:=\s*1' -and $extraScoreManager -match 'const\s+MAX_COMBO_TIER\s*:=\s*5' -and $extraScoreManager -match 'const\s+COMBO_SCORE_MULTIPLIERS\s*:=\s*\[1,\s*2,\s*5,\s*10,\s*20\]' -and $extraScoreManager -match 'func\s+advance_combo\(\)(?:(?!\r?\nfunc\s)[\s\S])*?mini\(combo_counter\s*\+\s*1,\s*MAX_COMBO_TIER\)' -and $extraScoreManager -match 'func\s+decay_combo\(\)(?:(?!\r?\nfunc\s)[\s\S])*?maxi\(0,\s*combo_counter\s*-\s*2\)' -and $extraScoreManager -match 'func\s+on_move_to_live\(\)\s*->\s*void:\s*\r?\n\s*decay_combo\(\)' -and $extraBoard -match 'score_manager\.advance_combo\(\)' -and $extraBoard -match 'func\s+try_wait\(\)(?:(?!\r?\nfunc\s)[\s\S])*?score_manager\.on_move_to_live\(\)' -and $extraComboBot -match 'func\s+_advanced_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?mini\(combo\s*\+\s*1,\s*ScoreManager\.MAX_COMBO_TIER\)' -and $extraComboBot -match 'func\s+_decayed_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?maxi\(0,\s*combo\s*-\s*2\)'
+		Name = "EXTRA heat rises to six and cools one tier on interruption"
+		Pass = $extraScoreManager -match 'const\s+BASE_KILL_SCORE\s*:=\s*1' -and $extraScoreManager -match 'const\s+MAX_COMBO_TIER\s*:=\s*5' -and $extraScoreManager -match 'const\s+COMBO_SCORE_MULTIPLIERS\s*:=\s*\[1,\s*2,\s*5,\s*10,\s*20\]' -and $extraScoreManager -match 'func\s+advance_combo\(\)(?:(?!\r?\nfunc\s)[\s\S])*?mini\(combo_counter\s*\+\s*1,\s*MAX_COMBO_TIER\)' -and $extraScoreManager -match 'func\s+decay_combo\(\)(?:(?!\r?\nfunc\s)[\s\S])*?maxi\(0,\s*combo_counter\s*-\s*1\)' -and $extraScoreManager -match 'func\s+on_move_to_live\(\)\s*->\s*void:\s*\r?\n\s*decay_combo\(\)' -and $extraBoard -match 'score_manager\.advance_combo\(\)' -and $extraBoard -match 'func\s+try_wait\(\)(?:(?!\r?\nfunc\s)[\s\S])*?score_manager\.on_move_to_live\(\)' -and $extraComboBot -match 'func\s+_advanced_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?mini\(combo\s*\+\s*1,\s*ScoreManager\.MAX_COMBO_TIER\)' -and $extraComboBot -match 'func\s+_decayed_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?maxi\(0,\s*combo\s*-\s*1\)'
 	},
 	@{
 		Name = "EXTRA spawn-hit shields cool heat instead of leaving it untouched"
-		Pass = $extraBoard -match 'func\s+_resolve_player_spawn_hit\(pos:\s*Vector2i,\s*cell_type:\s*int\)(?:(?!?
-func\s)[\s\S])*?if\s+_spawn_hit_uses_energy:(?:(?!?
-func\s)[\s\S])*?score_manager\.decay_combo\(\)(?:(?!?
-func\s)[\s\S])*?score_manager\.on_kill\(cell_type\)(?:(?!?
-func\s)[\s\S])*?if\s+consumed_count\s*>=\s*2:\s*?
-\s*score_manager\.decay_combo\(\)\s*?
+		Pass = $extraBoard -match 'func\s+_resolve_player_spawn_hit\(pos:\s*Vector2i,\s*cell_type:\s*int\)(?:(?!
+?
+func\s)[\s\S])*?if\s+_spawn_hit_uses_energy:(?:(?!
+?
+func\s)[\s\S])*?score_manager\.decay_combo\(\)(?:(?!
+?
+func\s)[\s\S])*?score_manager\.on_kill\(cell_type\)(?:(?!
+?
+func\s)[\s\S])*?if\s+consumed_count\s*>=\s*2:\s*
+?
+\s*score_manager\.decay_combo\(\)\s*
+?
 \s*score_manager\.on_kill\(cell_type\)'
 	},
 	@{
@@ -645,7 +653,7 @@ func\s)[\s\S])*?if\s+consumed_count\s*>=\s*2:\s*?
 	},
 	@{
 		Name = "EXTRA spends one full energy slot to arm a free combo-preserving bonus step"
-		Pass = $extraBoard -match 'ENERGY_QUARTER_UNITS_MAX\s*:=\s*16' -and $extraBoard -match 'ENERGY_SLOT_COST\s*:=\s*4' -and $extraBoard -match 'func\s+try_energy_bonus_step\(\)(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*-=\s*cost(?:(?!\r?\nfunc\s)[\s\S])*?bonus_step_armed\s*=\s*true' -and $extraBoard -match 'func\s+energy_gain_for_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?1:\s*\r?\n\s*return\s+1(?:(?!\r?\nfunc\s)[\s\S])*?2:\s*\r?\n\s*return\s+2(?:(?!\r?\nfunc\s)[\s\S])*?3:\s*\r?\n\s*return\s+2(?:(?!\r?\nfunc\s)[\s\S])*?4:\s*\r?\n\s*return\s+4(?:(?!\r?\nfunc\s)[\s\S])*?combo\s*>=\s*5:\s*\r?\n\s*return\s+6' -and $extraMain -match 'KEY_X(?:(?!\r?\n\s*#)[\s\S])*?try_energy_bonus_step\(\)'
+		Pass = $extraBoard -match 'ENERGY_QUARTER_UNITS_MAX\s*:=\s*16' -and $extraBoard -match 'ENERGY_SLOT_COST\s*:=\s*4' -and $extraBoard -match 'func\s+try_energy_bonus_step\(\)(?:(?!\r?\nfunc\s)[\s\S])*?energy_quarter_units\s*-=\s*cost(?:(?!\r?\nfunc\s)[\s\S])*?bonus_step_armed\s*=\s*true' -and $extraBoard -match 'func\s+energy_gain_for_combo\(combo:\s*int\)(?:(?!\r?\nfunc\s)[\s\S])*?1:\s*\r?\n\s*return\s+1(?:(?!\r?\nfunc\s)[\s\S])*?2:\s*\r?\n\s*return\s+2(?:(?!\r?\nfunc\s)[\s\S])*?3:\s*\r?\n\s*return\s+2(?:(?!\r?\nfunc\s)[\s\S])*?4:\s*\r?\n\s*return\s+2(?:(?!\r?\nfunc\s)[\s\S])*?combo\s*>=\s*5:\s*\r?\n\s*return\s+4' -and $extraMain -match 'KEY_X(?:(?!\r?\n\s*#)[\s\S])*?try_energy_bonus_step\(\)'
 	},
 	@{
 		Name = "EXTRA consumes full energy on Z to activate the four-dash ULT"
@@ -850,8 +858,8 @@ func\s)[\s\S])*?var\s+center\s*:=\s*info_back_center\(panel_center\)'
 		Pass = $extraHud -match 'score_label\.add_theme_font_size_override\("font_size",\s*56\)' -and $extraHud -match 'combo_label\.text\s*=\s*"HEAT"' -and $extraHud -match 'var\s+heat_meter:\s*Control' -and $extraHud -notmatch 'defeats_label|turns_label|BREAK 0|TURN 0|func\s+update_defeats|func\s+update_turns'
 	},
 	@{
-		Name = "EXTRA Game Over reports the session max heat"
-		Pass = $extraScoreManager -match 'var\s+max_combo:\s*int\s*=\s*0' -and $extraScoreManager -match 'max_combo\s*=\s*maxi\(max_combo,\s*combo_counter\)' -and $extraHud -match '"MAX HEAT %d"\s*%\s*max_combo' -and $extraMain -match 'hud\.show_game_over\(final_score,\s*board\.score_manager\.max_combo\)'
+		Name = "EXTRA Game Over reports the session max combo streak"
+		Pass = $extraScoreManager -match 'var\s+max_tier5_streak:\s*int\s*=\s*0' -and $extraScoreManager -match 'max_tier5_streak\s*=\s*maxi\(max_tier5_streak,\s*tier5_streak\)' -and $extraHud -notmatch 'gameover_max_combo|MAX HEAT' -and $extraHud -match '"MAX COMBO %d"\s*%\s*max_tier5_streak' -and $extraMain -match 'hud\.show_game_over\(final_score,\s*board\.score_manager\.max_tier5_streak\)'
 	},
 	@{
 		Name = "EXTRA uses a left three-row status panel and an enlarged adaptive board"
@@ -859,8 +867,13 @@ func\s)[\s\S])*?var\s+center\s*:=\s*info_back_center\(panel_center\)'
 	},
 	@{
 		Name = "EXTRA exposes an optional combo-seeking F4 bot"
-		Pass = $extraMain -match 'KEY_F4' -and $extraMain -match 'combo_bot\.choose_action\(board\)' -and $extraMain -match 'not\s+board\.game_state\.is_idle\(\)' -and $extraComboBot -match 'class_name\s+DIRExtraComboBot' -and $extraComboBot -match 'LOOKAHEAD_DEPTH\s*:=\s*3' -and $extraComboBot -match 'func\s+_lookahead_score\(' -and $extraComboBot -match 'func\s+_should_spend_dash_for_continuation\(' -and $extraComboBot -match 'combo\s*<\s*4\s+or\s+energy\s*<\s*int\(board\.get_bonus_step_cost\(\)\)' -and $extraComboBot -match 'func\s+_ultimate_sequence_score\(' -and $extraComboBot -match 'continuation_count\)\s*\*\s*1800\.0' -and $extraComboBot -match 'return\s+ACTION_ULT'
+		Pass = $extraMain -match 'KEY_F4' -and $extraMain -match 'active_bot\.choose_action\(board\)' -and $extraMain -match 'not\s+board\.game_state\.is_idle\(\)' -and $extraComboBot -match 'class_name\s+DIRExtraComboBot' -and $extraComboBot -match 'LOOKAHEAD_DEPTH\s*:=\s*3' -and $extraComboBot -match 'func\s+_lookahead_score\(' -and $extraComboBot -match 'func\s+_should_spend_dash_for_continuation\(' -and $extraComboBot -match 'combo\s*<\s*COMBO_GATE_FOR_STEP\s+or\s+energy\s*<\s*int\(board\.get_bonus_step_cost\(\)\)' -and $extraComboBot -match 'func\s+_ultimate_sequence_score\(' -and $extraComboBot -match 'continuation_count\)\s*\*\s*ULT_CONTINUATION_VALUE' -and $extraComboBot -match 'return\s+ACTION_ULT'
+	},
+	@{
+		Name = "EXTRA F5 runs a CMA-ES-tuned bot, mutually exclusive with F4"
+		Pass = $extraMain -match 'KEY_F5' -and $extraMain -match 'ComboBotTunedScript\s*=\s*preload\("res://scripts/extra_mode/ComboBotTuned\.gd"\)' -and $extraMain -match 'active_bot\s*=\s*null\s+if\s+active_bot\s*==\s*bot\s+else\s+bot' -and $extraMain -notmatch 'var\s+ai_enabled' -and $extraComboBotTuned -match 'class_name\s+DIRExtraComboBotTuned' -and $extraComboBotTuned -match 'extends\s+DIRExtraComboBot' -and $extraComboBotTuned -match 'func\s+_init\(\)\s*->\s*void:' -and $extraComboBot -match 'var\s+COMBO_GATE_FOR_STEP\s*:=\s*4' -and $extraComboBot -match 'var\s+ULT_CONTINUATION_VALUE\s*:=\s*1800\.0' -and $extraHud -match 'func\s+update_ai_status\(label:\s*String\)'
 	}
+
 )
 
 $failed = @()

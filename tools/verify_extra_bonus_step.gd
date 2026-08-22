@@ -19,12 +19,62 @@ func run_verification() -> void:
 	score_fixture.combo_counter = 4
 	score_fixture.on_kill(CharacterData.CellType.DEAD)
 	score_fixture.on_move_to_live()
-	if score_fixture.combo_counter != 2:
-		fail("A normal non-kill turn did not lower heat by exactly two tiers.")
+	if score_fixture.combo_counter != 3:
+		fail("A normal non-kill turn did not lower heat by exactly one tier.")
 		return
 	score_fixture.reset_combo()
 	if score_fixture.max_combo != 4:
 		fail("ScoreManager did not preserve the session max heat after cooling.")
+		return
+
+	var streak_fixture := ScoreManager.new()
+	streak_fixture.combo_counter = ScoreManager.MAX_COMBO_TIER
+	for _kill in ScoreManager.TIER5_STREAK_THRESHOLD - 1:
+		streak_fixture.on_kill(CharacterData.CellType.DEAD)
+	var score_before_streak_bonus: int = streak_fixture.score
+	streak_fixture.on_kill(CharacterData.CellType.DEAD)
+	if streak_fixture.score != score_before_streak_bonus + 20 + ScoreManager.TIER5_STREAK_BONUS:
+		fail(
+			"Five straight tier-5 kills did not pay the streak bonus on top of their own score, reached %s."
+			% streak_fixture.score
+		)
+		return
+	if streak_fixture.tier5_streak != ScoreManager.TIER5_STREAK_THRESHOLD:
+		fail("The tier-5 streak count reset after paying out instead of continuing to climb.")
+		return
+	var score_before_second_bonus: int = streak_fixture.score
+	for _kill in ScoreManager.TIER5_STREAK_THRESHOLD:
+		streak_fixture.on_kill(CharacterData.CellType.DEAD)
+	if streak_fixture.score != score_before_second_bonus + 100 + ScoreManager.TIER5_STREAK_BONUS:
+		fail(
+			"A second five-kill stretch at tier5 did not pay the streak bonus again, reached %s."
+			% streak_fixture.score
+		)
+		return
+	if streak_fixture.tier5_streak != 2 * ScoreManager.TIER5_STREAK_THRESHOLD:
+		fail("The tier-5 streak count did not keep climbing across a second payout.")
+		return
+	streak_fixture.decay_combo()
+	if streak_fixture.tier5_streak != 0:
+		fail("A decay mid-streak did not clear the tier-5 streak count.")
+		return
+
+	var clear_board: Node2D = BoardScript.new()
+	root.add_child(clear_board)
+	await process_frame
+	clear_board.spawn_warning_player.stop()
+	for row in clear_board.grid.size():
+		for col in clear_board.grid[row].size():
+			clear_board.grid[row][col] = CharacterData.CellType.LIVE
+	var clear_pos: Vector2i = clear_board.player_pos + CharacterData.DIR_VECTOR[CharacterData.Direction.RIGHT]
+	clear_board.grid[clear_pos.y][clear_pos.x] = CharacterData.CellType.DEAD
+	var score_before_clear: int = clear_board.score_manager.score
+	clear_board._kill_flow(clear_pos, CharacterData.Direction.RIGHT, CharacterData.CellType.DEAD)
+	if clear_board.score_manager.score != score_before_clear + 1 + clear_board.BOARD_CLEAR_BONUS:
+		fail(
+			"Clearing the last DEAD cell on the board did not pay the board-clear bonus, reached %s."
+			% clear_board.score_manager.score
+		)
 		return
 
 	var cap_fixture := ScoreManager.new()
@@ -213,8 +263,8 @@ func run_verification() -> void:
 		return
 
 	board._charge_energy_for_combo(5)
-	if board.get_energy_quarter_units() != 7:
-		fail("Five heat did not add 1.5 energy slots.")
+	if board.get_energy_quarter_units() != 5:
+		fail("Five heat did not add one energy slot.")
 		return
 	board.energy_quarter_units = 12
 	if board.get_energy_quarter_units() != 12 or board.try_energy_ultimate():
@@ -222,7 +272,7 @@ func run_verification() -> void:
 		return
 	board._charge_energy_for_combo(6)
 	if board.get_energy_quarter_units() != 16:
-		fail("Capped heat did not add 1.5 energy slots up to the four-slot cap.")
+		fail("Capped heat did not add its energy gain up to the four-slot cap.")
 		return
 
 	await create_timer(0.6).timeout
@@ -357,13 +407,13 @@ func run_verification() -> void:
 	energy_shield_board._resolve_player_spawn_hit(
 		energy_shield_board.player_pos, CharacterData.CellType.DEAD
 	)
-	if energy_shield_board.score_manager.combo_counter != 1:
+	if energy_shield_board.score_manager.combo_counter != 2:
 		fail(
-			"An energy-shielded spawn hit did not cool heat by two tiers, reached %s."
+			"An energy-shielded spawn hit did not cool heat by one tier, reached %s."
 			% energy_shield_board.score_manager.combo_counter
 		)
 		return
-	if energy_shield_board.score_manager.score != 1:
+	if energy_shield_board.score_manager.score != 2:
 		fail(
 			"An energy-shielded spawn hit scored %s instead of the post-cooldown tier."
 			% energy_shield_board.score_manager.score
@@ -382,9 +432,9 @@ func run_verification() -> void:
 	direction_shield_board._resolve_player_spawn_hit(
 		direction_shield_board.player_pos, CharacterData.CellType.DEAD
 	)
-	if direction_shield_board.score_manager.combo_counter != 2:
+	if direction_shield_board.score_manager.combo_counter != 3:
 		fail(
-			"A direction-shielded spawn hit did not cool heat by two tiers, reached %s."
+			"A direction-shielded spawn hit did not cool heat by one tier, reached %s."
 			% direction_shield_board.score_manager.combo_counter
 		)
 		return

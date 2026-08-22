@@ -64,13 +64,16 @@ DIR_STEP = {UP: (0, -1), DOWN: (0, 1), LEFT: (-1, 0), RIGHT: (1, 0)}
 MAX_COMBO_TIER = 5
 COMBO_SCORE_MULTIPLIERS = (1, 2, 5, 10, 20)
 BASE_KILL_SCORE = 1
-_ENERGY_GAIN = {1: 1, 2: 2, 3: 2, 4: 4}
+TIER5_STREAK_THRESHOLD = 5
+TIER5_STREAK_BONUS = 200
+BOARD_CLEAR_BONUS = 2000
+_ENERGY_GAIN = {1: 1, 2: 2, 3: 2, 4: 2}
 
 
 def energy_gain_for_combo(combo: int) -> int:
     if combo in _ENERGY_GAIN:
         return _ENERGY_GAIN[combo]
-    return 6 if combo >= 5 else 0
+    return 4 if combo >= 5 else 0
 
 
 def combo_tier(combo: int) -> int:
@@ -103,6 +106,7 @@ class Board:
         self.ult_chain_started = False
         self.survival_turns = 0
         self.game_over = False
+        self.tier5_streak = 0
 
     # -- small helpers, one-to-one with Board.gd -------------------------
     def in_bounds(self, p: tuple[int, int]) -> bool:
@@ -129,12 +133,18 @@ class Board:
         self.combo = min(self.combo + 1, MAX_COMBO_TIER)
 
     def decay_combo(self) -> None:
-        self.combo = max(0, self.combo - 2)
+        self.combo = max(0, self.combo - 1)
+        self.tier5_streak = 0
 
     def on_kill(self) -> int:
         self.max_combo = max(self.max_combo, self.combo)
         points = BASE_KILL_SCORE * combo_multiplier(self.combo)
         self.score += points
+        if self.combo == MAX_COMBO_TIER:
+            self.tier5_streak += 1
+            if self.tier5_streak % TIER5_STREAK_THRESHOLD == 0:
+                points += TIER5_STREAK_BONUS
+                self.score += TIER5_STREAK_BONUS
         self.defeats += 1
         return points
 
@@ -274,6 +284,8 @@ class Board:
         self.on_kill()
         if not energy_sterile:
             self.charge_energy(self.combo)
+        if not any(DEAD in row for row in self.grid):
+            self.score += BOARD_CLEAR_BONUS
 
     # -- turn / spawn clock -------------------------------------------------
     def _finalize_turn(self, freeze: bool, count_turn: bool) -> bool:
@@ -522,7 +534,7 @@ class StructuredPolicy:
         return self._combo_payout(combo) * self.w.combo_hold_mult
 
     def _combo_break_penalty(self, combo: int) -> float:
-        decayed = max(0, combo - 2)
+        decayed = max(0, combo - 1)
         return max(0.0, self._combo_payout(combo) - self._combo_payout(decayed)) * self.w.combo_break_mult
 
     def _apply_simulated_spawn_hit(self, b: Board, position, queue, energy):
@@ -548,7 +560,7 @@ class StructuredPolicy:
             self._push_sim(queue, direction)
             if not preserve_combo:
                 reward -= self._combo_break_penalty(combo)
-                combo = max(0, combo - 2)
+                combo = max(0, combo - 1)
         else:
             if direction not in queue:
                 return -1e18
@@ -598,7 +610,7 @@ class StructuredPolicy:
             if ng[ty][tx] == LIVE:
                 self._push_sim(nq, d)
                 reward -= self._combo_break_penalty(ncombo)
-                ncombo = max(0, ncombo - 2)
+                ncombo = max(0, ncombo - 1)
                 nenergy, kind = self._apply_simulated_spawn_hit(b, t, nq, nenergy)
                 if kind == 1:
                     reward -= self.w.energy_shield_spend_penalty
