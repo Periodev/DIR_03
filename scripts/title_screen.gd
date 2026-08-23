@@ -40,8 +40,23 @@ const CONFIG_OPTION_GAP := 78.0
 const CONFIG_PANEL_VERTICAL_MARGIN := 80.0
 const CONFIG_PANEL_OFFSET_X := 370.0
 const INFO_PANEL_OFFSET_X := 370.0
+# One gap for every line made the panel a flat list: a section heading, a new
+# sentence, and the second half of a sentence that had to wrap were all pushed
+# apart by the same amount, so nothing grouped. The gap now depends on what the
+# next line is -- widest before a heading, narrowest between the wrapped halves
+# of one sentence.
 const INFO_LINE_GAP := 22.0
+const INFO_SECTION_GAP := 46.0
+const INFO_HEADING_GAP := 14.0
+const INFO_WRAP_GAP := 6.0
 const INFO_BACK_GAP := 40.0
+
+const INFO_LIST_GAP := 12.0
+
+const INFO_ROLE_HEADING := "heading"
+const INFO_ROLE_BODY := "body"
+const INFO_ROLE_WRAP := "wrap"
+const INFO_ROLE_LIST := "list"
 const CONFIG_AUDIO_STEP := 10
 const AUDIO_SLIDER_SIZE := Vector2(128.0, 8.0)
 const AUDIO_SLIDER_FILL_HEIGHT := 14.0
@@ -668,6 +683,8 @@ func draw_info_menu(menu_center: Vector2) -> void:
 		var line_size: int = int(line["size"])
 		var line_color: Color = line["color"]
 		var line_height: float = info_line_height(line)
+		if i > 0:
+			cursor += info_gap_before(lines[i - 1], line)
 		draw_centered_text(
 			Vector2(panel_center.x, cursor + line_height / 2.0),
 			line_text,
@@ -675,8 +692,6 @@ func draw_info_menu(menu_center: Vector2) -> void:
 			line_color
 		)
 		cursor += line_height
-		if i < lines.size() - 1:
-			cursor += INFO_LINE_GAP
 
 	draw_config_option(
 		"BACK",
@@ -686,27 +701,49 @@ func draw_info_menu(menu_center: Vector2) -> void:
 	)
 
 func info_lines() -> Array[Dictionary]:
+	# "wrap" marks a line that finishes the sentence started by the one above,
+	# so the two are set close enough to read as one statement.
 	return [
-		{"text": "DIR", "size": 24, "color": palette["text_hi"]},
-		{"text": "A PUZZLE ABOUT MOVING DIRECTIONS.", "size": 18, "color": palette["text"]},
-		{"text": "DIRECTION IS A RESOURCE YOU CAN", "size": 18, "color": palette["text"]},
-		{"text": "CREATE, STORE, TRANSFER, AND RELEASE.", "size": 18, "color": palette["text"]},
-		{"text": "EXTRA / ARCADE", "size": 24, "color": palette["text_hi"]},
-		{"text": "AN EARLIER FORM OF DIR.", "size": 18, "color": palette["text"]},
-		{"text": "A SCORE-DRIVEN ARCADE EXPERIMENT", "size": 18, "color": palette["text"]},
-		{"text": "THAT EVOLVED ALONG A DIFFERENT PATH.", "size": 18, "color": palette["text"]},
-		{"text": "CREDITS", "size": 24, "color": palette["text_hi"]},
-		{"text": "BUILT WITH GODOT ENGINE.", "size": 16, "color": palette["text_dim"]},
-		{"text": "UI AND SOUND ASSETS BY KENNEY.", "size": 16, "color": palette["text_dim"]},
-		{"text": "ADDITIONAL SOUNDS FROM PIXABAY.", "size": 16, "color": palette["text_dim"]},
+		{"text": "DIR", "size": 24, "color": palette["text_hi"], "role": INFO_ROLE_HEADING},
+		{"text": "A PUZZLE ABOUT MOVING DIRECTIONS.", "size": 18, "color": palette["text"], "role": INFO_ROLE_BODY},
+		{"text": "DIRECTION IS A RESOURCE YOU CAN", "size": 18, "color": palette["text"], "role": INFO_ROLE_BODY},
+		{"text": "CREATE, STORE, TRANSFER, AND RELEASE.", "size": 18, "color": palette["text"], "role": INFO_ROLE_WRAP},
+		{"text": "EXTRA / ARCADE", "size": 24, "color": palette["text_hi"], "role": INFO_ROLE_HEADING},
+		{"text": "AN EARLIER FORM OF DIR.", "size": 18, "color": palette["text"], "role": INFO_ROLE_BODY},
+		{"text": "A SCORE-DRIVEN ARCADE EXPERIMENT", "size": 18, "color": palette["text"], "role": INFO_ROLE_BODY},
+		{"text": "THAT EVOLVED ALONG A DIFFERENT PATH.", "size": 18, "color": palette["text"], "role": INFO_ROLE_WRAP},
+		{"text": "CREDITS", "size": 24, "color": palette["text_hi"], "role": INFO_ROLE_HEADING},
+		{"text": "BUILT WITH GODOT ENGINE.", "size": 16, "color": palette["text_dim"], "role": INFO_ROLE_LIST},
+		{"text": "UI AND SOUND ASSETS BY KENNEY.", "size": 16, "color": palette["text_dim"], "role": INFO_ROLE_LIST},
+		{"text": "ADDITIONAL SOUNDS FROM PIXABAY.", "size": 16, "color": palette["text_dim"], "role": INFO_ROLE_LIST},
 	]
+
+func info_line_role(line: Dictionary) -> String:
+	return String(line.get("role", INFO_ROLE_BODY))
+
+func info_gap_before(previous: Dictionary, current: Dictionary) -> float:
+	var role := info_line_role(current)
+	if role == INFO_ROLE_HEADING:
+		return INFO_SECTION_GAP
+	if role == INFO_ROLE_WRAP:
+		return INFO_WRAP_GAP
+	# Credits are one list of related entries, not three separate statements,
+	# so they sit closer together than prose lines do.
+	if role == INFO_ROLE_LIST and info_line_role(previous) != INFO_ROLE_HEADING:
+		return INFO_LIST_GAP
+	# A heading belongs to the lines under it, so it sits closer to them than
+	# two neighbouring statements sit to each other.
+	if info_line_role(previous) == INFO_ROLE_HEADING:
+		return INFO_HEADING_GAP
+	return INFO_LINE_GAP
 
 func info_text_block_height(lines: Array[Dictionary]) -> float:
 	var total_height := 0.0
-	for line_value in lines:
-		var line: Dictionary = line_value
+	for i in lines.size():
+		var line: Dictionary = lines[i]
 		total_height += info_line_height(line)
-	total_height += INFO_LINE_GAP * float(lines.size() - 1)
+		if i > 0:
+			total_height += info_gap_before(lines[i - 1], line)
 	return total_height
 
 func info_back_center(panel_center: Vector2) -> Vector2:
