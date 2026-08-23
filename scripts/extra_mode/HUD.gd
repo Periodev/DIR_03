@@ -266,6 +266,7 @@ func _ready() -> void:
 	ai_status_label.add_theme_font_size_override("font_size", 18)
 	ai_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	ai_status_label.add_theme_color_override("font_color", Color(0.68, 0.70, 0.74))
+	ai_status_label.visible = Campaign.DEBUG_SHORTCUTS_ENABLED
 	add_child(ai_status_label)
 
 	gameover_panel = PanelContainer.new()

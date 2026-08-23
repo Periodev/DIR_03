@@ -132,6 +132,8 @@ func is_cancel_key(event: InputEvent) -> bool:
 
 
 func is_quick_complete_key(event: InputEvent) -> bool:
+	if not Campaign.DEBUG_SHORTCUTS_ENABLED:
+		return false
 	if not event is InputEventKey:
 		return false
 	var key_event: InputEventKey = event

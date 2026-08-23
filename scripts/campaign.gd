@@ -11,6 +11,7 @@ const EXTRA_MODE_SCENE_PATH := "res://scenes/extra_mode/extra_mode.tscn"
 const AREAS := LevelCatalogData.AREAS
 const SAVE_VERSION := 1
 const DEFAULT_SAVE_PATH := "user://progress.cfg"
+const DEBUG_SHORTCUTS_ENABLED := false
 
 var completed_levels: Dictionary = {}
 var active_level_id := ""

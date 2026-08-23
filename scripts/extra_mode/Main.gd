@@ -136,12 +136,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
-	if keycode == KEY_F4:
+	if Campaign.DEBUG_SHORTCUTS_ENABLED and keycode == KEY_F4:
 		_toggle_bot(combo_bot_mcts)
 		get_viewport().set_input_as_handled()
 		return
 
-	if keycode == KEY_F5:
+	if Campaign.DEBUG_SHORTCUTS_ENABLED and keycode == KEY_F5:
 		_toggle_bot(combo_bot_tuned)
 		get_viewport().set_input_as_handled()
 		return
@@ -157,20 +157,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	# Debug: fill energy to max (F2)
-	if keycode == KEY_F2:
+	if Campaign.DEBUG_SHORTCUTS_ENABLED and keycode == KEY_F2:
 		board.debug_fill_energy()
 		_on_board_updated()
 		get_viewport().set_input_as_handled()
 		return
 
 	# Debug: spawn dead cell adjacent to player (F3)
-	if keycode == KEY_F3:
+	if Campaign.DEBUG_SHORTCUTS_ENABLED and keycode == KEY_F3:
 		board.debug_spawn_adjacent_dead()
 		get_viewport().set_input_as_handled()
 		return
 
 	# Debug: preview PLN charge visual (F6)
-	if keycode == KEY_F6:
+	if Campaign.DEBUG_SHORTCUTS_ENABLED and keycode == KEY_F6:
 		board.debug_preview_charge()
 		get_viewport().set_input_as_handled()
 		return
