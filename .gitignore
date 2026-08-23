@@ -30,5 +30,13 @@ __pycache__/
 tools/sfx_candidates/*
 !tools/sfx_candidates/.gdignore
 
+# Locally retained Pixabay audio; do not redistribute as standalone files
+/assets/audio/sfx/extra_attack/slash_666herohero_21834.mp3
+/assets/audio/sfx/extra_attack/slash_666herohero_21834.mp3.import
+/assets/audio/sfx/extra_attack/sword_freesound_36274.wav
+/assets/audio/sfx/extra_attack/sword_freesound_36274.wav.import
+/assets/audio/sfx/extra_attack/sword_slash_54427377.wav
+/assets/audio/sfx/extra_attack/sword_slash_54427377.wav.import
+
 # cma package's own run logging, written wherever it's invoked from
 outcmaes/
