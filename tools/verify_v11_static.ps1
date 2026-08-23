@@ -38,6 +38,7 @@ $extraMainPath = Join-Path $root "scripts/extra_mode/Main.gd"
 $extraPlayerPath = Join-Path $root "scripts/extra_mode/Player.gd"
 $extraCellPath = Join-Path $root "scripts/extra_mode/Cell.gd"
 $extraHudPath = Join-Path $root "scripts/extra_mode/HUD.gd"
+$extraHelpPanelPath = Join-Path $root "scripts/extra_mode/HelpPanel.gd"
 $extraHeatMeterPath = Join-Path $root "scripts/extra_mode/HeatMeter.gd"
 $extraEnergySlotPath = Join-Path $root "scripts/extra_mode/EnergySlot.gd"
 $extraSlashEffectPath = Join-Path $root "scripts/extra_mode/PLNSlashEffect.gd"
@@ -104,6 +105,7 @@ $extraMain = Get-Content -LiteralPath $extraMainPath -Raw
 $extraPlayer = Get-Content -LiteralPath $extraPlayerPath -Raw
 $extraCell = Get-Content -LiteralPath $extraCellPath -Raw
 $extraHud = Get-Content -LiteralPath $extraHudPath -Raw
+$extraHelpPanel = Get-Content -LiteralPath $extraHelpPanelPath -Raw
 $extraHeatMeter = Get-Content -LiteralPath $extraHeatMeterPath -Raw
 $extraEnergySlot = Get-Content -LiteralPath $extraEnergySlotPath -Raw
 $extraSlashEffect = Get-Content -LiteralPath $extraSlashEffectPath -Raw
@@ -615,7 +617,7 @@ $checks = @(
 	},
 	@{
 		Name = "GDScript warning-prone names and integer division stay explicit"
-		Pass = $gameBoard -notmatch 'const\s+AsciiMapParser\s*=' -and $playerBoardView -notmatch 'func\s+set_grid_lines_visible\(visible:' -and $playerBoardView -notmatch 'start_displacement_tween\([^)]*\bease:' -and $classicLevelSelect -notmatch '\b(?:selected_index|index)\s*/\s*GRID_COLUMNS' -and $playerBoardView -notmatch 'func\s+scale_points_from\([^)]*\bscale:\s*float' -and $worldMap -notmatch 'func\s+scale_points_from\([^)]*\bscale:\s*float' -and $titleScreen -notmatch 'func\s+scale_points_from\([^)]*\bscale:\s*float' -and $extraBoard -notmatch '\b(?:COLS|ROWS)\s*/\s*2(?!\.)'
+		Pass = $gameBoard -notmatch 'const\s+AsciiMapParser\s*=' -and $playerBoardView -notmatch 'func\s+set_grid_lines_visible\(visible:' -and $playerBoardView -notmatch 'start_displacement_tween\([^)]*\bease:' -and $classicLevelSelect -notmatch '\b(?:selected_index|index)\s*/\s*GRID_COLUMNS' -and $playerBoardView -notmatch 'func\s+scale_points_from\([^)]*\bscale:\s*float' -and $worldMap -notmatch 'func\s+scale_points_from\([^)]*\bscale:\s*float' -and $titleScreen -notmatch 'func\s+scale_points_from\([^)]*\bscale:\s*float' -and $extraBoard -notmatch '\b(?:COLS|ROWS)\s*/\s*2(?!\.)' -and $extraScoreManager -match 'floori\(\s*float\(tier5_streak\)\s*/\s*float\(TIER5_STREAK_THRESHOLD\)\s*\)' -and $extraComboBot -match 'floori\(\s*float\(tier5_streak\)\s*/\s*float\(ScoreManager\.TIER5_STREAK_THRESHOLD\)\s*\)' -and $extraSimBoard -match 'floori\(\s*float\(tier5_streak\)\s*/\s*float\(TIER5_STREAK_THRESHOLD\)\s*\)' -and $extraHelpPanel -match 'add_theme_constant_override\("separation",\s*int\(GLYPH_GUTTER\)\)' -and $extraPlayer -match 'func\s+set_ultimate_dash_ready\(enabled:\s*bool\)' -and $extraPlayer -notmatch 'func\s+set_ultimate_dash_ready\(ready:'
 	},
 	@{
 		Name = "EXTRA PLN uses a three-slot rolling direction inventory plus one temporary final-ULT slot"
@@ -673,7 +675,7 @@ func\s)[\s\S])*?if\s+consumed_count\s*>=\s*2:\s*?
 	},
 	@{
 		Name = "EXTRA shows fixed large chevrons while ULT input is ready"
-		Pass = $extraBoard -match 'var\s+ultimate_ready:\s*bool\s*=\s*game_state\.is_idle\(\)\s+and\s+ultimate_dashes_remaining\s*>\s*0' -and $extraBoard -match 'player_node\.set_ultimate_dash_ready\(ultimate_ready\)' -and $extraPlayer -match 'func\s+set_ultimate_dash_ready\(ready:\s*bool\)' -and $extraPlayer -match 'func\s+_draw_ultimate_dash_arrows\(\)' -and $extraPlayer -match 'ARROW_DISTANCE\s*:=\s*58\.0' -and $extraPlayer -match 'ARROW_FRONT_DEPTH\s*:=\s*12\.0' -and $extraPlayer -match 'ARROW_REAR_DEPTH\s*:=\s*9\.6' -and $extraPlayer -match 'ARROW_HALF_HEIGHT\s*:=\s*9\.6' -and $extraPlayer -match 'ULT_STATE_COLOR\s*:=\s*Color\("#DFFFE9"\)' -and $extraPlayer -match 'ULT_ARROW_COLOR\s*:=\s*Color\("#B4F2C2"\)' -and $extraPlayer -match 'ARROW_WIDTH\s*:=\s*6\.5' -and $extraPlayer -match 'draw_polyline\(arrow,\s*ULT_ARROW_COLOR,\s*ARROW_WIDTH,\s*true\)' -and $extraPlayer -notmatch 'ULT_FRAME_COLOR|ULT_COLOR' -and $extraPlayer -match 'if\s+ultimate_dash_ready:(?:(?!elif\s+not\s+bonus_step_directions)[\s\S])*?ULT_STATE_COLOR(?:(?!elif\s+not\s+bonus_step_directions)[\s\S])*?STATE_FRAME_GAP_COLOR(?:(?!elif\s+not\s+bonus_step_directions)[\s\S])*?draw_polygon\(points'
+		Pass = $extraBoard -match 'var\s+ultimate_ready:\s*bool\s*=\s*game_state\.is_idle\(\)\s+and\s+ultimate_dashes_remaining\s*>\s*0' -and $extraBoard -match 'player_node\.set_ultimate_dash_ready\(ultimate_ready\)' -and $extraPlayer -match 'func\s+set_ultimate_dash_ready\(enabled:\s*bool\)' -and $extraPlayer -match 'func\s+_draw_ultimate_dash_arrows\(\)' -and $extraPlayer -match 'ARROW_DISTANCE\s*:=\s*58\.0' -and $extraPlayer -match 'ARROW_FRONT_DEPTH\s*:=\s*12\.0' -and $extraPlayer -match 'ARROW_REAR_DEPTH\s*:=\s*9\.6' -and $extraPlayer -match 'ARROW_HALF_HEIGHT\s*:=\s*9\.6' -and $extraPlayer -match 'ULT_STATE_COLOR\s*:=\s*Color\("#DFFFE9"\)' -and $extraPlayer -match 'ULT_ARROW_COLOR\s*:=\s*Color\("#B4F2C2"\)' -and $extraPlayer -match 'ARROW_WIDTH\s*:=\s*6\.5' -and $extraPlayer -match 'draw_polyline\(arrow,\s*ULT_ARROW_COLOR,\s*ARROW_WIDTH,\s*true\)' -and $extraPlayer -notmatch 'ULT_FRAME_COLOR|ULT_COLOR' -and $extraPlayer -match 'if\s+ultimate_dash_ready:(?:(?!elif\s+not\s+bonus_step_directions)[\s\S])*?ULT_STATE_COLOR(?:(?!elif\s+not\s+bonus_step_directions)[\s\S])*?STATE_FRAME_GAP_COLOR(?:(?!elif\s+not\s+bonus_step_directions)[\s\S])*?draw_polygon\(points'
 	},
 	@{
 		Name = "EXTRA separates window, grid gaps, live cells, enemies, and spawn warnings"

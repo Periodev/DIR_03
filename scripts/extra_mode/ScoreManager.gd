@@ -61,7 +61,9 @@ func on_kill(_cell_type: int, count_defeat: bool = true) -> int:
 		# breaks it -- so it keeps climbing as a running record, and the bonus
 		# just repeats every five kills along the way.
 		if tier5_streak % TIER5_STREAK_THRESHOLD == 0:
-			var block: int = tier5_streak / TIER5_STREAK_THRESHOLD
+			var block := floori(
+				float(tier5_streak) / float(TIER5_STREAK_THRESHOLD)
+			)
 			streak_bonus_awarded = mini(
 				TIER5_STREAK_BONUS_BASE + TIER5_STREAK_BONUS_STEP * (block - 1),
 				TIER5_STREAK_BONUS_CAP

@@ -81,10 +81,10 @@ func set_attack_ready_directions(directions: Array[int]) -> void:
 	attack_ready_directions = directions.duplicate()
 	queue_redraw()
 
-func set_ultimate_dash_ready(ready: bool) -> void:
-	if ultimate_dash_ready == ready:
+func set_ultimate_dash_ready(enabled: bool) -> void:
+	if ultimate_dash_ready == enabled:
 		return
-	ultimate_dash_ready = ready
+	ultimate_dash_ready = enabled
 	queue_redraw()
 
 func set_stored_direction_slots(directions: Array, max_size: int) -> void:

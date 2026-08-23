@@ -190,7 +190,7 @@ func _glyph(kind: int, glyph_size: Vector2) -> Control:
 
 func _loop_row(kind: int, heading: String, body: String) -> HBoxContainer:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", GLYPH_GUTTER)
+	row.add_theme_constant_override("separation", int(GLYPH_GUTTER))
 	# Both halves start at the row's top edge. Centring the copy against a
 	# fixed-height diagram made every row's gap depend on how many body lines it
 	# had, which is what opened the hole under the HEAT heading.

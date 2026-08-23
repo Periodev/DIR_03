@@ -242,7 +242,9 @@ func _tier5_streak_value(combo: int, tier5_streak: int) -> float:
 func _tier5_streak_bonus(tier5_streak: int) -> int:
 	if tier5_streak <= 0 or tier5_streak % ScoreManager.TIER5_STREAK_THRESHOLD != 0:
 		return 0
-	var block: int = tier5_streak / ScoreManager.TIER5_STREAK_THRESHOLD
+	var block := floori(
+		float(tier5_streak) / float(ScoreManager.TIER5_STREAK_THRESHOLD)
+	)
 	return mini(
 		ScoreManager.TIER5_STREAK_BONUS_BASE + ScoreManager.TIER5_STREAK_BONUS_STEP * (block - 1),
 		ScoreManager.TIER5_STREAK_BONUS_CAP

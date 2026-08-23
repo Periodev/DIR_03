@@ -177,7 +177,9 @@ func on_kill() -> int:
 	if combo == MAX_COMBO_TIER:
 		tier5_streak += 1
 		if tier5_streak % TIER5_STREAK_THRESHOLD == 0:
-			var block: int = tier5_streak / TIER5_STREAK_THRESHOLD
+			var block := floori(
+				float(tier5_streak) / float(TIER5_STREAK_THRESHOLD)
+			)
 			var streak_bonus: int = mini(
 				TIER5_STREAK_BONUS_BASE + TIER5_STREAK_BONUS_STEP * (block - 1),
 				TIER5_STREAK_BONUS_CAP
