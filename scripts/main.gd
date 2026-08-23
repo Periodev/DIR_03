@@ -56,11 +56,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		clear_held_movement()
 		complete_level_for_testing()
 		return
-	if Campaign.has_active_level() and (
-		(level_completed and is_confirm_key(event)) or is_cancel_key(event)
-	):
-		return_to_world_map()
-		return
+	if Campaign.has_active_level():
+		var finished_confirm: bool = level_completed and is_confirm_key(event)
+		if finished_confirm or is_cancel_key(event):
+			# CONTINUE off the last level ends the run at the title it started
+			# from. The level list has nothing left to advance to there, so
+			# returning to it would answer the closing message with a menu
+			# parked on an already-finished entry. ESC is unchanged: leaving
+			# early still goes to the level list.
+			if finished_confirm and Campaign.active_level_id == PlayerInterface.FINAL_LEVEL_ID:
+				return_to_title()
+			else:
+				return_to_world_map()
+			return
 	if input_locked:
 		return
 	if event.is_action_pressed("undo_command"):
@@ -143,3 +151,8 @@ func is_quick_complete_key(event: InputEvent) -> bool:
 func return_to_world_map() -> void:
 	Campaign.leave_active_level()
 	SceneTransition.transition_to(Campaign.level_select_scene_path)
+
+
+func return_to_title() -> void:
+	Campaign.leave_active_level()
+	SceneTransition.transition_to(Campaign.TITLE_SCREEN_SCENE_PATH)

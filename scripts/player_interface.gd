@@ -47,7 +47,14 @@ const CONTROL_HINT_SPACE_SOURCE_RECT := VisualStyle.SPACE_KEY_SOURCE_RECT
 const CONTROL_HINT_GROUP_SEPARATION := 44
 const CONTROL_HINT_INACTIVE_ALPHA := 0.35
 const FINAL_LEVEL_ID := "3-12"
-const FINAL_MESSAGE_FONT_SIZE := 28
+const FINAL_MESSAGE_FONT_SIZE := 42
+# The closing line sits under the board, not in the GOAL slot above it. FIN's
+# walls spell the word out, so the message cannot overlay the board, and the
+# band below it puts the three beats in reading order: the shape, the thanks,
+# then CONTINUE. The band is reserved for the whole of the last level rather
+# than only once the message shows, so completing it does not resize the board.
+const FINAL_MESSAGE_GAP := 24
+const FINAL_MESSAGE_LINE := 56
 
 var game_board
 var board_view
@@ -213,7 +220,35 @@ func build_stage() -> Control:
 	)
 	board_view.add_child(board_goals)
 
+	final_completion_message = make_header_label(
+		"THANK YOU FOR PLAYING",
+		FINAL_MESSAGE_FONT_SIZE,
+		ui_font
+	)
+	# Centred across the board's own width rather than the window's, so it stays
+	# under the board on any viewport the board does not fill.
+	final_completion_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	final_completion_message.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	final_completion_message.visible = false
+	high_tone_labels.append(final_completion_message)
+	board_view.add_child(final_completion_message)
+	layout_final_completion_message()
+
 	return stage
+
+
+func layout_final_completion_message() -> void:
+	if final_completion_message == null or board_view == null:
+		return
+	var board_size: Vector2 = board_view.custom_minimum_size
+	final_completion_message.position = Vector2(0.0, board_size.y + FINAL_MESSAGE_GAP)
+	final_completion_message.size = Vector2(board_size.x, float(FINAL_MESSAGE_LINE))
+
+
+func final_message_band_height() -> float:
+	if Campaign.active_level_id == FINAL_LEVEL_ID:
+		return float(FINAL_MESSAGE_GAP + FINAL_MESSAGE_LINE)
+	return 0.0
 
 
 func build_status_bar() -> Control:
@@ -264,14 +299,6 @@ func build_goal_group() -> HBoxContainer:
 	high_tone_labels.append(goals_value)
 	group.add_child(goals_value)
 
-	final_completion_message = make_header_label(
-		"THANK YOU FOR PLAYING",
-		FINAL_MESSAGE_FONT_SIZE,
-		ui_font
-	)
-	final_completion_message.visible = false
-	high_tone_labels.append(final_completion_message)
-	group.add_child(final_completion_message)
 	return group
 
 
@@ -544,6 +571,7 @@ func fit_board_to_viewport() -> void:
 		- control_hint_status_height()
 		- STAGE_TOP_MARGIN
 		- STAGE_BOTTOM_MARGIN
+		- final_message_band_height()
 	)
 	var width_limited_size: float = available_width / float(board_columns)
 	var height_limited_size: float = (
@@ -555,6 +583,7 @@ func fit_board_to_viewport() -> void:
 		minf(width_limited_size, height_limited_size)
 	))
 	board_view.set_cell_size(maxf(BOARD_CELL_SIZE_MIN, fitted_cell_size))
+	layout_final_completion_message()
 
 
 func refresh_control_hints() -> void:
