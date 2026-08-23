@@ -13,6 +13,8 @@ const DIRECTION_ACTIVE_COLOR := Color("#7FE85A")
 const DIRECTION_EXPIRING_COLOR := Color("#AAB58A")
 const DIRECTION_EMPTY_COLOR := Color("#4A5058")
 const DASH_AVAILABLE_COLOR := Color("#DFFFE9")
+const NAV_KEY_COLOR := Color("#6E7A85")
+const NAV_ACTION_COLOR := Color(0.86, 0.88, 0.91)
 const SIDEBAR_MARGIN := 20.0
 const SIDEBAR_WIDTH := 320.0
 const NAV_ROW_TOP := 12.0
@@ -31,7 +33,7 @@ const BOTTOM_INFO_ROW_HEIGHT := 28.0
 const ENERGY_ROW_CONTENT_WIDTH := 205.0
 const ENERGY_GAIN_WIDTH := 44.0
 
-var nav_label: Label
+var nav_row: HBoxContainer
 var status_group_panel: PanelContainer
 var score_label: Label
 var score_bonus_label: Label
@@ -66,12 +68,14 @@ var _slot_flash_tweens: Array[Tween] = []
 var _energy_flash_tweens: Array[Tween] = []
 
 func _ready() -> void:
-	nav_label = Label.new()
-	nav_label.text = "[ESC] TITLE   [F1] HELP   [R] RESTART"
-	nav_label.add_theme_font_size_override("font_size", 22)
-	nav_label.add_theme_color_override("font_color", Color(0.72, 0.74, 0.78))
-	nav_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	add_child(nav_label)
+	# Built from separate labels rather than one string: as a single run of text
+	# at one colour and size, the key and the thing it does read as one blurred
+	# token. The key is set smaller and muted so the action word carries the row.
+	nav_row = HBoxContainer.new()
+	nav_row.add_theme_constant_override("separation", 30)
+	add_child(nav_row)
+	for entry in [["ESC", "TITLE"], ["F1", "HELP"], ["R", "RESTART"]]:
+		nav_row.add_child(_nav_entry(String(entry[0]), String(entry[1])))
 
 	status_group_panel = PanelContainer.new()
 	status_group_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -232,7 +236,7 @@ func _ready() -> void:
 	hold_container = direction_row
 
 	message_label = Label.new()
-	message_label.text = "WASD: Move | Space: Wait | R: Restart"
+	message_label.text = "WASD: Move | Space: Wait"
 	message_label.add_theme_font_size_override("font_size", 14)
 	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	message_label.position = Vector2(
@@ -490,8 +494,27 @@ func _cancel_energy_flashes() -> void:
 	for slot in energy_slots:
 		slot.modulate = Color.WHITE
 
+func _nav_entry(key: String, action: String) -> HBoxContainer:
+	var entry := HBoxContainer.new()
+	entry.add_theme_constant_override("separation", 8)
+	var key_label := Label.new()
+	key_label.text = "[%s]" % key
+	key_label.add_theme_font_size_override("font_size", 16)
+	key_label.add_theme_color_override("font_color", NAV_KEY_COLOR)
+	key_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	entry.add_child(key_label)
+	var action_label := Label.new()
+	action_label.text = action
+	action_label.add_theme_font_size_override("font_size", 22)
+	action_label.add_theme_color_override("font_color", NAV_ACTION_COLOR)
+	action_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	entry.add_child(action_label)
+	return entry
+
 func update_state(_state: int) -> void:
-	message_label.text = "WASD: Move | Space: Wait | R: Restart"
+	# R is already named in the nav row above; repeating it here spends the
+	# turn-action hint on a key the player can always see.
+	message_label.text = "WASD: Move | Space: Wait"
 
 func show_game_over(final_score: int, max_tier5_streak: int) -> void:
 	gameover_score.text = str(final_score)
@@ -501,8 +524,8 @@ func show_game_over(final_score: int, max_tier5_streak: int) -> void:
 func _layout_ui() -> void:
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
 	var sidebar_width: float = min(SIDEBAR_WIDTH, viewport_size.x - SIDEBAR_MARGIN * 2.0)
-	nav_label.position = Vector2(SIDEBAR_MARGIN, NAV_ROW_TOP)
-	nav_label.size = Vector2(NAV_ROW_WIDTH, 32)
+	nav_row.position = Vector2(SIDEBAR_MARGIN, NAV_ROW_TOP)
+	nav_row.size = Vector2(NAV_ROW_WIDTH, 32)
 	status_group_panel.position = Vector2(SIDEBAR_MARGIN, STATUS_GROUP_TOP)
 	status_group_panel.size = Vector2(sidebar_width, STATUS_GROUP_HEIGHT)
 	score_label.position = Vector2(STATUS_CONTENT_LEFT, SCORE_ROW_TOP)

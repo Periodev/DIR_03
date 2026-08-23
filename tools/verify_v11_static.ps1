@@ -639,18 +639,12 @@ $checks = @(
 	},
 	@{
 		Name = "EXTRA spawn-hit shields reset heat instead of leaving it intact"
-		Pass = $extraBoard -match 'func\s+_resolve_player_spawn_hit\(pos:\s*Vector2i,\s*cell_type:\s*int\)(?:(?!
-?
-func\s)[\s\S])*?if\s+_spawn_hit_uses_energy:(?:(?!
-?
-func\s)[\s\S])*?score_manager\.reset_combo\(\)(?:(?!
-?
-func\s)[\s\S])*?score_manager\.on_kill\(cell_type\)(?:(?!
-?
-func\s)[\s\S])*?if\s+consumed_count\s*>=\s*2:\s*
-?
-\s*score_manager\.reset_combo\(\)\s*
-?
+		Pass = $extraBoard -match 'func\s+_resolve_player_spawn_hit\(pos:\s*Vector2i,\s*cell_type:\s*int\)(?:(?!?
+func\s)[\s\S])*?if\s+_spawn_hit_uses_energy:(?:(?!?
+func\s)[\s\S])*?score_manager\.reset_combo\(\)(?:(?!?
+func\s)[\s\S])*?score_manager\.on_kill\(cell_type\)(?:(?!?
+func\s)[\s\S])*?if\s+consumed_count\s*>=\s*2:\s*?
+\s*score_manager\.reset_combo\(\)\s*?
 \s*score_manager\.on_kill\(cell_type\)'
 	},
 	@{
@@ -783,16 +777,11 @@ func\s)[\s\S])*?if\s+consumed_count\s*>=\s*2:\s*
 	},
 	@{
 		Name = "title info BACK is laid out from the same stack as its text, not a fixed offset"
-		Pass = $titleScreen -match 'const\s+INFO_LINE_GAP\s*:=\s*22\.0' -and $titleScreen -match 'const\s+INFO_BACK_GAP\s*:=\s*40\.0' -and $titleScreen -notmatch 'INFO_BACK_OFFSET_Y' -and $titleScreen -match 'func\s+info_lines\(\)\s*->\s*Array\[Dictionary\]' -and $titleScreen -match 'func\s+info_text_block_height\(lines:\s*Array\[Dictionary\]\)\s*->\s*float' -and $titleScreen -match 'func\s+info_back_center\(panel_center:\s*Vector2\)\s*->\s*Vector2' -and $titleScreen -match 'func\s+draw_info_menu\(menu_center:\s*Vector2\)\s*->\s*void:(?:(?!
-?
-func\s)[\s\S])*?var\s+lines\s*:=\s*info_lines\(\)(?:(?!
-?
-func\s)[\s\S])*?var\s+text_height\s*:=\s*info_text_block_height\(lines\)(?:(?!
-?
-func\s)[\s\S])*?draw_config_option\(\s*
-?
-\s*"BACK"' -and $titleScreen -match 'func\s+info_back_rect\(\)\s*->\s*Rect2:(?:(?!
-?
+		Pass = $titleScreen -match 'const\s+INFO_LINE_GAP\s*:=\s*22\.0' -and $titleScreen -match 'const\s+INFO_BACK_GAP\s*:=\s*40\.0' -and $titleScreen -notmatch 'INFO_BACK_OFFSET_Y' -and $titleScreen -match 'func\s+info_lines\(\)\s*->\s*Array\[Dictionary\]' -and $titleScreen -match 'func\s+info_text_block_height\(lines:\s*Array\[Dictionary\]\)\s*->\s*float' -and $titleScreen -match 'func\s+info_back_center\(panel_center:\s*Vector2\)\s*->\s*Vector2' -and $titleScreen -match 'func\s+draw_info_menu\(menu_center:\s*Vector2\)\s*->\s*void:(?:(?!?
+func\s)[\s\S])*?var\s+lines\s*:=\s*info_lines\(\)(?:(?!?
+func\s)[\s\S])*?var\s+text_height\s*:=\s*info_text_block_height\(lines\)(?:(?!?
+func\s)[\s\S])*?draw_config_option\(\s*?
+\s*"BACK"' -and $titleScreen -match 'func\s+info_back_rect\(\)\s*->\s*Rect2:(?:(?!?
 func\s)[\s\S])*?var\s+center\s*:=\s*info_back_center\(panel_center\)'
 	},
 	@{
@@ -884,8 +873,8 @@ func\s)[\s\S])*?var\s+center\s*:=\s*info_back_center\(panel_center\)'
 		Pass = $extraHud -match 'score_label\.add_theme_font_size_override\("font_size",\s*56\)' -and $extraHud -match 'combo_label\.text\s*=\s*"HEAT"' -and $extraHud -match 'var\s+heat_meter:\s*Control' -and $extraHud -match 'var\s+turn_label:\s*Label' -and $extraHud -match 'turn_label\.text\s*=\s*"TURN 0"' -and $extraHud -match 'func\s+update_turns\(turn_count:\s*int\)\s*->\s*void:\s*\r?\n\s*turn_label\.text\s*=\s*"TURN %d"\s*%\s*turn_count' -and $extraMain -match 'hud\.update_turns\(board\.survival_turns\)' -and $extraHud -notmatch 'defeats_label|BREAK 0|func\s+update_defeats'
 	},
 	@{
-		Name = "EXTRA HUD exposes title and help controls above the lowered score block"
-		Pass = $extraHud -match 'nav_label\.text\s*=\s*"\[ESC\] TITLE\s+\[F1\] HELP\s+\[R\] RESTART"' -and $extraHud -match 'nav_label\.add_theme_font_size_override\("font_size",\s*22\)' -and $extraHud -match 'NAV_ROW_WIDTH\s*:=\s*520\.0' -and $extraHud -match 'SCORE_ROW_TOP\s*:=\s*108\.0' -and $extraHud -match 'func\s+toggle_help\(\)' -and $extraHud -match 'func\s+is_help_visible\(\)' -and $extraMain -match 'KEY_F1(?:(?!\r?\n\s*if\s)[\s\S])*?hud\.toggle_help\(\)' -and $extraMain -match 'if\s+hud\.is_help_visible\(\):\s*\r?\n\s*if\s+keycode\s+in\s+\[KEY_ESCAPE,\s*KEY_F1,\s*KEY_SPACE\]:(?:(?!\r?\n\s*if\s+keycode\s*==\s*KEY_ESCAPE)[\s\S])*?hud\.toggle_help\(\)' -and $extraMain -match 'func\s+_process\(delta:\s*float\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+hud\.is_help_visible\(\):\s*\r?\n\s*return'
+		Name = "EXTRA HUD sets nav keys apart from the actions they trigger"
+		Pass = $extraHud -match '\[\["ESC",\s*"TITLE"\],\s*\["F1",\s*"HELP"\],\s*\["R",\s*"RESTART"\]\]' -and $extraHud -match 'func\s+_nav_entry\(key:\s*String,\s*action:\s*String\)' -and $extraHud -match 'const\s+NAV_KEY_COLOR' -and $extraHud -match 'const\s+NAV_ACTION_COLOR' -and $extraHud -match 'action_label\.add_theme_font_size_override\("font_size",\s*22\)' -and $extraHud -match 'NAV_ROW_WIDTH\s*:=\s*520\.0' -and $extraHud -match 'SCORE_ROW_TOP\s*:=\s*108\.0' -and $extraHud -match 'func\s+toggle_help\(\)' -and $extraHud -match 'func\s+is_help_visible\(\)' -and $extraMain -match 'KEY_F1(?:(?!\r?\n\s*if\s)[\s\S])*?hud\.toggle_help\(\)' -and $extraMain -match 'if\s+hud\.is_help_visible\(\):\s*\r?\n\s*if\s+keycode\s+in\s+\[KEY_ESCAPE,\s*KEY_F1,\s*KEY_SPACE\]:(?:(?!\r?\n\s*if\s+keycode\s*==\s*KEY_ESCAPE)[\s\S])*?hud\.toggle_help\(\)' -and $extraMain -match 'func\s+_process\(delta:\s*float\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+hud\.is_help_visible\(\):\s*\r?\n\s*return'
 	},
 	@{
 		Name = "EXTRA anchors turn and bot diagnostics at the lower left"

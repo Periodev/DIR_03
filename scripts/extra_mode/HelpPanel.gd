@@ -26,6 +26,12 @@ const RULE_BODY_COLOR := Color(0.54, 0.57, 0.62)
 
 const PANEL_SIZE := Vector2(900, 700)
 
+# One spine for the whole page: every section keeps a left column exactly this
+# wide, so diagram rows and the ability table start their prose at the same x.
+const GLYPH_WIDTH := 248.0
+const GLYPH_GUTTER := 18.0
+const BODY_COLUMN_X := GLYPH_WIDTH + GLYPH_GUTTER
+
 func _init() -> void:
 	visible = false
 	custom_minimum_size = PANEL_SIZE
@@ -113,9 +119,14 @@ func _text(value: String, font_size: int, color: Color) -> Label:
 func _section(parent: Node, heading: String) -> void:
 	# The tight row rhythm keeps the page on one screen, so each heading buys
 	# back its own separation instead of widening the gap between every row.
+	#
+	# Set smaller than the row headings on purpose. At the same size the two
+	# levels competed, and the brighter row headings won -- which read as the
+	# outer level and inverted the hierarchy. As a small muted label the section
+	# name groups its rows without claiming to outrank them.
 	var pad := MarginContainer.new()
-	pad.add_theme_constant_override("margin_top", 8)
-	pad.add_child(_text(heading, 20, HEADING_COLOR))
+	pad.add_theme_constant_override("margin_top", 16)
+	pad.add_child(_text(heading, 16, HEADING_COLOR))
 	parent.add_child(pad)
 
 func _key_column(rows: Array) -> VBoxContainer:
@@ -134,8 +145,10 @@ func _key_column(rows: Array) -> VBoxContainer:
 func _ability_table() -> GridContainer:
 	var table := GridContainer.new()
 	table.columns = 3
-	table.add_theme_constant_override("h_separation", 18)
-	table.add_theme_constant_override("v_separation", 4)
+	table.add_theme_constant_override("h_separation", int(GLYPH_GUTTER))
+	# Each entry is two lines of prose, so they need more air between them than
+	# between their own lines or the pair reads as one four-line block.
+	table.add_theme_constant_override("v_separation", 14)
 	_add_ability_row(
 		table,
 		"STEP (X)",
@@ -153,11 +166,19 @@ func _ability_table() -> GridContainer:
 	return table
 
 func _add_ability_row(table: GridContainer, ability: String, cost: String, detail: String) -> void:
+	const ABILITY_COLUMN_X := 92.0
 	var ability_label := _text(ability, 17, BODY_COLOR)
-	ability_label.custom_minimum_size.x = 92.0
+	ability_label.custom_minimum_size.x = ABILITY_COLUMN_X
+	# Top-aligned against the detail's first line. Left to centre themselves,
+	# the name and cost drift down beside a two-line detail and stop reading as
+	# that line's label.
+	ability_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	table.add_child(ability_label)
 	var cost_label := _text(cost, 15, HEADING_COLOR)
-	cost_label.custom_minimum_size.x = 72.0
+	# Sized so ability + cost + both gutters land the detail text on
+	# BODY_COLUMN_X, the same left edge the diagram rows use.
+	cost_label.custom_minimum_size.x = BODY_COLUMN_X - ABILITY_COLUMN_X - GLYPH_GUTTER * 2.0
+	cost_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	table.add_child(cost_label)
 	table.add_child(_text(detail, 15, DIM_COLOR))
 
@@ -169,11 +190,16 @@ func _glyph(kind: int, glyph_size: Vector2) -> Control:
 
 func _loop_row(kind: int, heading: String, body: String) -> HBoxContainer:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 18)
-	row.add_child(_glyph(kind, Vector2(248, 72)))
+	row.add_theme_constant_override("separation", GLYPH_GUTTER)
+	# Both halves start at the row's top edge. Centring the copy against a
+	# fixed-height diagram made every row's gap depend on how many body lines it
+	# had, which is what opened the hole under the HEAT heading.
+	var glyph := _glyph(kind, Vector2(GLYPH_WIDTH, 72))
+	glyph.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	row.add_child(glyph)
 	var copy := VBoxContainer.new()
 	copy.add_theme_constant_override("separation", 4)
-	copy.alignment = BoxContainer.ALIGNMENT_CENTER
+	copy.alignment = BoxContainer.ALIGNMENT_BEGIN
 	copy.add_child(_text(heading, 20, BODY_COLOR))
 	copy.add_child(_text(body, 15, RULE_BODY_COLOR))
 	row.add_child(copy)
@@ -248,28 +274,47 @@ class Glyph extends Control:
 	const CELL_TOP := 9.0
 	const MID := 36.0
 
+	# Three fixed columns shared by every diagram, so the connectors and the
+	# "after" shapes line up down the page instead of drifting per row:
+	# the before state, the arrow, then the result.
+	const BEFORE_X := 4.0
+	const BEFORE_SECOND_X := 82.0
+	const BEFORE_RIGHT := BEFORE_SECOND_X + CELL
+	const ARROW_START_X := 150.0
+	const ARROW_END_X := 172.0
+	const ARROW_TIP_X := 178.0
+	const AFTER_X := 180.0
+
 	func _draw_bank() -> void:
 		# Player steps right into an empty cell, and the direction it moved
 		# appears as a banked chevron.
-		_cell(Vector2(4, CELL_TOP), CELL)
-		_cell(Vector2(82, CELL_TOP), CELL)
-		_diamond(Vector2(31, MID), 14, DIRExtraHelpPanel.PLAYER_COLOR)
-		_chevron(Vector2(78, MID), 10, 9, DIRExtraHelpPanel.DIM_COLOR)
-		draw_line(Vector2(150, MID), Vector2(172, MID), DIRExtraHelpPanel.DIM_COLOR, 2.0)
-		_chevron(Vector2(178, MID), 8, 7, DIRExtraHelpPanel.DIM_COLOR)
-		# The banked slot it produces.
-		_chevron(Vector2(214, MID), 12, 11, DIRExtraHelpPanel.DIRECTION_COLOR)
+		_cell(Vector2(BEFORE_X, CELL_TOP), CELL)
+		_cell(Vector2(BEFORE_SECOND_X, CELL_TOP), CELL)
+		_diamond(Vector2(BEFORE_X + 27, MID), 14, DIRExtraHelpPanel.PLAYER_COLOR)
+		_chevron(Vector2(BEFORE_SECOND_X - 4, MID), 10, 9, DIRExtraHelpPanel.DIM_COLOR)
+		_arrow()
+		# The banked slot it produces, centred on the result column.
+		_chevron(Vector2(AFTER_X + 33, MID), 12, 11, DIRExtraHelpPanel.DIRECTION_COLOR)
 
 	func _draw_kill() -> void:
 		# The banked chevron is spent, and the enemy beside the player dies.
-		_cell(Vector2(4, CELL_TOP), CELL)
-		_cell(Vector2(82, CELL_TOP), CELL)
-		_diamond(Vector2(31, MID), 14, DIRExtraHelpPanel.PLAYER_COLOR)
-		_octagon(Vector2(109, MID), 19)
-		_chevron(Vector2(78, MID), 10, 9, DIRExtraHelpPanel.DIRECTION_COLOR)
-		draw_line(Vector2(150, MID), Vector2(172, MID), DIRExtraHelpPanel.DIM_COLOR, 2.0)
-		_cell(Vector2(180, CELL_TOP), CELL)
-		_diamond(Vector2(207, MID), 14, DIRExtraHelpPanel.PLAYER_COLOR)
+		_cell(Vector2(BEFORE_X, CELL_TOP), CELL)
+		_cell(Vector2(BEFORE_SECOND_X, CELL_TOP), CELL)
+		_diamond(Vector2(BEFORE_X + 27, MID), 14, DIRExtraHelpPanel.PLAYER_COLOR)
+		_octagon(Vector2(BEFORE_SECOND_X + 27, MID), 19)
+		_chevron(Vector2(BEFORE_SECOND_X - 4, MID), 10, 9, DIRExtraHelpPanel.DIRECTION_COLOR)
+		_arrow()
+		_cell(Vector2(AFTER_X, CELL_TOP), CELL)
+		_diamond(Vector2(AFTER_X + 27, MID), 14, DIRExtraHelpPanel.PLAYER_COLOR)
+
+	func _arrow() -> void:
+		draw_line(
+			Vector2(ARROW_START_X, MID),
+			Vector2(ARROW_END_X, MID),
+			DIRExtraHelpPanel.DIM_COLOR,
+			2.0
+		)
+		_chevron(Vector2(ARROW_TIP_X, MID), 8, 7, DIRExtraHelpPanel.DIM_COLOR)
 
 	func _draw_cool() -> void:
 		# A full meter exposes the actual five-stage heat palette.
@@ -285,12 +330,17 @@ class Glyph extends Control:
 	func _draw_warning() -> void:
 		# Match the board's corner warning exactly; a separate outline shape would
 		# look like a fourth cell state.
-		_cell(Vector2(4, CELL_TOP), CELL)
-		_draw_warning_corners(Vector2(4, CELL_TOP), CELL)
-		draw_line(Vector2(74, MID), Vector2(96, MID), DIRExtraHelpPanel.DIM_COLOR, 2.0)
-		_chevron(Vector2(102, MID), 8, 7, DIRExtraHelpPanel.DIM_COLOR)
-		_cell(Vector2(118, CELL_TOP), CELL)
-		_octagon(Vector2(145, MID), 19)
+		#
+		# This row's "before" is one cell rather than a pair, so it is centred in
+		# the same band the other rows fill with two. Sharing the arrow and result
+		# columns matters more than sharing the left edge: the arrow is what the
+		# eye tracks down the page.
+		var before_x: float = BEFORE_X + (BEFORE_RIGHT - BEFORE_X - CELL) * 0.5
+		_cell(Vector2(before_x, CELL_TOP), CELL)
+		_draw_warning_corners(Vector2(before_x, CELL_TOP), CELL)
+		_arrow()
+		_cell(Vector2(AFTER_X, CELL_TOP), CELL)
+		_octagon(Vector2(AFTER_X + 27, MID), 19)
 
 	func _draw_warning_corners(at: Vector2, cell_size: float) -> void:
 		const INSET := 7.0
