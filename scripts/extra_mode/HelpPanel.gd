@@ -78,22 +78,23 @@ func _build() -> void:
 		Glyph.KIND_KILL,
 		"Attack with a stored direction",
 		"Move into an adjacent enemy with a matching DIR.\n"
-		+ "That DIR is spent, and you take the cleared cell."
+		+ "The oldest matching DIR is spent, and you take the cleared cell."
 	))
 	root.add_child(_loop_row(
 		Glyph.KIND_WARNING,
 		"Enemy spawn warning",
-		"A cell marked by red corners spawns an enemy after the next normal turn.\n"
-		+ "A hit spends 1 full ENERGY slot; without one, it needs 2 DIR.\n"
+		"Red corners mark an enemy spawning after the next MOVE, ATTACK, or WAIT.\n"
+		+ "A spawn hit spends 1 full ENERGY slot first; without one, it needs 2 DIR.\n"
 		+ "Fewer than 2 DIR or no legal action means GAME OVER."
 	))
 
-	_section(root, "HEAT")
+	_section(root, "HEAT / COMBO")
 	root.add_child(_loop_row(
 		Glyph.KIND_COOL,
-		"Kills raise HEAT",
-		"A normal turn without a kill lowers HEAT by one; a hit resets it.\n"
-		+ "Higher HEAT gives more ENERGY from normal kills."
+		"Build HEAT with kills",
+		"A kill raises HEAT; MOVE or WAIT lowers it by one. A spawn hit resets it.\n"
+		+ "At full HEAT, consecutive kills build COMBO; every 5 grants score and ENERGY.\n"
+		+ "Normal kills fill more ENERGY at higher HEAT."
 	))
 
 	_section(root, "ENERGY")
@@ -139,13 +140,15 @@ func _ability_table() -> GridContainer:
 		table,
 		"STEP (X)",
 		"1 slot",
-		"Move to an empty cell without cooling HEAT or advancing the turn."
+		"Move to an empty cell and store DIR.\n"
+		+ "HEAT, TURN, and enemy spawning do not advance."
 	)
 	_add_ability_row(
 		table,
 		"DASH (Z)",
 		"full bar",
-		"Four freely aimed dashes. First 3 pause spawning."
+		"Four freely aimed dashes; each advances TURN and never cools HEAT.\n"
+		+ "The first 3 pause enemy spawning."
 	)
 	return table
 

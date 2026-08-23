@@ -95,6 +95,13 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	var keycode: Key = event.physical_keycode if event.physical_keycode != KEY_NONE else event.keycode
 
+	if hud.is_help_visible():
+		if keycode in [KEY_ESCAPE, KEY_F1, KEY_SPACE]:
+			_buffered_move_direction = CharacterData.Direction.NONE
+			hud.toggle_help()
+		get_viewport().set_input_as_handled()
+		return
+
 	if keycode == KEY_ESCAPE:
 		SceneTransition.transition_to(Campaign.TITLE_SCREEN_SCENE_PATH)
 		get_viewport().set_input_as_handled()
@@ -103,10 +110,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	if keycode == KEY_F1:
 		_buffered_move_direction = CharacterData.Direction.NONE
 		hud.toggle_help()
-		get_viewport().set_input_as_handled()
-		return
-
-	if hud.is_help_visible():
 		get_viewport().set_input_as_handled()
 		return
 

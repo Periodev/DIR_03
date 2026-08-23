@@ -885,7 +885,7 @@ func\s)[\s\S])*?var\s+center\s*:=\s*info_back_center\(panel_center\)'
 	},
 	@{
 		Name = "EXTRA HUD exposes title and help controls above the lowered score block"
-		Pass = $extraHud -match 'nav_label\.text\s*=\s*"\[ESC\] TITLE\s+\[F1\] HELP\s+\[R\] RESTART"' -and $extraHud -match 'nav_label\.add_theme_font_size_override\("font_size",\s*22\)' -and $extraHud -match 'NAV_ROW_WIDTH\s*:=\s*520\.0' -and $extraHud -match 'SCORE_ROW_TOP\s*:=\s*108\.0' -and $extraHud -match 'func\s+toggle_help\(\)' -and $extraHud -match 'func\s+is_help_visible\(\)' -and $extraMain -match 'KEY_F1(?:(?!\r?\n\s*if\s)[\s\S])*?hud\.toggle_help\(\)' -and $extraMain -match 'func\s+_process\(delta:\s*float\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+hud\.is_help_visible\(\):\s*\r?\n\s*return'
+		Pass = $extraHud -match 'nav_label\.text\s*=\s*"\[ESC\] TITLE\s+\[F1\] HELP\s+\[R\] RESTART"' -and $extraHud -match 'nav_label\.add_theme_font_size_override\("font_size",\s*22\)' -and $extraHud -match 'NAV_ROW_WIDTH\s*:=\s*520\.0' -and $extraHud -match 'SCORE_ROW_TOP\s*:=\s*108\.0' -and $extraHud -match 'func\s+toggle_help\(\)' -and $extraHud -match 'func\s+is_help_visible\(\)' -and $extraMain -match 'KEY_F1(?:(?!\r?\n\s*if\s)[\s\S])*?hud\.toggle_help\(\)' -and $extraMain -match 'if\s+hud\.is_help_visible\(\):\s*\r?\n\s*if\s+keycode\s+in\s+\[KEY_ESCAPE,\s*KEY_F1,\s*KEY_SPACE\]:(?:(?!\r?\n\s*if\s+keycode\s*==\s*KEY_ESCAPE)[\s\S])*?hud\.toggle_help\(\)' -and $extraMain -match 'func\s+_process\(delta:\s*float\)(?:(?!\r?\nfunc\s)[\s\S])*?if\s+hud\.is_help_visible\(\):\s*\r?\n\s*return'
 	},
 	@{
 		Name = "EXTRA anchors turn and bot diagnostics at the lower left"
