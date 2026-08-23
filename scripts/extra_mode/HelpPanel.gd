@@ -22,6 +22,7 @@ const BONUS_COLOR := Color("#FFD75E")
 const HEADING_COLOR := Color("#8FA6B2")
 const BODY_COLOR := Color(0.86, 0.88, 0.91)
 const DIM_COLOR := Color(0.62, 0.65, 0.70)
+const RULE_BODY_COLOR := Color(0.54, 0.57, 0.62)
 
 const PANEL_SIZE := Vector2(900, 700)
 
@@ -71,41 +72,34 @@ func _build() -> void:
 	_section(root, "BASIC RULES")
 	root.add_child(_loop_row(
 		Glyph.KIND_BANK,
-		"Move onto an empty cell",
-		"You step across and bank the direction you moved.\n"
-		+ "Only three are held: banking a fourth drops the oldest."
+		"Move and store a direction",
+		"Move to an empty cell to store that direction.\n"
+		+ "DIR holds three; a fourth replaces the oldest."
 	))
 	root.add_child(_loop_row(
 		Glyph.KIND_KILL,
-		"Move into an enemy, using a matching direction",
-		"Needs that same direction already banked. It is spent, the enemy is\n"
-		+ "destroyed, and you end the move standing on the cell it left."
+		"Attack with a stored direction",
+		"Move into an adjacent enemy with a matching DIR.\n"
+		+ "That DIR is spent, and you take the cleared cell."
 	))
 	root.add_child(_loop_row(
 		Glyph.KIND_WARNING,
-		"Flashing cells turn into enemies",
-		"They arrive at the end of the next turn. Caught standing on one, it takes\n"
-		+ "1 ENERGY, or 2 banked directions if the bar is short.\n"
-		+ "With neither left to spend, or no legal move left, it is GAME OVER."
+		"Watch the red corners",
+		"Bright corners spawn after the next normal turn; dim corners brighten first.\n"
+		+ "A hit spends 1 full ENERGY slot; without one, it needs 2 DIR.\n"
+		+ "Fewer than 2 DIR or no legal action means GAME OVER."
 	))
 
 	_section(root, "HEAT")
 	root.add_child(_loop_row(
 		Glyph.KIND_COOL,
-		"Every kill raises HEAT by one",
-		"Moving or waiting without a kill cools it by one, and being caught\n"
-		+ "resets it to zero.\n"
-		+ "The hotter you are, the more ENERGY each kill charges."
+		"Kills raise HEAT",
+		"A normal turn without a kill lowers HEAT by one; a hit resets it.\n"
+		+ "Higher HEAT gives more ENERGY from normal kills."
 	))
 
-	_section(root, "ENERGY   (every kill charges the bar)")
-	root.add_child(_text(
-		"STEP (X)   1 slot      One move that keeps HEAT and does not let enemies spawn.\n"
-		+ "                              It still banks its direction, but it cannot attack.\n"
-		+ "DASH (Z)   full bar   Four moves straight ahead, back to back.",
-		17,
-		BODY_COLOR
-	))
+	_section(root, "ENERGY")
+	root.add_child(_ability_table())
 
 # -- small builders --------------------------------------------------------
 
@@ -138,6 +132,34 @@ func _key_column(rows: Array) -> VBoxContainer:
 		column.add_child(line)
 	return column
 
+func _ability_table() -> GridContainer:
+	var table := GridContainer.new()
+	table.columns = 3
+	table.add_theme_constant_override("h_separation", 18)
+	table.add_theme_constant_override("v_separation", 4)
+	_add_ability_row(
+		table,
+		"STEP (X)",
+		"1 slot",
+		"Move to an empty cell without cooling HEAT or advancing the turn."
+	)
+	_add_ability_row(
+		table,
+		"DASH (Z)",
+		"full bar",
+		"Four freely aimed dashes. First 3 pause spawning."
+	)
+	return table
+
+func _add_ability_row(table: GridContainer, ability: String, cost: String, detail: String) -> void:
+	var ability_label := _text(ability, 17, BODY_COLOR)
+	ability_label.custom_minimum_size.x = 92.0
+	table.add_child(ability_label)
+	var cost_label := _text(cost, 15, HEADING_COLOR)
+	cost_label.custom_minimum_size.x = 72.0
+	table.add_child(cost_label)
+	table.add_child(_text(detail, 15, DIM_COLOR))
+
 func _glyph(kind: int, glyph_size: Vector2) -> Control:
 	var glyph := Glyph.new()
 	glyph.kind = kind
@@ -149,10 +171,10 @@ func _loop_row(kind: int, heading: String, body: String) -> HBoxContainer:
 	row.add_theme_constant_override("separation", 18)
 	row.add_child(_glyph(kind, Vector2(248, 72)))
 	var copy := VBoxContainer.new()
-	copy.add_theme_constant_override("separation", 3)
+	copy.add_theme_constant_override("separation", 4)
 	copy.alignment = BoxContainer.ALIGNMENT_CENTER
-	copy.add_child(_text(heading, 19, BODY_COLOR))
-	copy.add_child(_text(body, 16, DIM_COLOR))
+	copy.add_child(_text(heading, 20, BODY_COLOR))
+	copy.add_child(_text(body, 15, RULE_BODY_COLOR))
 	row.add_child(copy)
 	return row
 
@@ -194,10 +216,18 @@ class Glyph extends Control:
 		)
 
 	func _octagon(center: Vector2, radius: float) -> void:
-		var points := PackedVector2Array()
-		for i in 8:
-			var angle: float = TAU * (float(i) + 0.5) / 8.0
-			points.append(center + Vector2(cos(angle), sin(angle)) * radius)
+		# Same point-up orientation as the board enemy, rather than the flat-top
+		# regular-octagon approximation used by the first help draft.
+		var points := PackedVector2Array([
+			center + Vector2(0, -radius),
+			center + Vector2(radius * 0.7, -radius * 0.7),
+			center + Vector2(radius, 0),
+			center + Vector2(radius * 0.7, radius * 0.7),
+			center + Vector2(0, radius),
+			center + Vector2(-radius * 0.7, radius * 0.7),
+			center + Vector2(-radius, 0),
+			center + Vector2(-radius * 0.7, -radius * 0.7),
+		])
 		draw_colored_polygon(points, DIRExtraHelpPanel.ENEMY_FILL_COLOR)
 		points.append(points[0])
 		draw_polyline(points, DIRExtraHelpPanel.ENEMY_EDGE_COLOR, 2.0)
@@ -241,30 +271,39 @@ class Glyph extends Control:
 		_diamond(Vector2(207, MID), 14, DIRExtraHelpPanel.PLAYER_COLOR)
 
 	func _draw_cool() -> void:
-		# A five-segment heat meter with its top segment going dark.
+		# A full meter exposes the actual five-stage heat palette.
 		var segment_width: float = 32.0
 		var gap: float = 5.0
 		for i in ScoreManager.MAX_COMBO_TIER:
-			var lit: bool = i < ScoreManager.MAX_COMBO_TIER - 1
 			var at := Vector2(4 + float(i) * (segment_width + gap), MID - 9.0)
 			draw_rect(
 				Rect2(at, Vector2(segment_width, 18)),
-				DIRExtraHelpPanel.ENERGY_COLOR if lit else DIRExtraHelpPanel.CELL_EDGE_COLOR
+				DIRExtraHeatMeter.HEAT_COLORS[i]
 			)
-		draw_line(Vector2(196, MID), Vector2(218, MID), DIRExtraHelpPanel.DIM_COLOR, 2.0)
-		_chevron(Vector2(224, MID), 8, 7, DIRExtraHelpPanel.DIM_COLOR)
 
 	func _draw_warning() -> void:
-		# Same before/after shape as the other rows: a marked cell on the left,
-		# the enemy it becomes on the right.
+		# Match the board's corner warning exactly; a separate outline shape would
+		# look like a fourth cell state.
 		_cell(Vector2(4, CELL_TOP), CELL)
-		var pulse := PackedVector2Array()
-		for i in 8:
-			var angle: float = TAU * (float(i) + 0.5) / 8.0
-			pulse.append(Vector2(31, MID) + Vector2(cos(angle), sin(angle)) * 17.0)
-		pulse.append(pulse[0])
-		draw_polyline(pulse, DIRExtraHelpPanel.SPAWN_WARNING_COLOR, 2.5)
+		_draw_warning_corners(Vector2(4, CELL_TOP), CELL)
 		draw_line(Vector2(74, MID), Vector2(96, MID), DIRExtraHelpPanel.DIM_COLOR, 2.0)
 		_chevron(Vector2(102, MID), 8, 7, DIRExtraHelpPanel.DIM_COLOR)
 		_cell(Vector2(118, CELL_TOP), CELL)
 		_octagon(Vector2(145, MID), 19)
+
+	func _draw_warning_corners(at: Vector2, cell_size: float) -> void:
+		const INSET := 7.0
+		const ARM_LENGTH := 12.0
+		const LINE_WIDTH := 3.0
+		var left: float = at.x + INSET
+		var right: float = at.x + cell_size - INSET
+		var top: float = at.y + INSET
+		var bottom: float = at.y + cell_size - INSET
+		var segments: Array[PackedVector2Array] = [
+			PackedVector2Array([Vector2(left, top + ARM_LENGTH), Vector2(left, top), Vector2(left + ARM_LENGTH, top)]),
+			PackedVector2Array([Vector2(right - ARM_LENGTH, top), Vector2(right, top), Vector2(right, top + ARM_LENGTH)]),
+			PackedVector2Array([Vector2(left, bottom - ARM_LENGTH), Vector2(left, bottom), Vector2(left + ARM_LENGTH, bottom)]),
+			PackedVector2Array([Vector2(right - ARM_LENGTH, bottom), Vector2(right, bottom), Vector2(right, bottom - ARM_LENGTH)]),
+		]
+		for segment: PackedVector2Array in segments:
+			draw_polyline(segment, DIRExtraHelpPanel.SPAWN_WARNING_COLOR, LINE_WIDTH, true)
