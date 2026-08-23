@@ -24,8 +24,8 @@ func run_verification() -> void:
 
 	board.bonus_step_armed = true
 	if bot.choose_action(board) != DIRExtraComboBot.ACTION_MOVE \
-		or bot.chosen_direction != CharacterData.Direction.RIGHT:
-		fail("Armed DASH did not immediately select the available combo attack.")
+		or bot.chosen_direction == CharacterData.Direction.RIGHT:
+		fail("Armed X selected an enemy instead of a LIVE landing cell.")
 		return
 
 	_reset_fixture(board)
@@ -40,19 +40,24 @@ func run_verification() -> void:
 	_reset_fixture(board)
 	board.score_manager.combo_counter = 4
 	board.energy_quarter_units = board.ENERGY_SLOT_COST
-	board.inventory.push(CharacterData.Direction.DOWN)
-	board.grid[3][3] = CharacterData.CellType.DEAD
-	if bot.choose_action(board) != DIRExtraComboBot.ACTION_DASH:
-		fail("DASH was not used to bridge a high combo into an immediate attack.")
+	board.grid[2][4] = CharacterData.CellType.DEAD
+	if bot.choose_action(board) == DIRExtraComboBot.ACTION_DASH:
+		fail("X spent the final defensive energy slot on a chase.")
 		return
 
 	_reset_fixture(board)
-	board.score_manager.combo_counter = 4
+	board.score_manager.combo_counter = ScoreManager.MAX_COMBO_TIER
 	board.energy_quarter_units = board.ENERGY_SLOT_COST * 2
-	board.inventory.push(CharacterData.Direction.DOWN)
-	board.grid[3][3] = CharacterData.CellType.DEAD
+	board.grid[2][4] = CharacterData.CellType.DEAD
 	if bot.choose_action(board) != DIRExtraComboBot.ACTION_DASH:
-		fail("High combo did not spend available energy on a verified DASH continuation.")
+		fail("High Heat did not spend surplus energy on a visible LIVE-cell chase.")
+		return
+	if not board.try_energy_bonus_step():
+		fail("The LIVE-cell chase fixture could not arm X.")
+		return
+	if bot.choose_action(board) != DIRExtraComboBot.ACTION_MOVE \
+			or bot.chosen_direction != CharacterData.Direction.RIGHT:
+		fail("Armed X did not move toward its visible follow-up enemy.")
 		return
 
 	_reset_fixture(board)

@@ -40,6 +40,8 @@ func _exit_tree() -> void:
 	RenderingServer.set_default_clear_color(_previous_clear_color)
 
 func _process(delta: float) -> void:
+	if hud.is_help_visible():
+		return
 	_execute_buffered_move_if_ready()
 	if active_bot == null or board.game_state.is_game_over():
 		return
@@ -95,6 +97,16 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if keycode == KEY_ESCAPE:
 		SceneTransition.transition_to(Campaign.TITLE_SCREEN_SCENE_PATH)
+		get_viewport().set_input_as_handled()
+		return
+
+	if keycode == KEY_F1:
+		_buffered_move_direction = CharacterData.Direction.NONE
+		hud.toggle_help()
+		get_viewport().set_input_as_handled()
+		return
+
+	if hud.is_help_visible():
 		get_viewport().set_input_as_handled()
 		return
 

@@ -50,7 +50,7 @@ func choose_action(board: Node) -> int:
 
 	var attack_directions: Array[int] = _attack_directions(board)
 	if board.bonus_step_armed:
-		chosen_direction = _best_normal_direction(board, true)
+		chosen_direction = _best_bonus_step_direction(board)
 		return ACTION_MOVE if chosen_direction != CharacterData.Direction.NONE else ACTION_NONE
 
 	var combo: int = board.score_manager.combo_counter
@@ -58,15 +58,14 @@ func choose_action(board: Node) -> int:
 	if energy >= board.ENERGY_QUARTER_UNITS_MAX and _should_activate_ultimate(board, combo):
 		return ACTION_ULT
 
-	# A charged X keeps the next move off the spawn clock. Evaluate it before
-	# an ordinary attack so a high-heat chain may pay X repeatedly rather than
-	# advancing the spawn clock between its top-tier kills.
-	if _should_spend_dash_for_continuation(board, attack_directions, combo, energy):
-		return ACTION_DASH
-
 	if not attack_directions.is_empty():
 		chosen_direction = _best_attack_direction(board, attack_directions)
 		return ACTION_MOVE
+
+	# X is a protected reposition onto a LIVE cell. Use it only when that
+	# landing cell exposes a concrete next attack.
+	if _should_spend_dash_for_continuation(board, combo, energy):
+		return ACTION_DASH
 
 	if energy >= board.ENERGY_QUARTER_UNITS_MAX and _count_ultimate_targets(board) > 0:
 		return ACTION_ULT
@@ -118,6 +117,22 @@ func _best_normal_direction(board: Node, preserve_combo: bool) -> int:
 			best_direction = direction
 	return best_direction
 
+func _best_bonus_step_direction(board: Node) -> int:
+	var best_direction: int = CharacterData.Direction.NONE
+	var best_score: float = -INF
+	for direction_value in CharacterData.DIR_VECTOR:
+		var direction: int = int(direction_value)
+		var target: Vector2i = board.player_pos + Vector2i(CharacterData.DIR_VECTOR[direction])
+		if not board._is_inside_board(target):
+			continue
+		if board.grid[target.y][target.x] != CharacterData.CellType.LIVE:
+			continue
+		var score: float = _direction_plan_score(board, direction, true)
+		if score > best_score:
+			best_score = score
+			best_direction = direction
+	return best_direction
+
 func _has_dash_continuation(board: Node) -> bool:
 	for direction_value in CharacterData.DIR_VECTOR:
 		var direction: int = int(direction_value)
@@ -132,68 +147,15 @@ func _has_dash_continuation(board: Node) -> bool:
 
 func _should_spend_dash_for_continuation(
 	board: Node,
-	attack_directions: Array[int],
 	combo: int,
 	energy: int
 ) -> bool:
 	var cost: int = int(board.get_bonus_step_cost())
 	if combo < maxi(COMBO_GATE_FOR_STEP, ScoreManager.MAX_COMBO_TIER) or energy < cost:
 		return false
-
-	var protects_spawn_hit: bool = _attack_will_land_on_spawn(board, attack_directions)
-	var protects_streak: bool = _is_streak_payout_near(board) \
-			or _has_established_attack_chain(board, attack_directions)
-	if not protects_spawn_hit and not protects_streak:
+	if energy < 2 * cost:
 		return false
-	# An X-paid kill is energy-sterile. With the current Heat 5 +6 payout,
-	# prefer the normal hit when it fills ULT; the next decision can then spend
-	# four frozen dashes instead of burning a single protected move now.
-	if not protects_spawn_hit and _normal_kill_completes_ultimate(board, energy):
-		return false
-	# A long-chain X must leave one full energy unit for the next spawn hit.
-	# An imminent spawn hit is the exception: freezing that move is safer than
-	# taking the hit now, even when it empties the bar.
-	if not protects_spawn_hit and energy < 2 * cost:
-		return false
-	if not attack_directions.is_empty():
-		return true
-	return protects_streak and _has_dash_continuation(board)
-
-func _normal_kill_completes_ultimate(board: Node, energy: int) -> bool:
-	var next_energy: int = energy + int(board.get_next_kill_energy_gain())
-	return next_energy >= int(board.ENERGY_QUARTER_UNITS_MAX)
-
-func _is_streak_payout_near(board: Node) -> bool:
-	var streak: int = board.score_manager.tier5_streak
-	var progress: int = posmod(streak, ScoreManager.TIER5_STREAK_THRESHOLD)
-	return progress >= ScoreManager.TIER5_STREAK_THRESHOLD - 2
-
-func _has_established_attack_chain(board: Node, attack_directions: Array[int]) -> bool:
-	# Before the first payout, X remains a near-payout tool. Once the streak
-	# has paid once, spend it to preserve only concrete two-kill handoffs -- a
-	# visible continuation, not a speculative route across the board.
-	if board.score_manager.tier5_streak < ScoreManager.TIER5_STREAK_THRESHOLD:
-		return false
-	for attack_direction in attack_directions:
-		var attack_target: Vector2i = board.player_pos \
-				+ Vector2i(CharacterData.DIR_VECTOR[attack_direction])
-		for follow_direction_value in CharacterData.DIR_VECTOR:
-			var follow_direction: int = int(follow_direction_value)
-			var follow_target: Vector2i = attack_target \
-					+ Vector2i(CharacterData.DIR_VECTOR[follow_direction])
-			if not board._is_inside_board(follow_target):
-				continue
-			if board.grid[follow_target.y][follow_target.x] != CharacterData.CellType.LIVE \
-					and board.inventory.find_direction(follow_direction) >= 0:
-				return true
-	return false
-
-func _attack_will_land_on_spawn(board: Node, attack_directions: Array[int]) -> bool:
-	for direction in attack_directions:
-		var target: Vector2i = board.player_pos + Vector2i(CharacterData.DIR_VECTOR[direction])
-		if board._will_spawn_hit_target_this_turn(target):
-			return true
-	return false
+	return _has_dash_continuation(board)
 
 func _direction_plan_score(board: Node, direction: int, preserve_combo: bool) -> float:
 	var target: Vector2i = board.player_pos + Vector2i(CharacterData.DIR_VECTOR[direction])
@@ -210,19 +172,17 @@ func _direction_plan_score(board: Node, direction: int, preserve_combo: bool) ->
 			combo = _decayed_combo(combo)
 			tier5_streak = 0
 	else:
+		if preserve_combo:
+			return -INF
 		var inventory_index: int = simulated_queue.find(direction)
 		if inventory_index < 0:
 			return -INF
-		# preserve_combo means the STEP is armed, and an X-paid attack keeps its
-		# direction and grants no energy.
-		if not preserve_combo:
-			simulated_queue.remove_at(inventory_index)
+		simulated_queue.remove_at(inventory_index)
 		simulated_grid[target.y][target.x] = CharacterData.CellType.LIVE
 		var kill_state: Vector2i = _advance_combo_and_streak(combo, tier5_streak)
 		combo = kill_state.x
 		tier5_streak = kill_state.y
-		if not preserve_combo:
-			energy = _charged_energy(board, energy, combo, tier5_streak)
+		energy = _charged_energy(board, energy, combo, tier5_streak)
 		reward += _combo_kill_value(combo)
 		reward += _tier5_streak_value(combo, tier5_streak)
 		if not _grid_has_dead_cell(simulated_grid):
@@ -241,7 +201,7 @@ func _direction_plan_score(board: Node, direction: int, preserve_combo: bool) ->
 				reward -= DIRECTION_SHIELD_SPEND_PENALTY
 			-1:
 				reward -= SPAWN_HIT_DEATH_PENALTY
-		if target in board.candidate_cells and spawn_defense.y == 0:
+		if board._will_spawn_hit_target_this_turn(target) and spawn_defense.y == 0:
 			reward -= 260.0
 	return reward + LOOKAHEAD_DISCOUNT * _lookahead_score(
 		board,

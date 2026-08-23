@@ -4,8 +4,8 @@ Two exploit vectors are pinned here, because the lab was wrong about the second
 one until the lookahead bot found it:
 
 * Energy. A flat-cost X whose kill refunds as much as it costs can be armed
-  forever. The flattened high-heat income now reaches that break-even point,
-  but shipped X attacks remain sterile.
+  forever. The lab retains that historical variant, while shipped X is now a
+  movement-only action and cannot produce a kill refund.
 * Combo. The old +8 high-combo income could sustain an uncapped chain. The
   flattened +4 income is pinned here so that exploit does not silently return.
 """
@@ -30,13 +30,16 @@ class EnergyAnalysisTest(unittest.TestCase):
     def test_legacy_rules_are_farmable(self):
         economy = lab.analyze(variant("legacy"))
         self.assertTrue(economy.farmable)
-        self.assertEqual(economy.refund_max, 6)
-        self.assertEqual(economy.net_first, 2)
+        # Heat 5's base income is 4, so a legacy refund exactly repays X's cost
+        # rather than profiting on it -- still farmable, because a free move
+        # that costs nothing net can be repeated forever.
+        self.assertEqual(economy.refund_max, 4)
+        self.assertEqual(economy.net_first, 0)
         self.assertEqual(economy.frozen_cap, 0)  # the ladder never terminates
 
     def test_partial_refund_drains_energy(self):
         economy = lab.analyze(variant("half_charge"))
-        self.assertEqual(economy.net_first, -1)
+        self.assertEqual(economy.net_first, -2)
         self.assertFalse(economy.farmable)
 
     def test_shipped_rules_drain_on_every_x(self):

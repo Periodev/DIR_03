@@ -6,9 +6,9 @@ const COLS := 5
 const ROWS := 5
 const SPAWN_CYCLE_STEPS := 2
 const SPAWNS_PER_CYCLE := 2
-const THREE_SPAWN_TURN_THRESHOLD := 100
-const FOUR_SPAWN_TURN_THRESHOLD := 200
-const FIVE_SPAWN_TURN_THRESHOLD := 300
+const DELAYED_SPAWN_SCORE_THRESHOLD := 10000
+const DELAYED_SPAWN_MAX_PER_CYCLE := 2
+const DELAYED_SPAWN_COUNTDOWN := 2
 const OPENING_GRACE_TURNS := 1
 const ENERGY_QUARTER_UNITS_MAX := 16
 const ENERGY_SLOT_COST := 4
@@ -50,6 +50,8 @@ var grid: Array = []  # grid[row][col] = CellType
 var player_pos: Vector2i = Vector2i(int(COLS / 2.0), int(ROWS / 2.0))
 var player_facing_dir: int = CharacterData.Direction.UP
 var candidate_cells: Array = []  # Array of Vector2i
+var delayed_candidate_cells: Array = []  # Array of Vector2i
+var delayed_spawn_countdown: int = 0
 var cycle_counter: int = 0
 var _opening_grace_turns_remaining: int = OPENING_GRACE_TURNS
 var _spawn_hit_pending: bool = false
@@ -67,7 +69,6 @@ var survival_turns: int = 0
 var energy_quarter_units: int = 0
 var last_energy_gain_quarter_units: int = 0
 var bonus_step_armed: bool = false
-var _bonus_step_kill_active: bool = false
 var ultimate_dashes_remaining: int = 0
 var _ultimate_chain_started: bool = false
 
@@ -147,6 +148,8 @@ func restart() -> void:
 	player_pos = Vector2i(int(COLS / 2.0), int(ROWS / 2.0))
 	player_facing_dir = CharacterData.Direction.UP
 	candidate_cells.clear()
+	delayed_candidate_cells.clear()
+	delayed_spawn_countdown = 0
 	cycle_counter = 0
 	_opening_grace_turns_remaining = OPENING_GRACE_TURNS
 	cycle_resolved = false
@@ -165,7 +168,6 @@ func restart() -> void:
 	energy_quarter_units = 0
 	last_energy_gain_quarter_units = 0
 	bonus_step_armed = false
-	_bonus_step_kill_active = false
 	ultimate_dashes_remaining = 0
 	_ultimate_chain_started = false
 	player_node.cancel_feedback()
@@ -223,23 +225,20 @@ func try_move(dir: int) -> bool:
 		return _complete_live_move(dir, target, is_bonus_step)
 
 	else:
+		# X is a protected reposition step, not an attack mode. Keep it armed
+		# after a rejected enemy input so the player can still choose a LIVE cell.
+		if is_bonus_step:
+			return false
 		# Dead cell - check inventory for matching direction (any position)
 		var attack_start_directions: Array = inventory.queue.duplicate()
-		if is_bonus_step:
-			# X-paid attacks keep their direction token: the chain limiter is
-			# the direction queue, not the energy bar.
-			if not _has_attack_direction(dir):
-				return false  # No matching direction in queue
-		elif not _consume_attack_direction(dir):
+		if not _consume_attack_direction(dir):
 			return false  # No matching direction in queue
 		last_energy_gain_quarter_units = 0
 		_clear_attack_prompts()
 
 		var origin := player_pos
 		player_facing_dir = dir
-		_bonus_step_kill_active = is_bonus_step
 		_resolve_attack(dir, target, target_type)
-		_bonus_step_kill_active = false
 		if grid[target.y][target.x] == CharacterData.CellType.LIVE:
 			player_pos = target
 			_hold_stored_direction_visual_until_idle = true
@@ -257,9 +256,6 @@ func try_move(dir: int) -> bool:
 			_action_animation_pending = true
 			game_state.set_state(CharacterData.GameStateEnum.PRESENTING)
 			player_node.play_attack(dir, false, true)
-		if is_bonus_step:
-			bonus_step_armed = false
-			return _finalize_turn_after_action(true, false)
 		return _finalize_turn_after_action()
 
 func _complete_live_move(dir: int, target: Vector2i, is_bonus_step: bool) -> bool:
@@ -380,11 +376,12 @@ func _get_move_memory_token(dir: int) -> int:
 func _will_spawn_hit_target_this_turn(target: Vector2i) -> bool:
 	if _opening_grace_turns_remaining > 0:
 		return false
-	if cycle_resolved:
-		return false
-	if cycle_counter + 1 < SPAWN_CYCLE_STEPS:
-		return false
-	return target in candidate_cells
+	var regular_spawn_due: bool = not cycle_resolved \
+			and cycle_counter + 1 >= SPAWN_CYCLE_STEPS \
+			and target in candidate_cells
+	var delayed_spawn_due: bool = delayed_spawn_countdown == 1 \
+			and target in delayed_candidate_cells
+	return regular_spawn_due or delayed_spawn_due
 
 func _resolve_attack(dir: int, target: Vector2i, target_type: int) -> void:
 	_kill_flow(target, dir, target_type)
@@ -610,11 +607,10 @@ func _kill_flow(pos: Vector2i, attack_dir: int, cell_type: int) -> void:
 	grid[pos.y][pos.x] = CharacterData.CellType.LIVE
 	score_manager.advance_combo()
 	score_manager.on_kill(cell_type)
-	# Frozen actions never receive base Heat income. ULT can still earn the
-	# repeating five-kill streak reward; X remains completely energy-sterile.
+	# ULT can earn only the repeating five-kill streak reward. X cannot attack.
 	if _ultimate_chain_started:
 		_charge_tier5_streak_energy_bonus(score_manager.combo_counter)
-	elif not _bonus_step_kill_active:
+	else:
 		_charge_energy_for_combo(score_manager.combo_counter)
 	# The kill that leaves zero DEAD cells anywhere on the board is, by
 	# definition, the one that just cleared it -- no separate "was it already
@@ -700,6 +696,7 @@ func _fill_energy_for_board_clear() -> void:
 var cycle_resolved: bool = false  # true = this cycle already spawned, remaining turns idle
 
 func _advance_cycle() -> void:
+	_advance_delayed_candidates()
 	cycle_counter += 1
 
 	if cycle_resolved:
@@ -729,17 +726,36 @@ func _start_new_cycle() -> void:
 	var count = min(get_spawns_per_cycle(), available.size())
 	for i in count:
 		candidate_cells.append(available[i])
-	if not candidate_cells.is_empty():
+	if score_manager.score >= DELAYED_SPAWN_SCORE_THRESHOLD:
+		var delayed_count: int = mini(
+			randi_range(0, DELAYED_SPAWN_MAX_PER_CYCLE),
+			available.size() - count
+		)
+		for i in delayed_count:
+			delayed_candidate_cells.append(available[count + i])
+		if delayed_count > 0:
+			delayed_spawn_countdown = DELAYED_SPAWN_COUNTDOWN
+	if not candidate_cells.is_empty() or not delayed_candidate_cells.is_empty():
 		play_spawn_warning_sound()
 
 func get_spawns_per_cycle() -> int:
-	if survival_turns >= FIVE_SPAWN_TURN_THRESHOLD:
-		return 5
-	if survival_turns >= FOUR_SPAWN_TURN_THRESHOLD:
-		return 4
-	if survival_turns >= THREE_SPAWN_TURN_THRESHOLD:
-		return 3
 	return SPAWNS_PER_CYCLE
+
+func _advance_delayed_candidates() -> void:
+	if delayed_candidate_cells.is_empty():
+		delayed_spawn_countdown = 0
+		return
+	delayed_spawn_countdown -= 1
+	if delayed_spawn_countdown > 0:
+		return
+	var cleaned: Array = []
+	for pos in delayed_candidate_cells:
+		if grid[pos.y][pos.x] == CharacterData.CellType.LIVE:
+			cleaned.append(pos)
+	for pos in cleaned:
+		_apply_candidate_spawn(pos)
+	delayed_candidate_cells.clear()
+	delayed_spawn_countdown = 0
 
 func play_spawn_warning_sound() -> void:
 	if spawn_warning_player == null:
@@ -888,12 +904,14 @@ func _refresh_visuals() -> void:
 			cell.set_type(grid[r][c])
 			cell.set_candidate(0)
 
-	# Mark candidates
+	# Regular warnings resolve next turn; delayed warnings begin dim and become
+	# equally urgent only on their final remaining turn.
 	if cycle_counter >= 1:
-		for i in candidate_cells.size():
-			var pos: Vector2i = candidate_cells[i]
-			var phase: int = _get_candidate_preview_phase()
-			cell_nodes[pos.y][pos.x].set_candidate(phase)
+		for pos: Vector2i in candidate_cells:
+			cell_nodes[pos.y][pos.x].set_candidate(2)
+	for pos: Vector2i in delayed_candidate_cells:
+		var delayed_phase: int = 1 if delayed_spawn_countdown >= 2 else 2
+		cell_nodes[pos.y][pos.x].set_candidate(delayed_phase)
 
 	_refresh_attack_prompts()
 
@@ -1047,9 +1065,3 @@ func _update_board_offset() -> void:
 		BOARD_SIDEBAR_WIDTH + (content_width - scaled_width) * 0.5,
 		(viewport_size.y - scaled_height) * 0.5
 	)
-
-func _get_candidate_preview_phase() -> int:
-	if SPAWN_CYCLE_STEPS <= 1:
-		return 4
-	var progress: float = float(cycle_counter - 1) / float(SPAWN_CYCLE_STEPS - 1)
-	return clampi(int(floor(progress * 4.0)) + 1, 1, 4)

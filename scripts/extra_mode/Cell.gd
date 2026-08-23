@@ -112,8 +112,11 @@ func _draw_spawn_warning_corners() -> void:
 		PackedVector2Array([Vector2(left, bottom - ARM_LENGTH), Vector2(left, bottom), Vector2(left + ARM_LENGTH, bottom)]),
 		PackedVector2Array([Vector2(right - ARM_LENGTH, bottom), Vector2(right, bottom), Vector2(right, bottom - ARM_LENGTH)]),
 	]
+	var warning_color := SPAWN_WARNING_COLOR
+	if candidate_phase == 1:
+		warning_color.a = 0.48
 	for segment: PackedVector2Array in segments:
-		draw_polyline(segment, SPAWN_WARNING_COLOR, LINE_WIDTH, true)
+		draw_polyline(segment, warning_color, LINE_WIDTH, true)
 
 
 func _draw_attack_chevron(center: Vector2, direction: int) -> void:

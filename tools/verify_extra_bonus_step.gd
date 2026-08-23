@@ -166,25 +166,44 @@ func run_verification() -> void:
 			or not board.spawn_warning_player.playing:
 		fail("The legacy spawn batch did not play its warning sound when candidates appeared.")
 		return
-	board.survival_turns = board.THREE_SPAWN_TURN_THRESHOLD - 1
-	board._start_new_cycle()
-	if board.candidate_cells.size() != board.SPAWNS_PER_CYCLE:
-		fail("Spawn count increased before the turn threshold.")
+	for late_turn in [99, 100, 200, 300, 1000]:
+		board.survival_turns = late_turn
+		board._start_new_cycle()
+		if board.candidate_cells.size() != board.SPAWNS_PER_CYCLE:
+			fail("Spawn count changed from two at turn %s." % late_turn)
+			return
+	board.score_manager.score = board.DELAYED_SPAWN_SCORE_THRESHOLD
+	seed(20260822)
+	var saw_delayed_spawn := false
+	for _sample in 12:
+		board.delayed_candidate_cells.clear()
+		board.delayed_spawn_countdown = 0
+		board._start_new_cycle()
+		if board.candidate_cells.size() != board.SPAWNS_PER_CYCLE \
+				or board.delayed_candidate_cells.size() > board.DELAYED_SPAWN_MAX_PER_CYCLE:
+			fail("The 10000-point mixed batch changed the fixed pair or exceeded two delayed spawns.")
+			return
+		for delayed_pos in board.delayed_candidate_cells:
+			if delayed_pos in board.candidate_cells:
+				fail("A delayed spawn reused a regular spawn cell.")
+				return
+		if not board.delayed_candidate_cells.is_empty():
+			saw_delayed_spawn = true
+	if not saw_delayed_spawn:
+		fail("The 10000-point mixed batches never produced a delayed spawn.")
 		return
-	board.survival_turns = board.THREE_SPAWN_TURN_THRESHOLD
-	board._start_new_cycle()
-	if board.candidate_cells.size() != 3:
-		fail("Spawn count did not increase to three at 100 turns.")
+	var delayed_target := Vector2i(0, 0)
+	board.grid[delayed_target.y][delayed_target.x] = CharacterData.CellType.LIVE
+	board.delayed_candidate_cells = [delayed_target]
+	board.delayed_spawn_countdown = board.DELAYED_SPAWN_COUNTDOWN
+	board._advance_delayed_candidates()
+	if board.grid[delayed_target.y][delayed_target.x] != CharacterData.CellType.LIVE \
+			or board.delayed_spawn_countdown != 1:
+		fail("A three-turn spawn resolved one turn too early.")
 		return
-	board.survival_turns = board.FOUR_SPAWN_TURN_THRESHOLD
-	board._start_new_cycle()
-	if board.candidate_cells.size() != 4:
-		fail("Spawn count did not increase to four at 200 turns.")
-		return
-	board.survival_turns = board.FIVE_SPAWN_TURN_THRESHOLD
-	board._start_new_cycle()
-	if board.candidate_cells.size() != 5:
-		fail("Spawn count did not increase to five at 300 turns.")
+	board._advance_delayed_candidates()
+	if board.grid[delayed_target.y][delayed_target.x] == CharacterData.CellType.LIVE:
+		fail("A three-turn spawn did not resolve on its delayed turn.")
 		return
 	board.restart()
 	await process_frame
@@ -292,21 +311,24 @@ func run_verification() -> void:
 	board.inventory.push(CharacterData.Direction.RIGHT)
 	var target: Vector2i = board.player_pos + CharacterData.DIR_VECTOR[CharacterData.Direction.RIGHT]
 	board.grid[target.y][target.x] = CharacterData.CellType.DEAD
-	if not board.try_energy_bonus_step() or not board.try_move(CharacterData.Direction.RIGHT):
-		fail("A valid bonus attack was rejected.")
+	if not board.try_energy_bonus_step():
+		fail("The enemy rejection fixture could not arm X.")
 		return
-	if board.score_manager.combo_counter != 4:
-		fail("A bonus attack did not continue the combo.")
+	var queue_before_rejection: Array = board.inventory.queue.duplicate()
+	if board.try_move(CharacterData.Direction.RIGHT):
+		fail("X attacked an enemy instead of requiring a LIVE landing cell.")
 		return
-	if board.get_energy_quarter_units() != 1 or board.survival_turns != 0:
-		fail("A bonus attack recharged energy, or it counted as a turn.")
-		return
-	if board.inventory.find_direction(CharacterData.Direction.RIGHT) < 0:
-		fail("A bonus attack consumed its direction instead of keeping it for the chain.")
+	if not board.bonus_step_armed \
+			or board.inventory.queue != queue_before_rejection \
+			or board.grid[target.y][target.x] != CharacterData.CellType.DEAD:
+		fail("A rejected X attack changed its armed state, direction queue, or target.")
 		return
 	if board.get_bonus_step_cost() != board.ENERGY_SLOT_COST:
 		fail("X no longer costs one flat energy slot.")
 		return
+	# This fixture intentionally leaves X armed after the rejected enemy input.
+	# Clear it before the independent energy and ULT checks below.
+	board.bonus_step_armed = false
 
 	var combo_bot_board: Node2D = BoardScript.new()
 	root.add_child(combo_bot_board)
@@ -314,38 +336,39 @@ func run_verification() -> void:
 	combo_bot_board.spawn_warning_player.stop()
 	combo_bot_board.inventory.reset()
 	combo_bot_board.score_manager.combo_counter = ScoreManager.MAX_COMBO_TIER
-	combo_bot_board.score_manager.tier5_streak = ScoreManager.TIER5_STREAK_THRESHOLD
-	combo_bot_board.energy_quarter_units = 3 * combo_bot_board.ENERGY_SLOT_COST
+	combo_bot_board.score_manager.tier5_streak = 2
+	combo_bot_board.energy_quarter_units = 2 * combo_bot_board.ENERGY_SLOT_COST
 	var chain_direction: int = CharacterData.Direction.RIGHT
-	var chain_target: Vector2i = combo_bot_board.player_pos \
+	var chain_landing: Vector2i = combo_bot_board.player_pos \
 			+ CharacterData.DIR_VECTOR[chain_direction]
-	var chain_follow_up: Vector2i = chain_target + CharacterData.DIR_VECTOR[chain_direction]
-	combo_bot_board.grid[chain_target.y][chain_target.x] = CharacterData.CellType.DEAD
+	var chain_follow_up: Vector2i = chain_landing + CharacterData.DIR_VECTOR[chain_direction]
 	combo_bot_board.grid[chain_follow_up.y][chain_follow_up.x] = CharacterData.CellType.DEAD
-	combo_bot_board.inventory.push(chain_direction)
 	var combo_bot := ComboBotScript.new()
 	if combo_bot.choose_action(combo_bot_board) != combo_bot.ACTION_DASH:
-		fail("F4 did not arm X before an available established-streak handoff.")
+		fail("The combo bot did not arm X for a visible LIVE-cell chase.")
 		return
 	if not combo_bot_board.try_energy_bonus_step():
-		fail("F4 chain fixture could not arm its first X.")
+		fail("The combo bot chase fixture could not arm X.")
 		return
 	if combo_bot.choose_action(combo_bot_board) != combo_bot.ACTION_MOVE \
 			or combo_bot.chosen_direction != chain_direction:
-		fail("F4 did not follow its armed X with the available attack.")
+		fail("The combo bot did not take the planned LIVE-cell chase step.")
 		return
 	if not combo_bot_board.try_move(chain_direction):
-		fail("F4 chain fixture rejected the first X-protected attack.")
+		fail("The combo bot chase fixture rejected its LIVE-cell X move.")
 		return
 	await create_timer(0.6).timeout
 	if not combo_bot_board.game_state.is_idle() or combo_bot_board.bonus_step_armed:
-		fail("The first X-protected attack did not return to an idle re-arm state.")
+		fail("The LIVE-cell X move did not return to an idle state.")
 		return
-	if combo_bot_board.score_manager.tier5_streak != ScoreManager.TIER5_STREAK_THRESHOLD + 1:
-		fail("The first X-protected attack did not advance the established streak.")
+	if combo_bot_board.player_pos != chain_landing \
+			or combo_bot_board.inventory.find_direction(chain_direction) < 0 \
+			or combo_bot_board.grid[chain_follow_up.y][chain_follow_up.x] == CharacterData.CellType.LIVE:
+		fail("The X chase did not land, store its direction, and preserve the follow-up enemy.")
 		return
-	if combo_bot.choose_action(combo_bot_board) != combo_bot.ACTION_DASH:
-		fail("F4 did not re-arm X for the next high-heat attack.")
+	if combo_bot.choose_action(combo_bot_board) != combo_bot.ACTION_MOVE \
+			or combo_bot.chosen_direction != chain_direction:
+		fail("The combo bot did not convert its X chase into a normal attack.")
 		return
 
 	var ult_charge_board: Node2D = BoardScript.new()
@@ -391,13 +414,15 @@ func run_verification() -> void:
 		return
 
 	await create_timer(0.6).timeout
+	board.score_manager.combo_counter = 4
+	var combo_before_ult: int = board.score_manager.combo_counter
 	if not board.try_energy_ultimate():
 		fail("Full energy did not activate ULT.")
 		return
 	if board.get_energy_quarter_units() != 0 or board.get_ultimate_dashes_remaining() != 4:
 		fail("ULT did not consume all four energy slots or grant four dashes.")
 		return
-	if board.score_manager.combo_counter != 4:
+	if board.score_manager.combo_counter != combo_before_ult:
 		fail("ULT activation did not preserve the active combo chain.")
 		return
 	if not board.player_node.ultimate_dash_ready:
@@ -429,6 +454,8 @@ func run_verification() -> void:
 	if ult_target.x >= board.COLS:
 		ult_target = board.player_pos + CharacterData.DIR_VECTOR[CharacterData.Direction.LEFT]
 	board.grid[ult_target.y][ult_target.x] = CharacterData.CellType.DEAD
+	# Keep the ULT kill from also triggering the independent board-clear refill.
+	board.grid[0][0] = CharacterData.CellType.DEAD
 	var ult_direction: int = CharacterData.Direction.RIGHT if ult_target.x > board.player_pos.x else CharacterData.Direction.LEFT
 	if not board.try_move(ult_direction):
 		fail("A valid ULT attack was rejected.")
@@ -475,8 +502,7 @@ func run_verification() -> void:
 	root.add_child(flat_price_board)
 	await process_frame
 	flat_price_board.spawn_warning_player.stop()
-	# X keeps one flat price no matter how deep the chain runs; what caps a
-	# STEP run is that an X-paid kill returns nothing, so the bar only drains.
+	# X keeps one flat price no matter how many reposition steps are armed.
 	flat_price_board.energy_quarter_units = board.ENERGY_QUARTER_UNITS_MAX
 	var frozen_actions: int = 0
 	while flat_price_board.try_energy_bonus_step():
@@ -502,6 +528,7 @@ func run_verification() -> void:
 	var normal_target: Vector2i = normal_attack_board.player_pos \
 			+ CharacterData.DIR_VECTOR[CharacterData.Direction.RIGHT]
 	normal_attack_board.grid[normal_target.y][normal_target.x] = CharacterData.CellType.DEAD
+	normal_attack_board.grid[0][0] = CharacterData.CellType.DEAD
 	if not normal_attack_board.try_move(CharacterData.Direction.RIGHT):
 		fail("A valid normal attack was rejected.")
 		return
@@ -523,15 +550,15 @@ func run_verification() -> void:
 	energy_shield_board._resolve_player_spawn_hit(
 		energy_shield_board.player_pos, CharacterData.CellType.DEAD
 	)
-	if energy_shield_board.score_manager.combo_counter != 2:
+	if energy_shield_board.score_manager.combo_counter != 0:
 		fail(
-			"An energy-shielded spawn hit did not cool heat by one tier, reached %s."
+			"An energy-shielded spawn hit did not reset Heat, reached %s."
 			% energy_shield_board.score_manager.combo_counter
 		)
 		return
-	if energy_shield_board.score_manager.score != 2:
+	if energy_shield_board.score_manager.score != 1:
 		fail(
-			"An energy-shielded spawn hit scored %s instead of the post-cooldown tier."
+			"An energy-shielded spawn hit scored %s instead of the reset tier."
 			% energy_shield_board.score_manager.score
 		)
 		return
@@ -548,9 +575,9 @@ func run_verification() -> void:
 	direction_shield_board._resolve_player_spawn_hit(
 		direction_shield_board.player_pos, CharacterData.CellType.DEAD
 	)
-	if direction_shield_board.score_manager.combo_counter != 3:
+	if direction_shield_board.score_manager.combo_counter != 0:
 		fail(
-			"A direction-shielded spawn hit did not cool heat by one tier, reached %s."
+			"A direction-shielded spawn hit did not reset Heat, reached %s."
 			% direction_shield_board.score_manager.combo_counter
 		)
 		return

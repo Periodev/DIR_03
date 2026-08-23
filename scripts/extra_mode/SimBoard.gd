@@ -21,9 +21,9 @@ const COLS := 5
 const ROWS := 5
 const SPAWN_CYCLE_STEPS := 2
 const SPAWNS_PER_CYCLE := 2
-const THREE_SPAWN_TURN_THRESHOLD := 100
-const FOUR_SPAWN_TURN_THRESHOLD := 200
-const FIVE_SPAWN_TURN_THRESHOLD := 300
+const DELAYED_SPAWN_SCORE_THRESHOLD := 10000
+const DELAYED_SPAWN_MAX_PER_CYCLE := 2
+const DELAYED_SPAWN_COUNTDOWN := 2
 const OPENING_GRACE_TURNS := 1
 const ENERGY_MAX := 16
 const ENERGY_SLOT_COST := 4
@@ -50,12 +50,15 @@ var queue: Array = []  # Array[int] of CharacterData.Direction, oldest first
 var energy: int = 0
 var combo: int = 0
 var score: int = 0
+var run_score: int = 0
 var max_combo: int = 0
 var tier5_streak: int = 0
 var defeats: int = 0
 var cycle_counter: int = 0
 var cycle_resolved: bool = false
 var candidates: Array = []  # Array[Vector2i]
+var delayed_candidates: Array = []  # Array[Vector2i]
+var delayed_spawn_countdown: int = 0
 var opening_grace: int = OPENING_GRACE_TURNS
 var bonus_step_armed: bool = false
 var ult_remaining: int = 0
@@ -71,11 +74,14 @@ func duplicate_state() -> DIRExtraSimBoard:
 	copy.energy = energy
 	copy.combo = combo
 	copy.score = score
+	copy.run_score = run_score
 	copy.max_combo = max_combo
 	copy.defeats = defeats
 	copy.cycle_counter = cycle_counter
 	copy.cycle_resolved = cycle_resolved
 	copy.candidates = candidates.duplicate()
+	copy.delayed_candidates = delayed_candidates.duplicate()
+	copy.delayed_spawn_countdown = delayed_spawn_countdown
 	copy.opening_grace = opening_grace
 	copy.bonus_step_armed = bonus_step_armed
 	copy.ult_remaining = ult_remaining
@@ -95,15 +101,19 @@ static func from_board(board: Node) -> DIRExtraSimBoard:
 	sim.energy = board.get_energy_quarter_units()
 	sim.combo = board.score_manager.combo_counter
 	sim.score = 0  # rollouts score their own delta, not the real running total
+	sim.run_score = board.score_manager.score
 	sim.max_combo = sim.combo
 	sim.cycle_counter = board.cycle_counter
 	sim.cycle_resolved = board.cycle_resolved
 	sim.candidates = (board.candidate_cells as Array).duplicate()
+	sim.delayed_candidates = (board.delayed_candidate_cells as Array).duplicate()
+	sim.delayed_spawn_countdown = board.delayed_spawn_countdown
 	sim.opening_grace = board._opening_grace_turns_remaining
 	sim.bonus_step_armed = board.bonus_step_armed
 	sim.ult_remaining = board.get_ultimate_dashes_remaining()
 	sim.ult_chain_started = false
 	sim.tier5_streak = board.score_manager.tier5_streak
+	sim.survival_turns = board.survival_turns
 	return sim
 
 static func energy_gain_for_combo(c: int) -> int:
@@ -180,11 +190,12 @@ func on_kill() -> int:
 func will_spawn_hit(target: Vector2i) -> bool:
 	if opening_grace > 0:
 		return false
-	if cycle_resolved:
-		return false
-	if cycle_counter + 1 < SPAWN_CYCLE_STEPS:
-		return false
-	return target in candidates
+	var regular_spawn_due: bool = not cycle_resolved \
+			and cycle_counter + 1 >= SPAWN_CYCLE_STEPS \
+			and target in candidates
+	var delayed_spawn_due: bool = delayed_spawn_countdown == 1 \
+			and target in delayed_candidates
+	return regular_spawn_due or delayed_spawn_due
 
 func charge_energy(c: int) -> void:
 	energy = mini(energy + energy_gain_for_kill(c, tier5_streak), ENERGY_MAX)
@@ -220,17 +231,13 @@ func try_move(d: int, rng: RandomNumberGenerator) -> bool:
 	if grid[target.y][target.x] == LIVE:
 		return _complete_live_move(d, target, is_bonus, rng)
 	if is_bonus:
-		if not has_attack_direction(d):
-			return false
-	elif not consume_attack_direction(d):
 		return false
-	_kill_flow(target, is_bonus)
+	if not consume_attack_direction(d):
+		return false
+	_kill_flow(target, false)
 	var killed: bool = grid[target.y][target.x] == LIVE
 	if killed:
 		player = target
-	if is_bonus:
-		bonus_step_armed = false
-		return _finalize_turn(true, false, rng)
 	return _finalize_turn(false, true, rng)
 
 func _complete_live_move(d: int, target: Vector2i, is_bonus: bool, rng: RandomNumberGenerator) -> bool:
@@ -350,18 +357,25 @@ func _start_new_cycle(rng: RandomNumberGenerator) -> void:
 		var tmp = available[i]
 		available[i] = available[j]
 		available[j] = tmp
-	candidates = available.slice(0, mini(get_spawns_per_cycle(), available.size()))
+	var regular_count: int = mini(get_spawns_per_cycle(), available.size())
+	candidates = available.slice(0, regular_count)
+	if run_score + score >= DELAYED_SPAWN_SCORE_THRESHOLD:
+		var delayed_count: int = mini(
+			rng.randi_range(0, DELAYED_SPAWN_MAX_PER_CYCLE),
+			available.size() - regular_count
+		)
+		delayed_candidates = available.slice(
+			regular_count,
+			regular_count + delayed_count
+		)
+		if delayed_count > 0:
+			delayed_spawn_countdown = DELAYED_SPAWN_COUNTDOWN
 
 func get_spawns_per_cycle() -> int:
-	if survival_turns >= FIVE_SPAWN_TURN_THRESHOLD:
-		return 5
-	if survival_turns >= FOUR_SPAWN_TURN_THRESHOLD:
-		return 4
-	if survival_turns >= THREE_SPAWN_TURN_THRESHOLD:
-		return 3
 	return SPAWNS_PER_CYCLE
 
 func _advance_cycle(rng: RandomNumberGenerator) -> void:
+	_advance_delayed_candidates()
 	cycle_counter += 1
 	if cycle_resolved:
 		if cycle_counter >= SPAWN_CYCLE_STEPS:
@@ -381,6 +395,18 @@ func _advance_cycle(rng: RandomNumberGenerator) -> void:
 		candidates = []
 		cycle_counter = 0
 		cycle_resolved = false
+
+func _advance_delayed_candidates() -> void:
+	if delayed_candidates.is_empty():
+		delayed_spawn_countdown = 0
+		return
+	delayed_spawn_countdown -= 1
+	if delayed_spawn_countdown > 0:
+		return
+	for pos in delayed_candidates:
+		_apply_candidate_spawn(pos)
+	delayed_candidates = []
+	delayed_spawn_countdown = 0
 
 func _apply_candidate_spawn(pos: Vector2i) -> void:
 	if grid[pos.y][pos.x] != LIVE:

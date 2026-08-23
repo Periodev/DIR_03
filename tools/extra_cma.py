@@ -50,9 +50,9 @@ COLS = 5
 ROWS = 5
 SPAWN_CYCLE_STEPS = 2
 SPAWNS_PER_CYCLE = 2
-THREE_SPAWN_TURN_THRESHOLD = 100
-FOUR_SPAWN_TURN_THRESHOLD = 200
-FIVE_SPAWN_TURN_THRESHOLD = 300
+DELAYED_SPAWN_SCORE_THRESHOLD = 10_000
+DELAYED_SPAWN_MAX_PER_CYCLE = 2
+DELAYED_SPAWN_COUNTDOWN = 2
 OPENING_GRACE_TURNS = 1
 ENERGY_MAX = 16
 ENERGY_SLOT_COST = 4
@@ -123,6 +123,8 @@ class Board:
         self.cycle_counter = 0
         self.cycle_resolved = False
         self.candidates: list[tuple[int, int]] = []
+        self.delayed_candidates: list[tuple[int, int]] = []
+        self.delayed_spawn_countdown = 0
         self.opening_grace = OPENING_GRACE_TURNS
         self.bonus_step_armed = False
         self.ult_remaining = 0
@@ -183,11 +185,16 @@ class Board:
     def will_spawn_hit(self, target: tuple[int, int]) -> bool:
         if self.opening_grace > 0:
             return False
-        if self.cycle_resolved:
-            return False
-        if self.cycle_counter + 1 < SPAWN_CYCLE_STEPS:
-            return False
-        return target in self.candidates
+        regular_spawn_due = (
+            not self.cycle_resolved
+            and self.cycle_counter + 1 >= SPAWN_CYCLE_STEPS
+            and target in self.candidates
+        )
+        delayed_spawn_due = (
+            self.delayed_spawn_countdown == 1
+            and target in self.delayed_candidates
+        )
+        return regular_spawn_due or delayed_spawn_due
 
     def charge_energy(self, combo: int) -> None:
         self.energy = min(
@@ -228,19 +235,13 @@ class Board:
         if self.grid[ty][tx] == LIVE:
             return self._complete_live_move(d, target, is_bonus)
         if is_bonus:
-            if not self.has_attack_direction(d):
-                return False
-        elif not self.consume_attack_direction(d):
             return False
-        origin = self.player
-        bonus_kill_active = is_bonus
-        self._kill_flow(target, energy_sterile=bonus_kill_active)
+        if not self.consume_attack_direction(d):
+            return False
+        self._kill_flow(target, energy_sterile=False)
         killed = self.grid[ty][tx] == LIVE
         if killed:
             self.player = target
-        if is_bonus:
-            self.bonus_step_armed = False
-            return self._finalize_turn(freeze=True, count_turn=False)
         return self._finalize_turn(freeze=False, count_turn=True)
 
     def _complete_live_move(
@@ -357,18 +358,24 @@ class Board:
             (x, y) for y in range(ROWS) for x in range(COLS) if self.grid[y][x] == LIVE
         ]
         self.rng.shuffle(available)
-        self.candidates = available[: self.spawns_per_cycle()]
+        regular_count = min(self.spawns_per_cycle(), len(available))
+        self.candidates = available[:regular_count]
+        if self.score >= DELAYED_SPAWN_SCORE_THRESHOLD:
+            delayed_count = min(
+                self.rng.randint(0, DELAYED_SPAWN_MAX_PER_CYCLE),
+                len(available) - regular_count,
+            )
+            self.delayed_candidates = available[
+                regular_count : regular_count + delayed_count
+            ]
+            if delayed_count > 0:
+                self.delayed_spawn_countdown = DELAYED_SPAWN_COUNTDOWN
 
     def spawns_per_cycle(self) -> int:
-        if self.survival_turns >= FIVE_SPAWN_TURN_THRESHOLD:
-            return 5
-        if self.survival_turns >= FOUR_SPAWN_TURN_THRESHOLD:
-            return 4
-        if self.survival_turns >= THREE_SPAWN_TURN_THRESHOLD:
-            return 3
         return SPAWNS_PER_CYCLE
 
     def _advance_cycle(self) -> None:
+        self._advance_delayed_candidates()
         self.cycle_counter += 1
         if self.cycle_resolved:
             if self.cycle_counter >= SPAWN_CYCLE_STEPS:
@@ -386,6 +393,18 @@ class Board:
             self.candidates = []
             self.cycle_counter = 0
             self.cycle_resolved = False
+
+    def _advance_delayed_candidates(self) -> None:
+        if not self.delayed_candidates:
+            self.delayed_spawn_countdown = 0
+            return
+        self.delayed_spawn_countdown -= 1
+        if self.delayed_spawn_countdown > 0:
+            return
+        for pos in self.delayed_candidates:
+            self._apply_candidate_spawn(pos)
+        self.delayed_candidates = []
+        self.delayed_spawn_countdown = 0
 
     def _apply_candidate_spawn(self, pos: tuple[int, int]) -> None:
         x, y = pos
@@ -505,7 +524,7 @@ class StructuredPolicy:
 
         attacks = self._attack_directions(b)
         if b.bonus_step_armed:
-            d = self._best_normal_direction(b, preserve_combo=True)
+            d = self._best_bonus_step_direction(b)
             return (ACTION_MOVE, d) if d else (ACTION_NONE, 0)
 
         combo = b.combo
@@ -585,6 +604,17 @@ class StructuredPolicy:
                 best_s, best_d = s, d
         return best_d
 
+    def _best_bonus_step_direction(self, b: Board) -> int:
+        best_d, best_s = 0, -1e18
+        for d in DIRS:
+            t = b.neighbour(b.player, d)
+            if t is None or b.grid[t[1]][t[0]] != LIVE:
+                continue
+            s = self._direction_plan_score(b, d, preserve_combo=True)
+            if s > best_s:
+                best_s, best_d = s, d
+        return best_d
+
     # -- lookahead ------------------------------------------------------
     def _combo_payout(self, combo: int) -> float:
         return float(COMBO_SCORE_MULTIPLIERS[combo_tier(combo) - 1])
@@ -624,11 +654,12 @@ class StructuredPolicy:
                 reward -= self._combo_break_penalty(combo)
                 combo = max(0, combo - 1)
         else:
+            if preserve_combo:
+                return -1e18
             if direction not in queue:
                 return -1e18
-            if not preserve_combo:
-                queue.remove(direction)
-                energy = self._charged_energy(energy, min(combo + 1, MAX_COMBO_TIER))
+            queue.remove(direction)
+            energy = self._charged_energy(energy, min(combo + 1, MAX_COMBO_TIER))
             grid[ty][tx] = LIVE
             combo = min(combo + 1, MAX_COMBO_TIER)
             reward += self._combo_kill_value(combo)
@@ -643,7 +674,7 @@ class StructuredPolicy:
                 reward -= self.w.direction_shield_spend_penalty
             elif kind == -1:
                 reward -= self.w.spawn_hit_death_penalty
-            if target in b.candidates and kind == 0:
+            if b.will_spawn_hit(target) and kind == 0:
                 reward -= 260.0
         return reward + self.w.lookahead_discount * self._lookahead(
             b, target, grid, queue, combo, energy, self.depth - 1
@@ -895,7 +926,7 @@ class UnifiedPolicy(StructuredPolicy):
             d = self._best_ultimate_direction(b)
             return (ACTION_MOVE, d) if d else (ACTION_NONE, 0)
         if b.bonus_step_armed:
-            d = self._best_normal_direction(b, preserve_combo=True)
+            d = self._best_bonus_step_direction(b)
             return (ACTION_MOVE, d) if d else (ACTION_NONE, 0)
 
         candidates: list[tuple[float, int, int]] = []
@@ -946,7 +977,7 @@ class UnifiedPolicy(StructuredPolicy):
             if t is None:
                 continue
             tx, ty = t
-            if b.grid[ty][tx] != LIVE and d not in b.queue:
+            if b.grid[ty][tx] != LIVE:
                 continue
             s = self._direction_plan_score(b, d, preserve_combo=True)
             best = max(best, s)

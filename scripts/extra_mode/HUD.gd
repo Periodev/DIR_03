@@ -1,6 +1,7 @@
 extends CanvasLayer
 
 const HeatMeterScript = preload("res://scripts/extra_mode/HeatMeter.gd")
+const HelpPanelScript = preload("res://scripts/extra_mode/HelpPanel.gd")
 
 const ENERGY_GAIN_COLOR := Color("#2FD9A0")
 const SCORE_BONUS_COLOR := Color("#FFD75E")
@@ -14,13 +15,24 @@ const DIRECTION_EMPTY_COLOR := Color("#4A5058")
 const DASH_AVAILABLE_COLOR := Color("#DFFFE9")
 const SIDEBAR_MARGIN := 20.0
 const SIDEBAR_WIDTH := 320.0
-const TURN_ROW_TOP := 112.0
-const AI_STATUS_TOP := 142.0
-const STATUS_PANEL_TOP := 188.0
-const STATUS_PANEL_HEIGHT := 176.0
-const ENERGY_ROW_CONTENT_WIDTH := 162.0
+const NAV_ROW_TOP := 12.0
+const NAV_ROW_WIDTH := 520.0
+const STATUS_GROUP_TOP := 94.0
+const STATUS_GROUP_HEIGHT := 322.0
+const STATUS_CONTENT_LEFT := 34.0
+const HEAT_METER_LEFT := 98.0
+const HEAT_VALUE_LEFT := 254.0
+const SCORE_ROW_TOP := 108.0
+const HEAT_ROW_TOP := 174.0
+const STATUS_PANEL_TOP := 214.0
+const STATUS_PANEL_HEIGHT := 190.0
+const BOTTOM_INFO_MARGIN := 18.0
+const BOTTOM_INFO_ROW_HEIGHT := 28.0
+const ENERGY_ROW_CONTENT_WIDTH := 205.0
 const ENERGY_GAIN_WIDTH := 44.0
 
+var nav_label: Label
+var status_group_panel: PanelContainer
 var score_label: Label
 var score_bonus_label: Label
 var score_bonus_timer: Timer
@@ -30,7 +42,7 @@ var heat_value_label: Label
 var turn_label: Label
 var energy_gain_label: Label
 var inventory_container: HBoxContainer
-var inventory_panel: PanelContainer
+var inventory_panel: MarginContainer
 var energy_container: HBoxContainer
 var hold_container: HBoxContainer
 var hold_label: Label
@@ -42,6 +54,7 @@ var gameover_score: Label
 var gameover_max_streak: Label
 var message_label: Label
 var ai_status_label: Label
+var help_panel: PanelContainer
 
 var slot_labels: Array = []
 var energy_slots: Array[DIRExtraEnergySlot] = []
@@ -53,12 +66,29 @@ var _slot_flash_tweens: Array[Tween] = []
 var _energy_flash_tweens: Array[Tween] = []
 
 func _ready() -> void:
+	nav_label = Label.new()
+	nav_label.text = "[ESC] TITLE   [F1] HELP   [R] RESTART"
+	nav_label.add_theme_font_size_override("font_size", 22)
+	nav_label.add_theme_color_override("font_color", Color(0.72, 0.74, 0.78))
+	nav_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	add_child(nav_label)
+
+	status_group_panel = PanelContainer.new()
+	status_group_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var status_group_style := StyleBoxFlat.new()
+	status_group_style.bg_color = Color("#10151A")
+	status_group_style.border_color = Color("#24755E")
+	status_group_style.set_border_width_all(2)
+	status_group_style.set_corner_radius_all(4)
+	status_group_panel.add_theme_stylebox_override("panel", status_group_style)
+	add_child(status_group_panel)
+
 	# Score and heat - top left
 	score_label = Label.new()
 	score_label.text = "0"
 	score_label.add_theme_font_size_override("font_size", 56)
 	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	score_label.position = Vector2(20, 8)
+	score_label.position = Vector2(STATUS_CONTENT_LEFT, SCORE_ROW_TOP)
 	score_label.size = Vector2(280, 64)
 	add_child(score_label)
 
@@ -82,12 +112,12 @@ func _ready() -> void:
 	combo_label.text = "HEAT"
 	combo_label.add_theme_font_size_override("font_size", 22)
 	combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	combo_label.position = Vector2(20, 72)
+	combo_label.position = Vector2(STATUS_CONTENT_LEFT, HEAT_ROW_TOP)
 	combo_label.size = Vector2(66, 30)
 	add_child(combo_label)
 
 	heat_meter = HeatMeterScript.new()
-	heat_meter.position = Vector2(84, 78)
+	heat_meter.position = Vector2(HEAT_METER_LEFT, HEAT_ROW_TOP + 6.0)
 	heat_meter.size = Vector2(166, 18)
 	add_child(heat_meter)
 
@@ -95,7 +125,7 @@ func _ready() -> void:
 	heat_value_label.text = "0"
 	heat_value_label.add_theme_font_size_override("font_size", 14)
 	heat_value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	heat_value_label.position = Vector2(240, 76)
+	heat_value_label.position = Vector2(HEAT_VALUE_LEFT, HEAT_ROW_TOP + 4.0)
 	heat_value_label.size = Vector2(80, 22)
 	add_child(heat_value_label)
 
@@ -104,12 +134,12 @@ func _ready() -> void:
 	turn_label.add_theme_font_size_override("font_size", 20)
 	turn_label.add_theme_color_override("font_color", Color(0.68, 0.70, 0.74))
 	turn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	turn_label.position = Vector2(SIDEBAR_MARGIN, TURN_ROW_TOP)
+	turn_label.position = Vector2(SIDEBAR_MARGIN, 0)
 	turn_label.size = Vector2(SIDEBAR_WIDTH, 28)
 	add_child(turn_label)
 
 	# Three-row status panel in the left sidebar.
-	inventory_panel = PanelContainer.new()
+	inventory_panel = MarginContainer.new()
 	inventory_panel.position = Vector2(SIDEBAR_MARGIN, STATUS_PANEL_TOP)
 	inventory_panel.size = Vector2(SIDEBAR_WIDTH, STATUS_PANEL_HEIGHT)
 	add_child(inventory_panel)
@@ -146,10 +176,10 @@ func _ready() -> void:
 	energy_row.add_theme_constant_override("separation", 6)
 	status_vbox.add_child(energy_row)
 
-	var q_label = Label.new()
-	q_label.text = "DIR"
-	q_label.add_theme_font_size_override("font_size", 20)
-	energy_row.add_child(q_label)
+	var energy_label := Label.new()
+	energy_label.text = "ENERGY"
+	energy_label.add_theme_font_size_override("font_size", 20)
+	energy_row.add_child(energy_label)
 
 	energy_container = HBoxContainer.new()
 	energy_container.add_theme_constant_override("separation", 2)
@@ -160,7 +190,7 @@ func _ready() -> void:
 		energy_slots.append(energy_slot)
 
 	# Last resolved energy gain. This lives outside the HBox so changing or
-	# hiding it never shifts the DIR label and its four energy slots.
+	# hiding it never shifts the ENERGY label and its four energy slots.
 	energy_gain_label = Label.new()
 	energy_gain_label.text = ""
 	energy_gain_label.add_theme_font_size_override("font_size", 20)
@@ -176,6 +206,11 @@ func _ready() -> void:
 	direction_row.add_theme_constant_override("separation", 6)
 	status_vbox.add_child(direction_row)
 	status_vbox.add_child(action_row)
+
+	var direction_label := Label.new()
+	direction_label.text = "DIR"
+	direction_label.add_theme_font_size_override("font_size", 20)
+	direction_row.add_child(direction_label)
 
 	inventory_container = HBoxContainer.new()
 	inventory_container.add_theme_constant_override("separation", 4)
@@ -200,7 +235,10 @@ func _ready() -> void:
 	message_label.text = "WASD: Move | Space: Wait | R: Restart"
 	message_label.add_theme_font_size_override("font_size", 14)
 	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	message_label.position = Vector2(SIDEBAR_MARGIN, STATUS_PANEL_TOP + STATUS_PANEL_HEIGHT + 10.0)
+	message_label.position = Vector2(
+		SIDEBAR_MARGIN,
+		STATUS_GROUP_TOP + STATUS_GROUP_HEIGHT + 10.0
+	)
 	message_label.size = Vector2(SIDEBAR_WIDTH, 30)
 	message_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 	add_child(message_label)
@@ -248,6 +286,9 @@ func _ready() -> void:
 	restart_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(restart_hint)
 
+	help_panel = HelpPanelScript.new()
+	add_child(help_panel)
+
 	get_viewport().size_changed.connect(_layout_ui)
 	_layout_ui()
 
@@ -288,6 +329,13 @@ func setup(char_name: String) -> void:
 		hold_label.text = "HOLD "
 
 	gameover_panel.visible = false
+	help_panel.visible = false
+
+func toggle_help() -> void:
+	help_panel.visible = not help_panel.visible
+
+func is_help_visible() -> bool:
+	return help_panel.visible
 
 func update_inventory(inv: Inventory) -> void:
 	var expiring_count := 0
@@ -453,16 +501,23 @@ func show_game_over(final_score: int, max_tier5_streak: int) -> void:
 func _layout_ui() -> void:
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
 	var sidebar_width: float = min(SIDEBAR_WIDTH, viewport_size.x - SIDEBAR_MARGIN * 2.0)
-	score_label.position = Vector2(20, 8)
+	nav_label.position = Vector2(SIDEBAR_MARGIN, NAV_ROW_TOP)
+	nav_label.size = Vector2(NAV_ROW_WIDTH, 32)
+	status_group_panel.position = Vector2(SIDEBAR_MARGIN, STATUS_GROUP_TOP)
+	status_group_panel.size = Vector2(sidebar_width, STATUS_GROUP_HEIGHT)
+	score_label.position = Vector2(STATUS_CONTENT_LEFT, SCORE_ROW_TOP)
 	score_label.size = Vector2(280, 64)
 
-	combo_label.position = Vector2(20, 72)
+	combo_label.position = Vector2(STATUS_CONTENT_LEFT, HEAT_ROW_TOP)
 	combo_label.size = Vector2(66, 30)
-	heat_meter.position = Vector2(84, 78)
+	heat_meter.position = Vector2(HEAT_METER_LEFT, HEAT_ROW_TOP + 6.0)
 	heat_meter.size = Vector2(166, 18)
-	heat_value_label.position = Vector2(240, 76)
+	heat_value_label.position = Vector2(HEAT_VALUE_LEFT, HEAT_ROW_TOP + 4.0)
 	heat_value_label.size = Vector2(80, 22)
-	turn_label.position = Vector2(SIDEBAR_MARGIN, TURN_ROW_TOP)
+	turn_label.position = Vector2(
+		SIDEBAR_MARGIN,
+		viewport_size.y - BOTTOM_INFO_MARGIN - BOTTOM_INFO_ROW_HEIGHT * 2.0
+	)
 	turn_label.size = Vector2(sidebar_width, 28)
 
 	inventory_panel.position = Vector2(SIDEBAR_MARGIN, STATUS_PANEL_TOP)
@@ -473,14 +528,29 @@ func _layout_ui() -> void:
 	)
 	energy_gain_label.size = Vector2(ENERGY_GAIN_WIDTH, 36.0)
 
-	message_label.position = Vector2(SIDEBAR_MARGIN, STATUS_PANEL_TOP + STATUS_PANEL_HEIGHT + 10.0)
+	message_label.position = Vector2(
+		SIDEBAR_MARGIN,
+		STATUS_GROUP_TOP + STATUS_GROUP_HEIGHT + 10.0
+	)
 	message_label.size = Vector2(sidebar_width, 30)
 
-	ai_status_label.position = Vector2(SIDEBAR_MARGIN, AI_STATUS_TOP)
+	ai_status_label.position = Vector2(
+		SIDEBAR_MARGIN,
+		viewport_size.y - BOTTOM_INFO_MARGIN - BOTTOM_INFO_ROW_HEIGHT
+	)
 	ai_status_label.size = Vector2(150, 30)
 	ai_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 	gameover_panel.position = Vector2(
 		(viewport_size.x - gameover_panel.size.x) * 0.5,
 		(viewport_size.y - gameover_panel.size.y) * 0.5
+	)
+	# The help page sizes itself from its own content, which can be taller than
+	# the size field still reports when this runs; centring on the combined
+	# minimum instead keeps it from hanging off the bottom of the screen.
+	var help_size: Vector2 = help_panel.get_combined_minimum_size()
+	help_panel.size = help_size
+	help_panel.position = Vector2(
+		(viewport_size.x - help_size.x) * 0.5,
+		(viewport_size.y - help_size.y) * 0.5
 	)
