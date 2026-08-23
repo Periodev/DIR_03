@@ -871,6 +871,13 @@ func play_completion_feedback() -> void:
 		board_view.play_completion_feedback()
 
 
+func finish_completion_presentation() -> void:
+	if game_hud != null and game_hud.has_method(
+		"finish_completion_presentation"
+	):
+		game_hud.finish_completion_presentation()
+
+
 func play_completion_sound_feedback() -> void:
 	if audio_feedback != null:
 		audio_feedback.play_completion()

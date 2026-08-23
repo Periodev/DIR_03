@@ -46,6 +46,8 @@ const CONTROL_HINT_SPACE_ICON_BASE_SIZE := Vector2(
 const CONTROL_HINT_SPACE_SOURCE_RECT := VisualStyle.SPACE_KEY_SOURCE_RECT
 const CONTROL_HINT_GROUP_SEPARATION := 44
 const CONTROL_HINT_INACTIVE_ALPHA := 0.35
+const FINAL_LEVEL_ID := "3-12"
+const FINAL_MESSAGE_FONT_SIZE := 28
 
 var game_board
 var board_view
@@ -59,11 +61,14 @@ var mono_label_font: Font
 
 var root_panel: PanelContainer
 var board_host: CenterContainer
+var goals_title: Label
 var goals_value: Label
 var direction_hint: HBoxContainer
 var install_hint: HBoxContainer
 var release_hint: HBoxContainer
 var continue_hint: HBoxContainer
+var final_completion_message: Label
+var final_completion_revealed := false
 
 var label_tone_labels: Array[Label] = []
 var text_tone_labels: Array[Label] = []
@@ -247,17 +252,26 @@ func build_goal_group() -> HBoxContainer:
 	group.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	group.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	var title := make_header_label(
+	goals_title = make_header_label(
 		"GOAL",
 		HEADER_GOAL_LABEL_FONT_SIZE,
 		mono_label_font
 	)
-	label_tone_labels.append(title)
-	group.add_child(title)
+	label_tone_labels.append(goals_title)
+	group.add_child(goals_title)
 
 	goals_value = make_header_label("0", HEADER_GOAL_VALUE_FONT_SIZE, mono_font)
 	high_tone_labels.append(goals_value)
 	group.add_child(goals_value)
+
+	final_completion_message = make_header_label(
+		"THANK YOU FOR PLAYING",
+		FINAL_MESSAGE_FONT_SIZE,
+		ui_font
+	)
+	final_completion_message.visible = false
+	high_tone_labels.append(final_completion_message)
+	group.add_child(final_completion_message)
 	return group
 
 
@@ -461,6 +475,7 @@ func refresh() -> void:
 		return
 	fit_board_to_viewport()
 	refresh_control_hints()
+	refresh_final_completion_message()
 
 	var filled_goals := 0
 	for goal_cell in game_board.goal_cells:
@@ -471,6 +486,31 @@ func refresh() -> void:
 		"font_color",
 		Color.WHITE if game_board.level_completed else palette["text_hi"]
 	)
+
+
+func finish_completion_presentation() -> void:
+	if (
+		Campaign.active_level_id != FINAL_LEVEL_ID
+		or not game_board.level_completed
+	):
+		return
+	final_completion_revealed = true
+	refresh_final_completion_message()
+
+
+func refresh_final_completion_message() -> void:
+	if final_completion_message == null:
+		return
+	if not game_board.level_completed:
+		final_completion_revealed = false
+	var show_message: bool = (
+		final_completion_revealed
+		and Campaign.active_level_id == FINAL_LEVEL_ID
+		and game_board.level_completed
+	)
+	goals_title.visible = not show_message
+	goals_value.visible = not show_message
+	final_completion_message.visible = show_message
 
 
 func fit_board_to_viewport() -> void:

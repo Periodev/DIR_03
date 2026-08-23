@@ -186,6 +186,10 @@ func finish_completion_pulse() -> void:
 
 func finish_completion_feedback() -> void:
 	completion_pulse_tween = null
+	if game_board != null and game_board.has_method(
+		"finish_completion_presentation"
+	):
+		game_board.finish_completion_presentation()
 
 
 func play_player_hint_flash(cell: Vector2i) -> void:
