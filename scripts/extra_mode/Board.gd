@@ -904,14 +904,14 @@ func _refresh_visuals() -> void:
 			cell.set_type(grid[r][c])
 			cell.set_candidate(0)
 
-	# Regular warnings resolve next turn; delayed warnings begin dim and become
-	# equally urgent only on their final remaining turn.
+	# Every visible warning resolves on the next normal turn. Delayed candidates
+	# stay hidden until their final remaining turn, so warning color has one meaning.
 	if cycle_counter >= 1:
 		for pos: Vector2i in candidate_cells:
 			cell_nodes[pos.y][pos.x].set_candidate(2)
-	for pos: Vector2i in delayed_candidate_cells:
-		var delayed_phase: int = 1 if delayed_spawn_countdown >= 2 else 2
-		cell_nodes[pos.y][pos.x].set_candidate(delayed_phase)
+	if delayed_spawn_countdown == 1:
+		for pos: Vector2i in delayed_candidate_cells:
+			cell_nodes[pos.y][pos.x].set_candidate(2)
 
 	_refresh_attack_prompts()
 

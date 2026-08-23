@@ -48,8 +48,6 @@ func _build() -> void:
 	root.add_theme_constant_override("separation", 6)
 	add_child(root)
 
-	root.add_child(_text("HELP", 26, BODY_COLOR))
-
 	# F1, R and ESC are on the permanent nav row above this panel, so repeating
 	# them here would spend the page on keys the player can already see. Only
 	# the two turn actions with no on-screen prompt are listed; X and Z are
@@ -84,8 +82,8 @@ func _build() -> void:
 	))
 	root.add_child(_loop_row(
 		Glyph.KIND_WARNING,
-		"Watch the red corners",
-		"Bright corners spawn after the next normal turn; dim corners brighten first.\n"
+		"Enemy spawn warning",
+		"A cell marked by red corners spawns an enemy after the next normal turn.\n"
 		+ "A hit spends 1 full ENERGY slot; without one, it needs 2 DIR.\n"
 		+ "Fewer than 2 DIR or no legal action means GAME OVER."
 	))
@@ -116,7 +114,7 @@ func _section(parent: Node, heading: String) -> void:
 	# back its own separation instead of widening the gap between every row.
 	var pad := MarginContainer.new()
 	pad.add_theme_constant_override("margin_top", 8)
-	pad.add_child(_text(heading, 17, HEADING_COLOR))
+	pad.add_child(_text(heading, 20, HEADING_COLOR))
 	parent.add_child(pad)
 
 func _key_column(rows: Array) -> VBoxContainer:
