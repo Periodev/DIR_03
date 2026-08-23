@@ -1,5 +1,7 @@
 extends CanvasLayer
 
+signal nav_action_requested(action: StringName)
+
 const HeatMeterScript = preload("res://scripts/extra_mode/HeatMeter.gd")
 const HelpPanelScript = preload("res://scripts/extra_mode/HelpPanel.gd")
 
@@ -15,6 +17,9 @@ const DIRECTION_EMPTY_COLOR := Color("#4A5058")
 const DASH_AVAILABLE_COLOR := Color("#DFFFE9")
 const NAV_KEY_COLOR := Color("#6E7A85")
 const NAV_ACTION_COLOR := Color(0.86, 0.88, 0.91)
+const NAV_COMMAND_TITLE := &"title"
+const NAV_COMMAND_HELP := &"help"
+const NAV_COMMAND_RESTART := &"restart"
 const SIDEBAR_MARGIN := 20.0
 const SIDEBAR_WIDTH := 320.0
 const NAV_ROW_TOP := 12.0
@@ -34,6 +39,7 @@ const ENERGY_ROW_CONTENT_WIDTH := 205.0
 const ENERGY_GAIN_WIDTH := 44.0
 
 var nav_row: HBoxContainer
+var nav_action_labels: Dictionary = {}
 var status_group_panel: PanelContainer
 var score_label: Label
 var score_bonus_label: Label
@@ -74,8 +80,16 @@ func _ready() -> void:
 	nav_row = HBoxContainer.new()
 	nav_row.add_theme_constant_override("separation", 30)
 	add_child(nav_row)
-	for entry in [["ESC", "TITLE"], ["F1", "HELP"], ["R", "RESTART"]]:
-		nav_row.add_child(_nav_entry(String(entry[0]), String(entry[1])))
+	for entry in [
+		["ESC", "TITLE", NAV_COMMAND_TITLE],
+		["F1", "HELP", NAV_COMMAND_HELP],
+		["R", "RESTART", NAV_COMMAND_RESTART],
+	]:
+		nav_row.add_child(_nav_entry(
+			String(entry[0]),
+			String(entry[1]),
+			StringName(entry[2]),
+		))
 
 	status_group_panel = PanelContainer.new()
 	status_group_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -333,10 +347,16 @@ func setup(char_name: String) -> void:
 		hold_label.text = "HOLD "
 
 	gameover_panel.visible = false
-	help_panel.visible = false
+	_set_help_visible(false)
 
 func toggle_help() -> void:
-	help_panel.visible = not help_panel.visible
+	_set_help_visible(not help_panel.visible)
+
+func _set_help_visible(show_help: bool) -> void:
+	help_panel.visible = show_help
+	var help_action: Label = nav_action_labels.get(NAV_COMMAND_HELP)
+	if help_action != null:
+		help_action.text = "BACK" if show_help else "HELP"
 
 func is_help_visible() -> bool:
 	return help_panel.visible
@@ -494,21 +514,43 @@ func _cancel_energy_flashes() -> void:
 	for slot in energy_slots:
 		slot.modulate = Color.WHITE
 
-func _nav_entry(key: String, action: String) -> HBoxContainer:
+func _nav_entry(key: String, action: String, command: StringName) -> HBoxContainer:
 	var entry := HBoxContainer.new()
 	entry.add_theme_constant_override("separation", 8)
+	entry.custom_minimum_size.y = 32.0
+	entry.mouse_filter = Control.MOUSE_FILTER_STOP
+	entry.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	var key_label := Label.new()
 	key_label.text = "[%s]" % key
 	key_label.add_theme_font_size_override("font_size", 16)
 	key_label.add_theme_color_override("font_color", NAV_KEY_COLOR)
 	key_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	key_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	entry.add_child(key_label)
 	var action_label := Label.new()
 	action_label.text = action
 	action_label.add_theme_font_size_override("font_size", 22)
 	action_label.add_theme_color_override("font_color", NAV_ACTION_COLOR)
 	action_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	action_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	entry.add_child(action_label)
+	nav_action_labels[command] = action_label
+	entry.mouse_entered.connect(func() -> void:
+		key_label.add_theme_color_override("font_color", NAV_ACTION_COLOR)
+		action_label.add_theme_color_override("font_color", Color.WHITE)
+	)
+	entry.mouse_exited.connect(func() -> void:
+		key_label.add_theme_color_override("font_color", NAV_KEY_COLOR)
+		action_label.add_theme_color_override("font_color", NAV_ACTION_COLOR)
+	)
+	entry.gui_input.connect(func(event: InputEvent) -> void:
+		if not event is InputEventMouseButton:
+			return
+		var mouse_event: InputEventMouseButton = event
+		if mouse_event.pressed and mouse_event.button_index == MOUSE_BUTTON_LEFT:
+			nav_action_requested.emit(command)
+			entry.accept_event()
+	)
 	return entry
 
 func update_state(_state: int) -> void:

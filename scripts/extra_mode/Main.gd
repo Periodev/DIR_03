@@ -32,6 +32,7 @@ func _ready() -> void:
 	board.score_manager.score_changed.connect(hud.update_score)
 	board.score_manager.combo_changed.connect(hud.update_combo)
 	board.score_manager.bonus_scored.connect(hud.show_score_bonus)
+	hud.nav_action_requested.connect(_on_nav_action_requested)
 
 	_on_board_updated()
 	_update_ai_status_label()
@@ -89,6 +90,30 @@ func _update_ai_status_label() -> void:
 	else:
 		hud.update_ai_status("[F4] SEARCH  [F5] TUNED")
 
+func _return_to_title() -> void:
+	_buffered_move_direction = CharacterData.Direction.NONE
+	SceneTransition.transition_to(Campaign.TITLE_SCREEN_SCENE_PATH)
+
+func _toggle_help() -> void:
+	_buffered_move_direction = CharacterData.Direction.NONE
+	hud.toggle_help()
+
+func _restart_game() -> void:
+	_buffered_move_direction = CharacterData.Direction.NONE
+	board.restart()
+	hud.setup("PLN")
+	_on_board_updated()
+	_update_ai_status_label()
+
+func _on_nav_action_requested(action: StringName) -> void:
+	match action:
+		&"title":
+			_return_to_title()
+		&"help":
+			_toggle_help()
+		&"restart":
+			_restart_game()
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
@@ -97,19 +122,17 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if hud.is_help_visible():
 		if keycode in [KEY_ESCAPE, KEY_F1, KEY_SPACE]:
-			_buffered_move_direction = CharacterData.Direction.NONE
-			hud.toggle_help()
+			_toggle_help()
 		get_viewport().set_input_as_handled()
 		return
 
 	if keycode == KEY_ESCAPE:
-		SceneTransition.transition_to(Campaign.TITLE_SCREEN_SCENE_PATH)
+		_return_to_title()
 		get_viewport().set_input_as_handled()
 		return
 
 	if keycode == KEY_F1:
-		_buffered_move_direction = CharacterData.Direction.NONE
-		hud.toggle_help()
+		_toggle_help()
 		get_viewport().set_input_as_handled()
 		return
 
@@ -125,11 +148,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	# Restart
 	if keycode == KEY_R:
-		_buffered_move_direction = CharacterData.Direction.NONE
-		board.restart()
-		hud.setup("PLN")
-		_on_board_updated()
-		_update_ai_status_label()
+		_restart_game()
 		get_viewport().set_input_as_handled()
 		return
 
