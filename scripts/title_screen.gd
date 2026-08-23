@@ -131,10 +131,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			play_confirm_feedback()
 			play_config_action(leave_info)
 		return
-	if is_unlock_extra_key(event):
-		Campaign.unlock_all_levels()
-		queue_redraw()
-		return
 	if menu_mode == MenuMode.CONFIG:
 		handle_config_input(event)
 		return
@@ -537,23 +533,7 @@ func is_cancel_key(event: InputEvent) -> bool:
 	return key_event.pressed and key_event.keycode == KEY_ESCAPE
 
 
-func is_unlock_extra_key(event: InputEvent) -> bool:
-	if not event is InputEventKey:
-		return false
-	var key_event: InputEventKey = event
-	return key_event.pressed and not key_event.echo and key_event.keycode == KEY_F2
-
-
 func extra_unlocked() -> bool:
-	if Campaign.all_levels_unlocked:
-		return true
-	for area_value in Campaign.AREAS.values():
-		var area: Dictionary = area_value
-		var levels: Array = area["levels"]
-		for level_value in levels:
-			var level: Dictionary = level_value
-			if not Campaign.is_completed(String(level["id"])):
-				return false
 	return true
 
 
@@ -707,11 +687,18 @@ func draw_info_menu(menu_center: Vector2) -> void:
 
 func info_lines() -> Array[Dictionary]:
 	return [
-		{"text": "A PUZZLE ABOUT MOVING DIRECTIONS", "size": 20, "color": palette["text"]},
-		{"text": "BUILT WITH GODOT ENGINE", "size": 20, "color": palette["text_dim"]},
-		{"text": "USES KENNEY'S UI AND SOUND ASSETS", "size": 20, "color": palette["text_dim"]},
-		{"text": "ADDITIONAL SOUNDS FROM PIXABAY", "size": 20, "color": palette["text_dim"]},
-		{"text": "PROTOTYPE BUILD", "size": 20, "color": palette["text_dim"]},
+		{"text": "DIR", "size": 24, "color": palette["text_hi"]},
+		{"text": "A PUZZLE ABOUT MOVING DIRECTIONS.", "size": 18, "color": palette["text"]},
+		{"text": "DIRECTION IS A RESOURCE YOU CAN", "size": 18, "color": palette["text"]},
+		{"text": "CREATE, STORE, TRANSFER, AND RELEASE.", "size": 18, "color": palette["text"]},
+		{"text": "EXTRA / ARCADE", "size": 24, "color": palette["text_hi"]},
+		{"text": "AN EARLIER FORM OF DIR.", "size": 18, "color": palette["text"]},
+		{"text": "A SCORE-DRIVEN ARCADE EXPERIMENT", "size": 18, "color": palette["text"]},
+		{"text": "THAT EVOLVED ALONG A DIFFERENT PATH.", "size": 18, "color": palette["text"]},
+		{"text": "CREDITS", "size": 24, "color": palette["text_hi"]},
+		{"text": "BUILT WITH GODOT ENGINE.", "size": 16, "color": palette["text_dim"]},
+		{"text": "UI AND SOUND ASSETS BY KENNEY.", "size": 16, "color": palette["text_dim"]},
+		{"text": "ADDITIONAL SOUNDS FROM PIXABAY.", "size": 16, "color": palette["text_dim"]},
 	]
 
 func info_text_block_height(lines: Array[Dictionary]) -> float:
